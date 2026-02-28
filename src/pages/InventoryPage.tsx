@@ -28,13 +28,19 @@ interface InventoryPageProps {}
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
-const POLL_MS    = 30_000;
-const CATEGORIES = ['Sneakers', 'Slippers', 'Boots', 'Sandals', 'Accessories'];
+const POLL_MS     = 30_000;
+const PAGE_SIZE   = 50;
+const SEARCH_DEBOUNCE_MS = 300;
+const CATEGORIES  = ['Sneakers', 'Slippers', 'Boots', 'Sandals', 'Accessories'];
+/** Common colors for filter chips (admin + POS). Uncategorized = products with no color (after backfill). */
+const COLOR_OPTIONS = ['Black', 'White', 'Red', 'Blue', 'Brown', 'Green', 'Grey', 'Navy', 'Beige', 'Multi', 'Uncategorized'];
+/** When size options exceed this, show a dropdown instead of chips. */
+const SIZE_CHIP_THRESHOLD = 12;
 
 /** Fallback list when WarehouseContext has not yet loaded. IDs must match backend. */
 const FALLBACK_WAREHOUSES: Pick<Warehouse, 'id' | 'name'>[] = [
-  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Store' },
-  { id: '00000000-0000-0000-0000-000000000002', name: 'Main Town' },
+  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Jeff' },
+  { id: '00000000-0000-0000-0000-000000000002', name: 'Hunnid Main' },
 ];
 
 // ── Stat helpers ──────────────────────────────────────────────────────────
@@ -72,19 +78,9 @@ function formatGHC(n: number): string {
 
 // ── Filter/sort ───────────────────────────────────────────────────────────
 
-function applyFilters(products: Product[], search: string, category: FilterKey, sort: SortKey) {
-  let r = [...products];
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    r = r.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.sku.toLowerCase().includes(q) ||
-      (p.barcode ?? '').toLowerCase().includes(q)
-    );
-  }
-  if (category !== 'all') {
-    r = r.filter(p => p.category.toLowerCase() === category.toLowerCase());
-  }
+/** Client-side sort only (filtering is server-side via q and category). */
+function applySort(products: Product[], sort: SortKey): Product[] {
+  const r = [...products];
   r.sort((a, b) => {
     const qa = getProductQty(a), qb = getProductQty(b);
     switch (sort) {
@@ -115,12 +111,32 @@ function unwrapProduct(raw: unknown): Product | null {
   return normalizeQuantityBySize(inner as Record<string, unknown>);
 }
 
-function unwrapProductList(raw: unknown): Product[] {
-  if (Array.isArray(raw)) return raw as Product[];
-  if (!raw || typeof raw !== 'object') return [];
+/** Normalize a raw list item so name, sku, barcode, color are always set (API may send camel or snake). */
+function normalizeListProduct(item: Record<string, unknown>): Product {
+  const getStr = (camel: string, snake?: string) =>
+    String(item[camel] ?? item[snake ?? ''] ?? '').trim();
+  const colorVal = item['color'] != null ? getStr('color') || null : null;
+  return normalizeQuantityBySize({
+    ...item,
+    name: getStr('name', 'product_name') || getStr('name'),
+    sku: getStr('sku'),
+    barcode: getStr('barcode') || null,
+    category: getStr('category') || 'Uncategorized',
+    color: colorVal,
+  } as Record<string, unknown>);
+}
+
+/** Parse GET /api/products response: { data, total } → { list, total }. */
+function parseListResponse(raw: unknown): { list: Product[]; total: number } {
+  if (!raw || typeof raw !== 'object') return { list: [], total: 0 };
   const r = raw as Record<string, unknown>;
   const list = r.data ?? r.products ?? r.items ?? [];
-  return Array.isArray(list) ? list : [];
+  const total = typeof r.total === 'number' ? r.total : Array.isArray(list) ? list.length : 0;
+  if (!Array.isArray(list)) return { list: [], total };
+  const normalized = list
+    .filter((x): x is Record<string, unknown> => x != null && typeof x === 'object')
+    .map(normalizeListProduct);
+  return { list: normalized, total };
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────
@@ -282,31 +298,40 @@ export default function InventoryPage(_props: InventoryPageProps) {
     currentWarehouse,
     warehouses: contextWarehouses,
     setCurrentWarehouseId,
+    isWarehouseBoundToSession,
   } = useWarehouse();
   const warehouseList = contextWarehouses?.length ? contextWarehouses : FALLBACK_WAREHOUSES;
   const warehouse = currentWarehouse ?? warehouseList.find(w => w.id === warehouseId) ?? warehouseList[0];
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [products,       setProducts]       = useState<Product[]>([]);
+  const [totalCount,     setTotalCount]     = useState(0);
   const [sizeCodes,      setSizeCodes]      = useState<SizeCode[]>([]);
   const [loading,        setLoading]        = useState(true);
+  const [loadingMore,    setLoadingMore]    = useState(false);
   const [error,          setError]          = useState<string | null>(null);
   const [whDropdown,     setWhDropdown]     = useState(false);
   const [search,         setSearch]         = useState('');
   const [category,       setCategory]       = useState<FilterKey>('all');
+  const [sizeFilter,     setSizeFilter]     = useState<string>('all');
+  const [colorFilter,    setColorFilter]    = useState<string>('all');
   const [sort,           setSort]           = useState<SortKey>('name_asc');
   const [sortOpen,       setSortOpen]       = useState(false);
   const [modalOpen,      setModalOpen]      = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [confirmDelete,  setConfirmDelete]  = useState<Product | null>(null);
 
-  const modalOpenRef      = useRef(false);
-  const pollTimerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pendingDeletesRef = useRef<Set<string>>(new Set());
-  const loadInflightRef   = useRef(false);
-  const lastSaveTimeRef   = useRef<number>(0);
-  const loadAbortRef      = useRef<AbortController | null>(null);
-  const didInitialLoad    = useRef(false);
+  const modalOpenRef       = useRef(false);
+  const pollTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingDeletesRef  = useRef<Set<string>>(new Set());
+  const loadInflightRef    = useRef(false);
+  const lastSaveTimeRef    = useRef<number>(0);
+  const loadAbortRef       = useRef<AbortController | null>(null);
+  const didInitialLoad     = useRef(false);
+  const searchDebounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchCategoryRef   = useRef({ search: '', category: 'all' as FilterKey, sizeCode: 'all' as string, color: 'all' as string });
+  const skipSearchDebounceRef = useRef(true);
+  searchCategoryRef.current = { search, category, sizeCode: sizeFilter, color: colorFilter };
 
   const { toasts, show: showToast } = useToast();
 
@@ -373,30 +398,52 @@ export default function InventoryPage(_props: InventoryPageProps) {
     }
   }, []);
 
-  // ── Load products ─────────────────────────────────────────────────────────
+  // ── Load products (server-side q + category; paginated) ───────────────────
 
-  const loadProducts = useCallback(async (silent = false) => {
+  const loadProducts = useCallback(async (offset: number, append: boolean, silent = false) => {
     if (modalOpenRef.current) return;
     if (loadInflightRef.current) {
       if (silent) return;
       loadAbortRef.current?.abort();
     }
 
+    const { search: q, category: cat, sizeCode: sc, color: col } = searchCategoryRef.current;
+    const params = new URLSearchParams();
+    params.set('warehouse_id', warehouseId);
+    params.set('limit', String(PAGE_SIZE));
+    params.set('offset', String(Math.max(0, offset)));
+    if (q.trim()) params.set('q', q.trim());
+    if (cat !== 'all' && cat.trim()) params.set('category', cat.trim());
+    if (sc !== 'all' && sc.trim()) params.set('size_code', sc.trim());
+    if (col !== 'all' && col.trim()) params.set('color', col.trim());
+
     const ctrl = new AbortController();
     loadAbortRef.current    = ctrl;
     loadInflightRef.current = true;
-    if (!silent) setLoading(true);
+    if (!silent) {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+    }
     setError(null);
 
     try {
-      const raw = await apiFetch<unknown>(
-        `/api/products?warehouse_id=${encodeURIComponent(warehouseId)}&limit=1000`,
-        { signal: ctrl.signal }
-      );
+      const raw = await apiFetch<unknown>(`/api/products?${params.toString()}`, {
+        signal: ctrl.signal,
+      });
       if (ctrl.signal.aborted) return;
-      const list    = unwrapProductList(raw);
+      const { list, total } = parseListResponse(raw);
       const pending = pendingDeletesRef.current;
-      setProducts(pending.size > 0 ? list.filter(p => !pending.has(p.id)) : list);
+      const merged = pending.size > 0 ? list.filter(p => !pending.has(p.id)) : list;
+      setTotalCount(total);
+      if (append) {
+        setProducts(prev => {
+          const byId = new Map(prev.map(p => [p.id, p]));
+          merged.forEach(p => byId.set(p.id, p));
+          return Array.from(byId.values());
+        });
+      } else {
+        setProducts(merged);
+      }
     } catch (e: unknown) {
       const err = e as Error;
       if (err.name === 'AbortError' || ctrl.signal.aborted) return;
@@ -406,7 +453,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
         loadInflightRef.current = false;
         loadAbortRef.current    = null;
       }
-      if (!silent) setLoading(false);
+      if (!silent) {
+        if (append) setLoadingMore(false);
+        else setLoading(false);
+      }
     }
   }, [warehouseId, apiFetch]);
 
@@ -426,7 +476,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
     stopPoll();
     pollTimerRef.current = setInterval(() => {
       if (!modalOpenRef.current && document.visibilityState === 'visible') {
-        loadProducts(true);
+        loadProducts(0, false, true);
       }
     }, POLL_MS);
   }
@@ -434,32 +484,62 @@ export default function InventoryPage(_props: InventoryPageProps) {
     if (pollTimerRef.current) { clearInterval(pollTimerRef.current); pollTimerRef.current = null; }
   }
 
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // ── Lifecycle: warehouse change ────────────────────────────────────────────
 
   useEffect(() => {
-    setProducts([]); setLoading(true); setError(null);
-    setSearch(''); setCategory('all');
+    setProducts([]);
+    setTotalCount(0);
+    setLoading(true);
+    setError(null);
+    setSearch('');
+    setCategory('all');
+    setSizeFilter('all');
+    setColorFilter('all');
     didInitialLoad.current = false;
+    skipSearchDebounceRef.current = true;
     loadAbortRef.current?.abort();
 
-    loadProducts();
+    loadProducts(0, false);
     loadSizeCodes();
     const pollDelay = setTimeout(() => startPoll(), 5000);
 
     const onVisible = () => {
       if (!didInitialLoad.current) return;
-      if (document.visibilityState === 'visible' && !modalOpenRef.current) loadProducts(true);
+      if (document.visibilityState === 'visible' && !modalOpenRef.current) {
+        loadProducts(0, false, true);
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
     const initGate = setTimeout(() => { didInitialLoad.current = true; }, 500);
 
     return () => {
-      clearTimeout(pollDelay); clearTimeout(initGate);
+      clearTimeout(pollDelay);
+      clearTimeout(initGate);
       stopPoll();
       document.removeEventListener('visibilitychange', onVisible);
       loadAbortRef.current?.abort();
     };
-  }, [warehouseId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [warehouseId, loadProducts]);
+
+  // ── Debounced server-side search when search or category changes ────────────
+
+  useEffect(() => {
+    if (skipSearchDebounceRef.current) {
+      skipSearchDebounceRef.current = false;
+      return;
+    }
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      searchDebounceRef.current = null;
+      loadProducts(0, false);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
+  }, [search, category, sizeFilter, colorFilter, loadProducts]);
 
   useEffect(() => { modalOpenRef.current = modalOpen; }, [modalOpen]);
 
@@ -472,7 +552,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
     setModalOpen(false);
     setEditingProduct(null);
     const msSinceSave = Date.now() - lastSaveTimeRef.current;
-    if (msSinceSave > 5000) setTimeout(() => loadProducts(true), 500);
+    if (msSinceSave > 5000) setTimeout(() => loadProducts(0, false, true), 500);
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -567,7 +647,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
         }
 
         if (created?.id) setProducts(prev => [created!, ...prev]);
-        else setTimeout(() => loadProducts(true), 300);
+        else setTimeout(() => loadProducts(0, false, true), 300);
 
         lastSaveTimeRef.current = Date.now();
         showToast(`${payload.name} added`, 'success');
@@ -581,7 +661,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  const displayed = applyFilters(products, search, category, sort);
+  const displayed = applySort(products, sort);
+  const hasMore = products.length < totalCount && !loading && !loadingMore;
   const SORT_OPTIONS: { key: SortKey; label: string }[] = [
     { key: 'name_asc',   label: 'Name A–Z'       },
     { key: 'name_desc',  label: 'Name Z–A'       },
@@ -605,33 +686,44 @@ export default function InventoryPage(_props: InventoryPageProps) {
         {/* Top bar: title + warehouse + actions */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {/* Warehouse pill */}
+            {/* Warehouse: static when session-bound (e.g. Main Town POS); dropdown only for super admin. */}
             <div className="relative">
-              <button type="button" onClick={() => setWhDropdown(o => !o)}
-                      className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl
-                                 bg-slate-100 hover:bg-slate-200 transition-colors">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"/>
-                <span className="text-[13px] font-bold text-slate-800 whitespace-nowrap">
-                  {warehouse?.name ?? 'Warehouse'}
-                </span>
-                <ChevronDown/>
-              </button>
-              {whDropdown && (
+              {isWarehouseBoundToSession ? (
+                <div className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-slate-100">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"/>
+                  <span className="text-[13px] font-bold text-slate-800 whitespace-nowrap">
+                    {warehouse?.name ?? 'Warehouse'}
+                  </span>
+                </div>
+              ) : (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setWhDropdown(false)}/>
-                  <div className="absolute left-0 top-11 z-20 bg-white rounded-2xl
-                                  shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-slate-100 py-1.5 w-44">
-                    {warehouseList.map(w => (
-                      <button key={w.id} type="button"
-                              onClick={() => { setCurrentWarehouseId(w.id); setWhDropdown(false); }}
-                              className={`w-full px-4 py-2.5 text-left text-[13px] font-semibold transition-colors
-                                ${warehouseId === w.id
-                                  ? 'text-red-500 bg-red-50'
-                                  : 'text-slate-700 hover:bg-slate-50'}`}>
-                        {warehouseId === w.id && '✓ '}{w.name}
-                      </button>
-                    ))}
-                  </div>
+                  <button type="button" onClick={() => setWhDropdown(o => !o)}
+                          className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl
+                                     bg-slate-100 hover:bg-slate-200 transition-colors">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"/>
+                    <span className="text-[13px] font-bold text-slate-800 whitespace-nowrap">
+                      {warehouse?.name ?? 'Warehouse'}
+                    </span>
+                    <ChevronDown/>
+                  </button>
+                  {whDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setWhDropdown(false)}/>
+                      <div className="absolute left-0 top-11 z-20 bg-white rounded-2xl
+                                      shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-slate-100 py-1.5 w-44">
+                        {warehouseList.map(w => (
+                          <button key={w.id} type="button"
+                                  onClick={() => { setCurrentWarehouseId(w.id); setWhDropdown(false); }}
+                                  className={`w-full px-4 py-2.5 text-left text-[13px] font-semibold transition-colors
+                                    ${warehouseId === w.id
+                                      ? 'text-red-500 bg-red-50'
+                                      : 'text-slate-700 hover:bg-slate-50'}`}>
+                            {warehouseId === w.id && '✓ '}{w.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -680,8 +772,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
         <div className="px-4 pt-4 pb-1 flex gap-2.5 overflow-x-auto scrollbar-none">
           <StatCard
             label="SKUs"
-            value={products.length}
-            sub={`${displayed.length} shown`}
+            value={totalCount > 0 ? `${products.length} of ${totalCount}` : products.length}
+            sub={totalCount > 0 && hasMore ? 'Load more for full stats' : `${displayed.length} shown`}
           />
           <StatCard
             label="Stock value"
@@ -701,23 +793,19 @@ export default function InventoryPage(_props: InventoryPageProps) {
       )}
 
       {/* ══ Filter strip ══ */}
-      <div className="flex items-center gap-0 px-4 pt-3 pb-2">
-        {/* Category chips — horizontal scroll */}
-        <div className="flex gap-2 flex-1 overflow-x-auto scrollbar-none pr-3">
-          {(['all', ...CATEGORIES] as string[]).map(cat => (
-            <button key={cat} type="button" onClick={() => setCategory(cat)}
-                    className={`flex-shrink-0 h-8 px-3.5 rounded-full text-[12px] font-bold
-                                border transition-all duration-150 whitespace-nowrap
-                                ${category === cat
-                                  ? 'bg-slate-900 border-slate-900 text-white'
-                                  : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400'}`}>
-              {cat === 'all' ? 'All' : cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Sort — compact */}
-        <div className="relative flex-shrink-0">
+      <div className="px-4 pt-3 pb-2 space-y-3">
+        {/* Row 1: Category chips + Sort */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-none">
+            {(['all', ...CATEGORIES] as string[]).map(cat => (
+              <button key={cat} type="button" onClick={() => setCategory(cat)}
+                      className={`flex-shrink-0 h-8 px-3.5 rounded-full text-[12px] font-bold border transition-colors whitespace-nowrap
+                        ${category === cat ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                {cat === 'all' ? 'All' : cat}
+              </button>
+            ))}
+          </div>
+          <div className="relative flex-shrink-0">
           <button type="button" onClick={() => setSortOpen(o => !o)}
                   className="flex items-center gap-1 h-8 px-3 rounded-full border border-slate-200
                              bg-white text-[12px] font-bold text-slate-600 hover:border-slate-400
@@ -727,10 +815,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </button>
           {sortOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)}/>
-              <div className="absolute right-0 top-10 z-20 bg-white rounded-2xl
-                              shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-slate-100
-                              py-1.5 w-44">
+              <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
+              <div className="absolute right-0 top-10 z-20 bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-slate-100 py-1.5 w-44">
                 {SORT_OPTIONS.map(opt => (
                   <button key={opt.key} type="button"
                           onClick={() => { setSort(opt.key); setSortOpen(false); }}
@@ -742,6 +828,67 @@ export default function InventoryPage(_props: InventoryPageProps) {
               </div>
             </>
           )}
+          </div>
+        </div>
+
+        {/* Row 2: Size (dropdown or chips) · Color chips · Clear filters */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label htmlFor="inv-size-filter" className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              Size
+            </label>
+            {sizeCodes.length > SIZE_CHIP_THRESHOLD ? (
+              <select
+                id="inv-size-filter"
+                value={sizeFilter}
+                onChange={(e) => setSizeFilter(e.target.value)}
+                className="h-8 min-w-[100px] rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-800 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
+              >
+                <option value="all">All</option>
+                {sizeCodes.map(s => (
+                  <option key={s.size_code} value={s.size_code}>{s.size_label ?? s.size_code}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex gap-1.5 flex-wrap">
+                <button type="button" onClick={() => setSizeFilter('all')}
+                        className={`flex-shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors
+                          ${sizeFilter === 'all' ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                  All
+                </button>
+                {sizeCodes.map(s => (
+                  <button key={s.size_code} type="button" onClick={() => setSizeFilter(s.size_code)}
+                          className={`flex-shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors
+                            ${sizeFilter === s.size_code ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                    {s.size_label ?? s.size_code}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Color</span>
+            <div className="flex gap-1.5 flex-wrap">
+              <button type="button" onClick={() => setColorFilter('all')}
+                      className={`flex-shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors
+                        ${colorFilter === 'all' ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                All
+              </button>
+              {COLOR_OPTIONS.map(c => (
+                <button key={c} type="button" onClick={() => setColorFilter(c)}
+                        className={`flex-shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors
+                          ${colorFilter === c ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+          {(sizeFilter !== 'all' || colorFilter !== 'all') && (
+            <button type="button" onClick={() => { setSizeFilter('all'); setColorFilter('all'); }}
+                    className="text-[12px] font-semibold text-red-500 hover:text-red-600 hover:underline">
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -749,9 +896,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
       {!loading && !error && (
         <div className="px-4 pb-3">
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            {search || category !== 'all'
-              ? `${displayed.length} result${displayed.length !== 1 ? 's' : ''}`
-              : `${products.length} product${products.length !== 1 ? 's' : ''}`}
+            {totalCount > 0
+              ? `${displayed.length} of ${totalCount} product${totalCount !== 1 ? 's' : ''}`
+              : `${displayed.length} product${displayed.length !== 1 ? 's' : ''}`}
           </p>
         </div>
       )}
@@ -769,7 +916,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
               <p className="text-[17px] font-black text-slate-800">Couldn&apos;t load products</p>
               <p className="text-[13px] text-slate-400 mt-1 max-w-[260px] leading-relaxed">{error}</p>
             </div>
-            <button type="button" onClick={() => loadProducts()}
+            <button type="button" onClick={() => loadProducts(0, false)}
                     className="h-10 px-6 rounded-xl bg-red-500 text-white text-[13px] font-bold
                                hover:bg-red-600 transition-colors shadow-[0_4px_12px_rgba(239,68,68,0.25)]">
               Retry
@@ -784,8 +931,30 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </div>
         )}
 
-        {/* Empty warehouse */}
-        {!loading && !error && products.length === 0 && (
+        {/* Empty filter (server returned 0 for this q/category/size/color) */}
+        {!loading && !error && products.length === 0 && (search.trim() || category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all') && (
+          <div className="flex flex-col items-center gap-5 py-24 text-center">
+            <p className="text-[15px] font-bold text-slate-700">
+              No results for current filters
+              {search.trim() && ` (search: "${search}")`}
+              {category !== 'all' && ` (category: ${category})`}
+              {sizeFilter !== 'all' && ` (size: ${sizeFilter})`}
+              {colorFilter !== 'all' && ` (color: ${colorFilter})`}
+            </p>
+            {colorFilter !== 'all' && !search.trim() && category === 'all' && sizeFilter === 'all' && (
+              <p className="text-[12px] text-slate-500 max-w-[280px]">
+                No products have this color. Use <strong>Uncategorized</strong> to see products without a color set, or set a color when editing a product.
+              </p>
+            )}
+            <button type="button" onClick={() => { setSearch(''); setCategory('all'); setSizeFilter('all'); setColorFilter('all'); }}
+                    className="text-[13px] font-bold text-red-500 hover:text-red-700">
+              Clear filters
+            </button>
+          </div>
+        )}
+
+        {/* Empty warehouse (no filter, no products) */}
+        {!loading && !error && products.length === 0 && !search.trim() && category === 'all' && sizeFilter === 'all' && colorFilter === 'all' && (
           <div className="flex flex-col items-center gap-5 py-24 text-center">
             <div className="w-20 h-20 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-300">
               <BoxIcon/>
@@ -803,31 +972,35 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </div>
         )}
 
-        {/* Empty filter */}
-        {!loading && !error && products.length > 0 && displayed.length === 0 && (
-          <div className="flex flex-col items-center gap-3 py-20 text-center">
-            <p className="text-[15px] font-bold text-slate-700">
-              No results for &quot;{search || category}&quot;
-            </p>
-            <button type="button" onClick={() => { setSearch(''); setCategory('all'); }}
-                    className="text-[13px] font-bold text-red-500 hover:text-red-700">
-              Clear filters
-            </button>
-          </div>
-        )}
-
         {/* Product grid — view-only cards (no inline stock edit) */}
         {!loading && !error && displayed.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {displayed.map(product => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onEditFull={openEditModal}
-                onDelete={p => setConfirmDelete(p)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {displayed.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onEditFull={openEditModal}
+                  onDelete={p => setConfirmDelete(p)}
+                />
+              ))}
+            </div>
+            {hasMore && (
+              <div className="flex justify-center py-6">
+                <button
+                  type="button"
+                  disabled={loadingMore}
+                  onClick={() => loadProducts(products.length, true)}
+                  className="h-11 px-6 rounded-xl border-2 border-slate-200 bg-white
+                             text-[13px] font-bold text-slate-700 hover:border-slate-300
+                             hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed
+                             transition-colors"
+                >
+                  {loadingMore ? 'Loading…' : `Load more (${products.length} of ${totalCount})`}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
 

@@ -84,7 +84,7 @@ export function Login() {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-extrabold gradient-text mb-2">
-            Extreme Dept Kidz
+            Hunnid Official
           </h1>
           <p className="text-slate-600">Warehouse & POS System</p>
         </div>

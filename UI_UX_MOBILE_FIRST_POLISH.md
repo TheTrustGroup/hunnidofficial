@@ -1,6 +1,6 @@
 # UI/UX Mobile-First Polish
 
-**Scope:** Refinement and consistency for the live POS & warehouse system (warehouse.extremedeptkidz.com). No new features, no backend/API changes, no new libraries or fonts.
+**Scope:** Refinement and consistency for the live POS & warehouse system (warehouse.hunnidofficial.com). No new features, no backend/API changes, no new libraries or fonts.
 
 **Principle:** Every decision works on ≤430px first. Desktop is an enhancement. Design like Apple: mobile-first, quiet confidence, no surprises.
 

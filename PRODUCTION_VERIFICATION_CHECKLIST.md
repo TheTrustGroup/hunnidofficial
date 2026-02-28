@@ -8,7 +8,7 @@ Use this checklist to verify all production readiness steps have been completed.
 - [ ] Login page appears at `/login`
 - [ ] Cannot access any protected page without logging in
 - [ ] Unauthenticated users are redirected to `/login`
-- [ ] Login with real credentials works (`info@extremedeptkidz.com` / `Admin123!@#`)
+- [ ] Login with real credentials works (`admin@hunnidofficial.com` / `Admin123!@#`)
 - [ ] Login shows loading state during authentication
 - [ ] Login shows error message for invalid credentials
 - [ ] Login shows success toast notification

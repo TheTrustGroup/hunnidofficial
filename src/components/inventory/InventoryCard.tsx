@@ -1,5 +1,5 @@
 /**
- * Extreme Dept Kidz–style product card: 16:9 image, badges, name, SKU, location,
+ * Hunnid Official–style product card: 16:9 image, badges, name, SKU, location,
  * price (inline editable), size pills or single qty, Edit + Quick stock footer.
  * Inline quick stock editor and inline price edit — no modal for stock/price.
  */

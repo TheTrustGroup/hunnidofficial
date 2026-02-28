@@ -8,16 +8,16 @@ This checklist is what **you** (or your backend person) need to do so the wareho
 
 - Push your latest code to GitHub (from the `warehouse-pos` folder: `git push`).
 - If you use **Vercel**: ensure the project is connected to the same repo and that deployments run on push. Trigger a deploy if needed.
-- The live app should be at **https://warehouse.extremedeptkidz.com**.
+- The live app should be at **https://warehouse.hunnidofficial.com**.
 
 ---
 
 ## 2. Backend: CORS and auth (so login works)
 
-Someone with access to **extremedeptkidz.com** (the server/backend) must:
+Someone with access to **hunnidofficial.com** (the server/backend) must:
 
 1. **Allow CORS for the warehouse domain**
-   - Origin: `https://warehouse.extremedeptkidz.com`
+   - Origin: `https://warehouse.hunnidofficial.com`
    - Credentials: `true`
    - Methods: GET, POST, PUT, DELETE, OPTIONS  
    - Headers: Content-Type, Accept, Authorization  
@@ -33,18 +33,18 @@ One-page summary to hand to backend: **HAND_TO_BACKEND.md**.
 
 ## 3. Backend: Create the role users (so employees can log in)
 
-In your **main store admin** or user database (wherever you manage users for extremedeptkidz.com):
+In your **main store admin** or user database (wherever you manage users for hunnidofficial.com):
 
 - **Admin:** Leave as you already have it (your current admin email and password).
 - **Other roles:** Create one user per role with:
 
   | Role      | Email (login)                  | Password  |
   |-----------|--------------------------------|-----------|
-  | Manager   | manager@extremedeptkidz.com    | EDK-!@#   |
-  | Cashier   | cashier@extremedeptkidz.com    | EDK-!@#   |
-  | Warehouse | warehouse@extremedeptkidz.com  | EDK-!@#   |
-  | Driver    | driver@extremedeptkidz.com     | EDK-!@#   |
-  | Viewer    | viewer@extremedeptkidz.com     | EDK-!@#   |
+  | Manager   | manager@hunnidofficial.com    | EDK-!@#   |
+  | Cashier   | jcashier@hunnidofficial.com    | EDK-!@#   |
+  | Warehouse | warehouse@hunnidofficial.com  | EDK-!@#   |
+  | Driver    | driver@hunnidofficial.com     | EDK-!@#   |
+  | Viewer    | viewer@hunnidofficial.com     | EDK-!@#   |
 
 - Set each user’s **role** in the database to: `manager`, `cashier`, `warehouse`, `driver`, or `viewer` (same as the email prefix).
 - When the warehouse app calls `GET /admin/api/me` after login, the API must return a **user object that includes `role`** (e.g. `"role": "manager"`). The app uses that to show/hide features.
@@ -67,9 +67,9 @@ So that **Inventory** and **POS** show real data:
 
 ## 5. Verify
 
-1. Open **https://warehouse.extremedeptkidz.com** and log in with **admin** (your existing credentials). You should see Dashboard, Inventory, POS, etc.
-2. Log out and log in with **manager@extremedeptkidz.com** / **EDK-!@#**. You should see the same nav but with manager permissions (no Users, etc.).
-3. Log in with **viewer@extremedeptkidz.com** / **EDK-!@#**. You should see Dashboard, Inventory, POS, Reports (viewer permissions).
+1. Open **https://warehouse.hunnidofficial.com** and log in with **admin** (your existing credentials). You should see Dashboard, Inventory, POS, etc.
+2. Log out and log in with **manager@hunnidofficial.com** / **EDK-!@#**. You should see the same nav but with manager permissions (no Users, etc.).
+3. Log in with **viewer@hunnidofficial.com** / **EDK-!@#**. You should see Dashboard, Inventory, POS, Reports (viewer permissions).
 4. In **Settings → User Management**, the “Logins for other roles” table should match what you created in the backend; use it to copy credentials for staff.
 
 ---

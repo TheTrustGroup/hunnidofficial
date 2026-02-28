@@ -17,6 +17,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle } from 'lucide-react';
 import { useWarehouse } from '../contexts/WarehouseContext';
@@ -73,11 +74,16 @@ function formatGHCCompact(n: number): string {
 const FETCH_TIMEOUT_MS = 15_000;
 const RETRY_DELAYS_MS = [1_000, 2_000];
 
+/** Do not retry 401 — session expired; user must re-login. */
+const SESSION_EXPIRED_MSG = 'Session expired. Please log in again.';
+
 function isRetryableError(e: unknown): boolean {
   if (e instanceof Error) {
-    const msg = e.message.toLowerCase();
-    if (e.name === 'AbortError' || msg.includes('timeout')) return true;
-    if (msg.includes('network') || msg.includes('connection') || msg.includes('failed to fetch')) return true;
+    const msg = e.message;
+    if (msg.includes(SESSION_EXPIRED_MSG) || msg.includes('401') || msg.includes('Session expired')) return false;
+    const lower = msg.toLowerCase();
+    if (e.name === 'AbortError' || lower.includes('timeout')) return true;
+    if (lower.includes('network') || lower.includes('connection') || lower.includes('failed to fetch')) return true;
   }
   return false;
 }
@@ -92,6 +98,7 @@ async function apiFetchOnce<T = unknown>(path: string): Promise<T> {
     });
     clearTimeout(t);
     if (!res.ok) {
+      if (res.status === 401) throw new Error(SESSION_EXPIRED_MSG);
       const b = await res.json().catch(() => ({}));
       throw new Error((b as { error?: string; message?: string }).error ?? (b as { error?: string; message?: string }).message ?? `HTTP ${res.status}`);
     }
@@ -200,12 +207,21 @@ function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   );
 }
 
+// ── Warehouse IDs/names for "today by location" (must match server) ───────
+
+const WAREHOUSE_IDS_FOR_SUMMARY = [
+  '00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000002',
+] as const;
+const WAREHOUSE_NAME_BY_ID: Record<string, string> = {
+  [WAREHOUSE_IDS_FOR_SUMMARY[0]]: 'Main Store',
+  [WAREHOUSE_IDS_FOR_SUMMARY[1]]: 'Main Town',
+};
+
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  // THIS IS THE KEY FIX:
-  // Uses WarehouseContext — same warehouse state as Sidebar, Inventory, POS.
-  // When sidebar changes warehouse → warehouseId updates → useEffect re-fetches.
+  const navigate = useNavigate();
   const { currentWarehouseId, currentWarehouse } = useWarehouse();
   const warehouseId   = currentWarehouseId;
   const warehouseName = currentWarehouse?.name ?? 'Warehouse';
@@ -213,6 +229,7 @@ export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [todayByWarehouse, setTodayByWarehouse] = useState<Record<string, number> | null>(null);
 
   const loadData = useCallback(async (wid: string) => {
     setLoading(true);
@@ -226,15 +243,34 @@ export default function DashboardPage() {
       );
       setDashboard(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load dashboard data');
+      const msg = e instanceof Error ? e.message : 'Failed to load dashboard data';
+      if (msg === SESSION_EXPIRED_MSG) {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('current_user');
+          localStorage.removeItem('auth_token');
+        }
+        navigate('/login?session_expired=1', { replace: true });
+        return;
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     loadData(warehouseId);
   }, [warehouseId, loadData]);
+
+  // Today's sales per warehouse (super-admin at-a-glance; one lightweight request).
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    let cancelled = false;
+    apiFetch<Record<string, number>>(`/api/dashboard/today-by-warehouse?date=${today}`)
+      .then((data) => { if (!cancelled) setTodayByWarehouse(data); })
+      .catch(() => { if (!cancelled) setTodayByWarehouse(null); });
+    return () => { cancelled = true; };
+  }, []);
 
   const stats = dashboard
     ? {
@@ -289,6 +325,27 @@ export default function DashboardPage() {
           {loading && (
             <span className="text-[12px] text-slate-400 animate-pulse">Loading…</span>
           )}
+        </div>
+
+        {/* ── Today's sales by location (both POS/warehouses at a glance) ── */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+            Today&apos;s sales by location
+          </h2>
+          <div className="flex flex-wrap gap-4">
+            {WAREHOUSE_IDS_FOR_SUMMARY.map((wid) => (
+              <div key={wid} className="flex items-center gap-2">
+                <span className="text-[13px] font-semibold text-slate-600">
+                  {WAREHOUSE_NAME_BY_ID[wid] ?? wid}
+                </span>
+                <span className="text-[15px] font-black tabular-nums text-slate-900">
+                  {todayByWarehouse == null
+                    ? '—'
+                    : formatGHCCompact(todayByWarehouse[wid] ?? 0)}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* ── Error ── */}

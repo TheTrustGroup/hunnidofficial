@@ -34,14 +34,14 @@ Defined in code: `inventory-server/lib/auth/roles.ts` and frontend `src/types/pe
 
 ## Phase 5 — Verification
 
-1. **Cashier login:** Use `cashier@extremedeptkidz.com` (and shared password). Expect: sidebar shows only POS, Orders, Inventory (view). No Dashboard, Reports, Users, Settings.
+1. **Cashier login:** Use `jcashier@hunnidofficial.com` (and shared password). Expect: sidebar shows only POS, Orders, Inventory (view). No Dashboard, Reports, Users, Settings.
 2. **Direct API:** As cashier, `GET /api/products` with session cookie → 200. `POST /api/products` or `DELETE /api/products/bulk` → 403.
 3. **Admin:** Put your admin email in `ALLOWED_ADMIN_EMAILS`. Login → full access; admin APIs return 200.
 
 ## Env (inventory-server)
 
 - **SESSION_SECRET** — Required in production (min 16 chars). Signs session cookie.
-- **ALLOWED_ADMIN_EMAILS** — Comma-separated emails that get admin role (e.g. `you@extremedeptkidz.com`). **Set this so your admin account stays admin.** Others get role from email prefix (e.g. `cashier@extremedeptkidz.com` → cashier).
+- **ALLOWED_ADMIN_EMAILS** — Comma-separated emails that get admin role (e.g. `you@hunnidofficial.com`). **Set this so your admin account stays admin.** Others get role from email prefix (e.g. `jcashier@hunnidofficial.com` → cashier).
 
 ## Confirmation
 

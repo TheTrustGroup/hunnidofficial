@@ -9,11 +9,14 @@ export interface POSProduct {
   id: string;
   name: string;
   sku: string;
+  barcode?: string | null;
   sizeKind?: 'na' | 'one_size' | 'sized';
   quantity: number;
   quantityBySize?: Array<{ sizeCode: string; sizeLabel?: string; quantity: number }>;
   sellingPrice: number;
   category?: string;
+  /** Product color for filter. Optional. */
+  color?: string | null;
   images?: string[];
 }
 

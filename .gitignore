@@ -24,3 +24,6 @@ coverage
 
 # Deploy
 .vercel
+
+# CI workflow (optional: add via GitHub UI or token with workflow scope)
+.github/workflows/ci.yml

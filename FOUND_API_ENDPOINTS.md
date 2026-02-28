@@ -29,7 +29,7 @@ We need to see the **complete URLs** of these endpoints. Here's how:
 
 3. Check the **Headers tab**:
    - Look for **"Request URL"** - this is the full API endpoint!
-   - It might be: `https://extremedeptkidz.com/api/me` or similar
+   - It might be: `https://hunnidofficial.com/api/me` or similar
 
 ### Method 2: Check Console Errors
 
@@ -50,8 +50,8 @@ We need to see the **complete URLs** of these endpoints. Here's how:
 Please share:
 
 1. **Full API Base URL** - What's the common prefix?
-   - Example: `https://extremedeptkidz.com/api`
-   - Or: `https://extremedeptkidz.com/admin/api`
+   - Example: `https://hunnidofficial.com/api`
+   - Or: `https://hunnidofficial.com/admin/api`
 
 2. **Complete Endpoint URLs:**
    - `/me` → Full URL: `_________________`

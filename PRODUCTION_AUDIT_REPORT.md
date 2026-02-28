@@ -1,6 +1,6 @@
 # Production End-to-End Audit Report  
 **System:** Warehouse + POS + Inventory  
-**Deployment:** https://warehouse.extremedeptkidz.com  
+**Deployment:** https://warehouse.hunnidofficial.com  
 **Audit date:** 2025-02-01  
 **Scope:** Routes, auth, API/data flow, DB/state, UI/UX, hardcoding, error handling, performance
 
@@ -12,7 +12,7 @@
 - **Routes enumerated and consistent:** Public `/login`; protected (under `/`): `/` (dashboard), `/inventory`, `/orders`, `/pos`, `/reports`, `/users`, `/settings`. Catch-all `*` → `<Navigate to="/" replace />`.
 - **Route guards:** `ProtectedRoutes` checks `isAuthenticated`/`isLoading` and redirects to `/login` when not authenticated. Each nested route uses `ProtectedRoute` with permission(s). Access denied renders `AccessDenied` with “Go Back” (history.back()).
 - **Redirects:** Unauthenticated visit to any protected path → `/login`. Login success → `navigate('/', { replace: true })`. Logout clears state and Sidebar/Header/MobileMenu call `navigate('/login', { replace: true })` after `logout()`.
-- **Live check:** Unauthenticated load of `https://warehouse.extremedeptkidz.com` → redirects to `/login`. Navigate to `/nonexistent` → redirects to `/` (no orphan route; catch-all behaves as designed).
+- **Live check:** Unauthenticated load of `https://warehouse.hunnidofficial.com` → redirects to `/login`. Navigate to `/nonexistent` → redirects to `/` (no orphan route; catch-all behaves as designed).
 - **Sidebar:** Nav links match routes; items filtered by `hasPermission` / `hasAnyPermission` so only allowed routes are shown.
 
 ### Authentication & Authorization
@@ -86,12 +86,12 @@
 ## 🧹 HARDCODED / TECH DEBT FINDINGS
 
 ### ❌ Dangerous (will break or expose in production)
-- **`lib/api.ts` line 7:** `API_BASE_URL` fallback `'https://extremedeptkidz.com'`. If `VITE_API_BASE_URL` is not set in build, production may point to wrong host. **Fix:** Ensure env is set per environment; remove or restrict fallback in production build.
+- **`lib/api.ts` line 7:** `API_BASE_URL` fallback `'https://hunnidofficial.com'`. If `VITE_API_BASE_URL` is not set in build, production may point to wrong host. **Fix:** Ensure env is set per environment; remove or restrict fallback in production build.
 - **`constants/defaultCredentials.ts`:** `DEFAULT_USER_EMAIL_DOMAIN`, `DEFAULT_USER_PASSWORD` ('EDK-!@#'). **Fix:** Do not ship default password in client code; use backend-only defaults or remove from frontend bundle; do not display in User Management in production.
 - **`components/settings/UserManagement.tsx`:** Displays shared password and role@domain in UI. **Fix:** Remove or restrict to internal/admin-only docs; never expose in production UI.
 
 ### ⚠️ Risky (brittle or confusing)
-- **`contexts/SettingsContext.tsx` lines 29–44:** Default business: `businessName: 'Extreme Dept Kidz'`, `address: 'Accra, Greater Accra, Ghana'`, `phone: '+233 XX XXX XXXX'`, `email: 'info@extremedeptkidz.com'`, `taxRate: 15`, `currency: 'GHS'`. **Fix:** Keep as defaults but ensure Settings UI allows override and persistence.
+- **`contexts/SettingsContext.tsx` lines 29–44:** Default business: `businessName: 'Hunnid Official'`, `address: 'Accra, Greater Accra, Ghana'`, `phone: '+233 XX XXX XXXX'`, `email: 'admin@hunnidofficial.com'`, `taxRate: 15`, `currency: 'GHS'`. **Fix:** Keep as defaults but ensure Settings UI allows override and persistence.
 - **`contexts/POSContext.tsx` line 25:** `TAX_RATE = 0.15` (15%). **Fix:** Use `SettingsContext.businessSettings.taxRate` (e.g. divide by 100) so tax is configurable.
 - **`components/pos/Receipt.tsx` line 32:** `Tel: +233 XX XXX XXXX`. **Fix:** Use `businessSettings.phone` from Settings.
 - **`lib/utils.ts` line 59:** `DEFAULT_LOCATION = { warehouse: 'Main Store', ... }`. **Fix:** Prefer setting from Settings (e.g. `defaultWarehouse`) when available.

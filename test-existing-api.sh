@@ -2,7 +2,7 @@
 
 # Test script to discover existing store admin API endpoints
 
-BASE_URL="https://extremedeptkidz.com"
+BASE_URL="https://hunnidofficial.com"
 
 echo "🔍 Testing Existing Store Admin API..."
 echo "======================================"

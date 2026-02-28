@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { validateLoginForm } from '../lib/validationSchemas';
@@ -51,10 +51,18 @@ export default function LoginPage() {
   const { login, loginOffline, sessionExpired, clearSessionExpired, authError, clearAuthError } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     clearSessionExpired();
   }, [clearSessionExpired]);
+
+  useEffect(() => {
+    if (searchParams.get('session_expired') === '1') {
+      setError('Your session expired. Please sign in again.');
+      navigate('/login', { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   useEffect(() => {
     const t = setTimeout(() => { setReady(true); emailRef.current?.focus(); }, 60);
@@ -152,9 +160,8 @@ export default function LoginPage() {
         <div className="relative z-10 hidden md:block">
           <h1 className="text-white font-black leading-[0.92] tracking-[-0.03em]"
               style={{ fontSize: '52px' }}>
-            Extreme<br/>
-            <span style={{ color: '#EF4444' }}>Dept</span><br/>
-            Kidz
+            Hunnid<br/>
+            <span style={{ color: '#5cacfa' }}>Official</span>
           </h1>
           <p className="text-slate-500 text-[14px] mt-5 leading-relaxed max-w-[230px]">
             Warehouse & point-of-sale system for your stores.
@@ -172,13 +179,13 @@ export default function LoginPage() {
         {/* Mobile brand */}
         <div className="relative z-10 md:hidden">
           <p className="text-[24px] font-black text-white tracking-tight">
-            Extreme <span style={{ color: '#EF4444' }}>Dept</span> Kidz
+            Hunnid <span style={{ color: '#5cacfa' }}>Official</span>
           </p>
         </div>
 
         {/* Version */}
         <div className="relative z-10 hidden md:block">
-          <p className="text-[11px] text-slate-700 font-mono">warehouse.extremedeptkidz.com</p>
+          <p className="text-[11px] text-slate-700 font-mono">warehouse.hunnidofficial.com</p>
         </div>
       </div>
 
@@ -231,7 +238,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={e => { setEmail(e.target.value); setError(''); clearAuthError(); }}
-                  placeholder="info@extremedeptkidz.com"
+                  placeholder="admin@hunnidofficial.com"
                   autoComplete="email"
                   disabled={loading}
                   className="w-full pl-11 pr-4 rounded-2xl border-[1.5px] border-slate-200 bg-white
@@ -333,7 +340,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className="mt-8 pt-6 border-t border-slate-200 text-center space-y-1">
             <p className="text-[12px] text-slate-400 font-medium">Warehouse Management System</p>
-            <p className="text-[11px] text-slate-300 font-mono">v2.0 · extremedeptkidz.com</p>
+            <p className="text-[11px] text-slate-300 font-mono">v2.0 · hunnidofficial.com</p>
           </div>
         </div>
       </div>

@@ -7,7 +7,7 @@ When sync fails, you may see:
 ## What it means
 
 - **Connection** – The device couldn’t reach the server (network or server down).
-- **CORS** – The server isn’t allowing requests from `warehouse.extremedeptkidz.com`; the browser blocks the request and reports a generic failure (e.g. “Load failed”).
+- **CORS** – The server isn’t allowing requests from `warehouse.hunnidofficial.com`; the browser blocks the request and reports a generic failure (e.g. “Load failed”).
 - **Request too large** – The sync request body (all product data plus images as base64) exceeded the server’s limit (e.g. 4.5MB on Vercel). Big images make the body grow quickly; after a few products with large images, sync starts failing.
 
 **“Sync omits large images”** means: when sending a product to the server, the app only includes images that are under ~100KB each (and at most 5). Any image over that size is **left out** of that sync request so the rest of the product can save. The product still syncs; you can add or replace images later via Edit.

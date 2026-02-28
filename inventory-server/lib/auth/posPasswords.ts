@@ -5,14 +5,33 @@
 
 import { timingSafeEqual } from 'crypto';
 
-const POS_CASHIER_MAIN_STORE_EMAIL = 'cashier@extremedeptkidz.com';
-const POS_MAIN_TOWN_EMAIL = 'maintown_cashier@extremedeptkidz.com';
+const POS_CASHIER_MAIN_STORE_EMAIL = 'jcashier@hunnidofficial.com';
+const POS_MAIN_TOWN_EMAIL = 'hcashier@hunnidofficial.com';
 
 /** Env keys for POS passwords (set in .env / Vercel). */
 export const POS_PASSWORD_ENV_KEYS = {
   [POS_CASHIER_MAIN_STORE_EMAIL]: 'POS_PASSWORD_CASHIER_MAIN_STORE',
   [POS_MAIN_TOWN_EMAIL]: 'POS_PASSWORD_MAIN_TOWN',
 } as const;
+
+/** Default warehouse UUIDs (match frontend DEFAULT_WAREHOUSE_ID and Main Town fallback). Override with env if your DB uses different IDs. */
+const DEFAULT_MAIN_STORE_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
+const DEFAULT_MAIN_TOWN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000002';
+
+/**
+ * Returns the warehouse_id to bind for this POS email so the frontend can skip the warehouse selector.
+ * Main Store cashier → Main Store warehouse; Main Town cashier → Main Town warehouse.
+ */
+export function getWarehouseIdForPosEmail(email: string): string | undefined {
+  const normalized = email.trim().toLowerCase();
+  if (normalized === POS_CASHIER_MAIN_STORE_EMAIL) {
+    return process.env.POS_WAREHOUSE_ID_MAIN_STORE?.trim() || DEFAULT_MAIN_STORE_WAREHOUSE_ID;
+  }
+  if (normalized === POS_MAIN_TOWN_EMAIL) {
+    return process.env.POS_WAREHOUSE_ID_MAIN_TOWN?.trim() || DEFAULT_MAIN_TOWN_WAREHOUSE_ID;
+  }
+  return undefined;
+}
 
 function timingSafeCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a, 'utf8');

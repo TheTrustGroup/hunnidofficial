@@ -1,5 +1,5 @@
 -- Verify user_scopes after seed. Run in Supabase SQL Editor.
--- Expected: cashier → Main Store + Main Store (MAIN); maintown_cashier → Main Town + Main Town (MAINTOWN).
+-- Expected: jcashier → Main Jeff + Main Jeff (MAIN); hcashier → Hunnid Main + Hunnid Main (MAINTOWN).
 
 SELECT
   us.user_email,

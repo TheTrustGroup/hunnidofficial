@@ -38,7 +38,7 @@ If your repo root is different, run the equivalent `git add` / `commit` / `push`
 
 ## Step 3 — Retest in the app (Save changes)
 
-1. Open the warehouse app in the browser: **https://warehouse.extremedeptkidz.com** (or your frontend URL).
+1. Open the warehouse app in the browser: **https://warehouse.hunnidofficial.com** (or your frontend URL).
 2. Log in if required (e.g. cashier or admin).
 3. Go to the **Inventory / Warehouse** view and open the product list.
 4. Open a product in the edit modal (e.g. **Air force 1 (White)**).

@@ -12,18 +12,15 @@
 // ============================================================
 
 import { useEffect, useState, useRef } from 'react';
-import { type SalePayload } from './CartSheet';
-import { safeProductImageUrl } from '../../lib/imageUpload';
+import { type SalePayload, type DeliveryStatus } from './CartSheet';
 
 // ── Extended sale type (POSPage sets receiptId from server) ────────────────
-export interface CompletedSale extends SalePayload {
-  receiptId?: string;
-  saleId?: string;
-  completedAt?: string;
+export interface CompletedSale extends Omit<SalePayload, 'deliveryStatus'> {
+  receiptId?:      string;
+  saleId?:         string;
+  completedAt?:    string;
+  deliveryStatus?: DeliveryStatus | string;
 }
-
-/** Line item with optional key for list rendering and imageUrl for thumbnail */
-export type CompletedSaleLine = CompletedSale['lines'][number] & { key?: string };
 
 interface SaleSuccessScreenProps {
   sale: CompletedSale | null;
@@ -44,11 +41,8 @@ function fmt(n: number): string {
 function fmtDateTime(iso?: string): string {
   const d = iso ? new Date(iso) : new Date();
   return d.toLocaleString('en-GH', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   });
 }
 
@@ -57,118 +51,62 @@ function fmtTime(iso?: string): string {
   return d.toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' });
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 // ── Icons ──────────────────────────────────────────────────────────────────
 
 const IconPrint = () => (
-  <svg
-    width="17"
-    height="17"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <polyline points="6 9 6 2 18 2 18 9" />
-    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-    <rect x="6" y="14" width="12" height="8" />
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 6 2 18 2 18 9"/>
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+    <rect x="6" y="14" width="12" height="8"/>
   </svg>
 );
 
 const IconWhatsApp = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
   </svg>
 );
 
 const IconDownload = () => (
-  <svg
-    width="17"
-    height="17"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" y1="15" x2="12" y2="3" />
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
   </svg>
 );
 
 const IconPlus = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-  >
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
 
-// ── Payment config (normalize API values to display) ────────────────────────
+// ── Payment config ─────────────────────────────────────────────────────────
 
-const PAYMENT_LABELS: Record<string, { icon: string; label: string; color: string }> = {
-  cash: { icon: '💵', label: 'Cash', color: 'bg-emerald-500' },
-  Cash: { icon: '💵', label: 'Cash', color: 'bg-emerald-500' },
-  mobile_money: { icon: '📱', label: 'Mobile Money', color: 'bg-amber-500' },
-  MoMo: { icon: '📱', label: 'Mobile Money', color: 'bg-amber-500' },
-  card: { icon: '💳', label: 'Card', color: 'bg-blue-500' },
-  Card: { icon: '💳', label: 'Card', color: 'bg-blue-500' },
-  mixed: { icon: '💰', label: 'Mixed', color: 'bg-slate-600' },
+const PAYMENT_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
+  Cash: { icon: '💵', label: 'Cash',         color: 'bg-emerald-500' },
+  MoMo: { icon: '📱', label: 'Mobile Money', color: 'bg-amber-500'   },
+  Card: { icon: '💳', label: 'Card',         color: 'bg-blue-500'    },
 };
 
-function getPaymentConfig(method: string): { icon: string; label: string; color: string } {
-  return (
-    PAYMENT_LABELS[method] ?? {
-      icon: '💰',
-      label: method || 'Payment',
-      color: 'bg-slate-600',
-    }
-  );
-}
+// ── Download receipt as printable page ────────────────────────────────────
 
-// ── Download receipt as printable page ──────────────────────────────────────
-
-function downloadReceipt(sale: CompletedSale): void {
-  const receiptNo = sale.receiptId ?? `RCPT-${Date.now().toString(36).toUpperCase()}`;
-  const payment = getPaymentConfig(sale.paymentMethod);
+function downloadReceipt(sale: CompletedSale) {
+  const receiptNo = sale.receiptId ?? `RCP-${Date.now().toString(36).toUpperCase()}`;
+  const payment   = PAYMENT_CONFIG[sale.paymentMethod] ?? { icon: '💰', label: sale.paymentMethod, color: '' };
   const itemCount = sale.lines.reduce((s, l) => s + l.qty, 0);
 
+  // ── Date formatting ────────────────────────────────────────────────────
   const d = sale.completedAt ? new Date(sale.completedAt) : new Date();
-  const dateStr = d.toLocaleDateString('en-GH', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-  const timeStr = d.toLocaleTimeString('en-GH', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
+  const dateStr = d.toLocaleDateString('en-GH', { day: '2-digit', month: 'long', year: 'numeric' });
+  const timeStr = d.toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-  const itemsHtml = sale.lines
-    .map((l) => {
-      const lineName =
-        escapeHtml(l.name) +
-        (l.sizeLabel ? ` <span class="size-tag">${escapeHtml(l.sizeLabel)}</span>` : '');
-      return `
+  // ── Line items ─────────────────────────────────────────────────────────
+  const itemsHtml = sale.lines.map(l => {
+    const lineName = l.name + (l.sizeLabel ? ` <span class="size-tag">${l.sizeLabel}</span>` : '');
+    return `
       <tr class="item-row">
         <td class="item-desc">
           <span class="item-name">${lineName}</span>
@@ -177,132 +115,75 @@ function downloadReceipt(sale: CompletedSale): void {
         <td class="item-price">${fmt(l.unitPrice)}</td>
         <td class="item-total">${fmt(l.unitPrice * l.qty)}</td>
       </tr>`;
-    })
-    .join('');
+  }).join('');
 
-  const discountRow =
-    (sale.discountPct ?? 0) > 0
-      ? `
+  const discountRow = sale.discountPct > 0 ? `
     <tr class="summary-row">
       <td colspan="3" class="summary-label">Discount (${sale.discountPct}%)</td>
-      <td class="summary-value discount-val">−${fmt(sale.discountAmt ?? 0)}</td>
-    </tr>`
-      : '';
+      <td class="summary-value discount-val">−${fmt(sale.discountAmt)}</td>
+    </tr>` : '';
 
-  const subtotalRow =
-    sale.subtotal !== sale.total
-      ? `
+  const subtotalRow = sale.subtotal !== sale.total ? `
     <tr class="summary-row">
       <td colspan="3" class="summary-label">Subtotal</td>
       <td class="summary-value">${fmt(sale.subtotal)}</td>
-    </tr>`
-      : '';
+    </tr>` : '';
 
-  const customerRow = sale.customerName
-    ? `
-  <div class="customer-row">
-    <span class="customer-label">Customer</span>
-    <span>${escapeHtml(sale.customerName)}</span>
-  </div>`
-    : '';
-
+  // ── HTML receipt ───────────────────────────────────────────────────────
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Receipt Preview — Extreme Dept Kidz</title>
+<title>Receipt ${receiptNo} — Hunnid Official</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: 'DM Sans', system-ui, sans-serif;
-    background: #e4e4e7;
+    background: #f4f4f5;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
+    align-items: flex-start;
+    justify-content: center;
     min-height: 100vh;
-    padding: 40px 16px 80px;
+    padding: 32px 16px 64px;
     color: #09090b;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-
-  .preview-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #a1a1aa;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .preview-label::before,
-  .preview-label::after {
-    content: '';
-    display: block;
-    height: 1px;
-    width: 40px;
-    background: #d4d4d8;
-  }
-
-  .print-btn {
-    position: fixed;
-    bottom: 28px;
-    right: 28px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 20px;
-    border-radius: 100px;
-    background: #09090b;
-    color: #fff;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(0,0,0,.25);
-    transition: transform .15s, box-shadow .15s;
-    z-index: 10;
-  }
-  .print-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(0,0,0,.3); }
-  .print-btn:active { transform: scale(.97); }
 
   .receipt {
     background: #fff;
     width: 100%;
     max-width: 420px;
     border-radius: 2px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 12px 40px rgba(0,0,0,.12);
+    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 32px rgba(0,0,0,.08);
     overflow: hidden;
   }
 
+  /* ── Header ── */
   .header {
-    padding: 28px 28px 22px;
+    padding: 28px 28px 20px;
     border-bottom: 1px solid #f0f0f0;
   }
   .store-wordmark {
-    font-size: 21px;
+    font-size: 20px;
     font-weight: 700;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
     color: #09090b;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
   }
   .store-tagline {
     font-size: 11px;
     color: #a1a1aa;
     font-weight: 500;
-    letter-spacing: 0.07em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
   .receipt-meta {
-    margin-top: 18px;
+    margin-top: 16px;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -311,22 +192,33 @@ function downloadReceipt(sale: CompletedSale): void {
   .receipt-no-label {
     font-size: 10px;
     color: #a1a1aa;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
   .receipt-no-val {
     font-family: 'DM Mono', monospace;
     font-size: 13px;
     font-weight: 500;
     color: #09090b;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
   }
-  .receipt-date { text-align: right; }
-  .date-main { font-size: 13px; font-weight: 600; color: #09090b; }
-  .date-time { font-size: 11px; color: #71717a; margin-top: 3px; }
+  .receipt-date {
+    text-align: right;
+  }
+  .date-main {
+    font-size: 13px;
+    font-weight: 600;
+    color: #09090b;
+  }
+  .date-time {
+    font-size: 11px;
+    color: #71717a;
+    margin-top: 2px;
+  }
 
+  /* ── Customer row ── */
   .customer-row {
     padding: 10px 28px;
     background: #fafafa;
@@ -339,12 +231,14 @@ function downloadReceipt(sale: CompletedSale): void {
   }
   .customer-label { font-weight: 500; color: #a1a1aa; }
 
+  /* ── Items table ── */
   .items-section { padding: 0 28px; }
+
   .table-head {
     display: grid;
-    grid-template-columns: 1fr 32px 78px 78px;
-    gap: 4px;
-    padding: 14px 0 10px;
+    grid-template-columns: 1fr 32px 72px 72px;
+    gap: 8px;
+    padding: 12px 0 8px;
     border-bottom: 1.5px solid #09090b;
   }
   .col-head {
@@ -357,11 +251,10 @@ function downloadReceipt(sale: CompletedSale): void {
   .col-head.right { text-align: right; }
 
   table.items { width: 100%; border-collapse: collapse; }
-  .item-row td {
-    padding: 10px 0 3px;
-    vertical-align: top;
-  }
+
+  .item-row td { padding: 9px 0 2px; vertical-align: top; }
   .item-row + .item-row td { border-top: 1px solid #f4f4f5; }
+
   .item-desc { padding-right: 8px; }
   .item-name {
     font-size: 13px;
@@ -377,24 +270,23 @@ function downloadReceipt(sale: CompletedSale): void {
     background: #f4f4f5;
     border-radius: 4px;
     padding: 1px 5px;
-    margin-left: 5px;
+    margin-left: 4px;
     vertical-align: middle;
-    position: relative;
-    top: -1px;
   }
   .item-qty {
     font-size: 12px;
     font-weight: 500;
     color: #71717a;
     text-align: center;
-    padding-top: 11px;
+    white-space: nowrap;
+    padding-top: 10px;
   }
   .item-price {
     font-size: 12px;
     color: #71717a;
     text-align: right;
     white-space: nowrap;
-    padding-top: 11px;
+    padding-top: 10px;
   }
   .item-total {
     font-size: 13px;
@@ -402,15 +294,17 @@ function downloadReceipt(sale: CompletedSale): void {
     color: #09090b;
     text-align: right;
     white-space: nowrap;
-    padding-top: 11px;
+    padding-top: 10px;
   }
 
+  /* ── Summary ── */
   .summary-section {
-    padding: 4px 28px 4px;
+    padding: 0 28px 4px;
     border-top: 1.5px solid #09090b;
-    margin-top: 2px;
+    margin-top: 4px;
   }
   table.summary { width: 100%; border-collapse: collapse; }
+
   .summary-row td { padding: 6px 0; }
   .summary-label {
     font-size: 12px;
@@ -425,10 +319,11 @@ function downloadReceipt(sale: CompletedSale): void {
     color: #09090b;
     text-align: right;
     white-space: nowrap;
-    min-width: 78px;
+    min-width: 72px;
   }
   .discount-val { color: #16a34a; }
 
+  /* ── Total ── */
   .total-section {
     padding: 14px 28px 16px;
     border-top: 2px solid #09090b;
@@ -437,24 +332,26 @@ function downloadReceipt(sale: CompletedSale): void {
     justify-content: space-between;
   }
   .total-label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #09090b;
   }
   .total-items {
     font-size: 11px;
     color: #a1a1aa;
-    margin-top: 3px;
+    margin-top: 2px;
+    font-weight: 400;
   }
   .total-amount {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 700;
-    letter-spacing: -0.8px;
+    letter-spacing: -0.6px;
     color: #09090b;
   }
 
+  /* ── Payment ── */
   .payment-section {
     padding: 12px 28px 14px;
     background: #fafafa;
@@ -466,15 +363,15 @@ function downloadReceipt(sale: CompletedSale): void {
   .payment-label {
     font-size: 11px;
     color: #a1a1aa;
-    font-weight: 600;
-    letter-spacing: 0.07em;
+    font-weight: 500;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
   }
   .payment-pill {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 5px 12px;
+    padding: 4px 10px;
     border-radius: 100px;
     font-size: 12px;
     font-weight: 600;
@@ -482,51 +379,69 @@ function downloadReceipt(sale: CompletedSale): void {
     color: #fff;
   }
 
+  /* ── Footer ── */
   .footer {
-    padding: 16px 28px 22px;
+    padding: 16px 28px 20px;
     border-top: 1px solid #f0f0f0;
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
   }
   .footer-message {
     font-size: 12px;
     color: #71717a;
     font-weight: 500;
-    margin-bottom: 8px;
+    text-align: center;
   }
   .footer-receipt {
     font-family: 'DM Mono', monospace;
     font-size: 10px;
     color: #d4d4d8;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.12em;
   }
 
+  /* ── Print styles ── */
   @media print {
     body { background: none; padding: 0; }
-    .preview-label, .print-btn { display: none !important; }
-    .receipt { box-shadow: none; max-width: 100%; }
+    .receipt {
+      box-shadow: none;
+      border-radius: 0;
+      max-width: 100%;
+      width: 100%;
+    }
+    .no-print { display: none !important; }
   }
 </style>
 </head>
 <body>
 
-<p class="preview-label">Receipt Preview</p>
-
+<!-- Print button (hidden when printing) -->
 <div class="receipt">
+
+  <!-- Header -->
   <div class="header">
-    <div class="store-wordmark">Extreme Dept Kidz</div>
+    <div class="store-wordmark">Hunnid Official</div>
     <div class="store-tagline">Official Receipt</div>
     <div class="receipt-meta">
       <div>
         <div class="receipt-no-label">Receipt No.</div>
-        <div class="receipt-no-val">${escapeHtml(receiptNo)}</div>
+        <div class="receipt-no-val">${receiptNo}</div>
       </div>
       <div class="receipt-date">
-        <div class="date-main">${escapeHtml(dateStr)}</div>
-        <div class="date-time">${escapeHtml(timeStr)}</div>
+        <div class="date-main">${dateStr}</div>
+        <div class="date-time">${timeStr}</div>
       </div>
     </div>
   </div>
-  ${customerRow}
+
+  ${sale.customerName ? `
+  <div class="customer-row">
+    <span class="customer-label">Customer</span>
+    <span>${sale.customerName}</span>
+  </div>` : ''}
+
+  <!-- Items -->
   <div class="items-section">
     <div class="table-head">
       <span class="col-head">Item</span>
@@ -538,6 +453,8 @@ function downloadReceipt(sale: CompletedSale): void {
       <tbody>${itemsHtml}</tbody>
     </table>
   </div>
+
+  <!-- Summary (subtotal + discount) -->
   ${subtotalRow || discountRow ? `
   <div class="summary-section">
     <table class="summary">
@@ -547,6 +464,8 @@ function downloadReceipt(sale: CompletedSale): void {
       </tbody>
     </table>
   </div>` : ''}
+
+  <!-- Total -->
   <div class="total-section">
     <div>
       <div class="total-label">Total</div>
@@ -554,26 +473,23 @@ function downloadReceipt(sale: CompletedSale): void {
     </div>
     <div class="total-amount">${fmt(sale.total)}</div>
   </div>
+
+  <!-- Payment -->
   <div class="payment-section">
     <span class="payment-label">Payment</span>
-    <span class="payment-pill">${payment.icon} ${escapeHtml(payment.label)}</span>
+    <span class="payment-pill">${payment.icon} ${payment.label}</span>
   </div>
+
+  <!-- Footer -->
   <div class="footer">
     <div class="footer-message">Thank you for shopping with us!</div>
-    <div class="footer-receipt">${escapeHtml(receiptNo)}</div>
+    <div class="footer-receipt">${receiptNo}</div>
   </div>
+
 </div>
 
-<button class="print-btn" onclick="window.print()">
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="6 9 6 2 18 2 18 9"/>
-    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-    <rect x="6" y="14" width="12" height="8"/>
-  </svg>
-  Print / Save PDF
-</button>
-
 <script>
+  // Auto-open print dialog after fonts load
   window.addEventListener('load', function() {
     setTimeout(function() { window.print(); }, 600);
   });
@@ -582,30 +498,34 @@ function downloadReceipt(sale: CompletedSale): void {
 </html>`;
 
   const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
+  const url  = URL.createObjectURL(blob);
 
+  // Open in new tab — print dialog fires automatically
   const tab = window.open(url, '_blank');
   if (!tab) {
-    const a = document.createElement('a');
-    a.href = url;
+    // Fallback: download if popup blocked
+    const a  = document.createElement('a');
+    a.href   = url;
     a.download = `receipt-${receiptNo}.html`;
     a.click();
   }
+  // Revoke after delay
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
 // ── Line item row ──────────────────────────────────────────────────────────
 
-function ReceiptLine({ line }: { line: CompletedSaleLine }) {
+function ReceiptLine({ line }: { line: CompletedSale['lines'][number] }) {
   const [imgError, setImgError] = useState(false);
   const hasImg = line.imageUrl && !imgError;
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-slate-100 last:border-0">
+      {/* Product thumbnail */}
       {hasImg ? (
         <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-200">
           <img
-            src={safeProductImageUrl(line.imageUrl!)}
+            src={line.imageUrl!}
             alt={line.name}
             className="w-full h-full object-cover"
             onError={() => setImgError(true)}
@@ -613,31 +533,21 @@ function ReceiptLine({ line }: { line: CompletedSaleLine }) {
         </div>
       ) : (
         <div className="w-10 h-10 rounded-lg bg-slate-100 flex-shrink-0 flex items-center justify-center text-slate-300 border border-slate-200">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <polyline points="21 15 16 10 5 21" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
           </svg>
         </div>
       )}
 
+      {/* Name + size */}
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-bold text-slate-900 truncate">{line.name}</p>
         <p className="text-[11px] text-slate-400 mt-0.5">
-          {line.sizeLabel ? `${line.sizeLabel} · ` : ''}
-          {line.qty} × {fmt(line.unitPrice)}
+          {line.sizeLabel ? `${line.sizeLabel} · ` : ''}{line.qty} × {fmt(line.unitPrice)}
         </p>
       </div>
 
+      {/* Line total */}
       <p className="text-[14px] font-extrabold text-slate-900 tabular-nums flex-shrink-0">
         {fmt(line.unitPrice * line.qty)}
       </p>
@@ -653,19 +563,18 @@ export default function SaleSuccessScreen({
   onShareReceipt,
   onPrint,
 }: SaleSuccessScreenProps) {
+
   const isOpen = sale !== null;
   const [visible, setVisible] = useState(false);
   const [badgeIn, setBadgeIn] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
+  // Stagger animations on open
   useEffect(() => {
     if (isOpen) {
       const t1 = setTimeout(() => setVisible(true), 20);
       const t2 = setTimeout(() => setBadgeIn(true), 100);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-      };
+      return () => { clearTimeout(t1); clearTimeout(t2); };
     } else {
       setVisible(false);
       setBadgeIn(false);
@@ -674,9 +583,11 @@ export default function SaleSuccessScreen({
 
   if (!sale) return null;
 
-  const payment = getPaymentConfig(sale.paymentMethod);
-  const receiptNo = sale.receiptId ?? `RCPT-${Date.now().toString(36).toUpperCase()}`;
-  const itemCount = sale.lines.reduce((s, l) => s + l.qty, 0);
+  const payment  = PAYMENT_CONFIG[sale.paymentMethod] ?? { icon: '💰', label: sale.paymentMethod, color: 'bg-slate-600' };
+  const receiptNo         = sale.receiptId ?? `RCPT-${Date.now().toString(36).toUpperCase()}`;
+  const itemCount         = sale.lines.reduce((s, l) => s + l.qty, 0);
+  const isPendingDelivery = sale.deliveryStatus === 'pending' || sale.deliveryStatus === 'dispatched';
+  const expectedDateStr   = sale.expectedDate ? new Date(sale.expectedDate).toLocaleDateString('en-GH', { day: '2-digit', month: 'short' }) : '';
 
   return (
     <div
@@ -697,6 +608,7 @@ export default function SaleSuccessScreen({
         `}
         style={{ transitionDelay: '80ms' }}
       >
+        {/* Animated check circle */}
         <div
           className={`
             w-[72px] h-[72px] rounded-full bg-emerald-500
@@ -706,17 +618,9 @@ export default function SaleSuccessScreen({
             ${badgeIn ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}
           `}
         >
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+            stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
           </svg>
         </div>
 
@@ -727,22 +631,23 @@ export default function SaleSuccessScreen({
           {fmt(sale.total)}
         </p>
 
+        {/* Tags row */}
         <div className="flex items-center gap-2 flex-wrap justify-center">
-          <span
-            className={`
+          <span className={`
             inline-flex items-center gap-1.5 h-7 px-3 rounded-full
             ${payment.color} text-white text-[12px] font-bold
-          `}
-          >
+          `}>
             {payment.icon} {payment.label}
           </span>
 
-          <span className="inline-flex items-center h-7 px-3 rounded-full bg-slate-700 text-slate-300 text-[12px] font-semibold">
+          <span className="inline-flex items-center h-7 px-3 rounded-full
+            bg-slate-700 text-slate-300 text-[12px] font-semibold">
             {itemCount} item{itemCount !== 1 ? 's' : ''}
           </span>
 
           {sale.customerName && (
-            <span className="inline-flex items-center h-7 px-3 rounded-full bg-slate-700 text-slate-300 text-[12px] font-semibold">
+            <span className="inline-flex items-center h-7 px-3 rounded-full
+              bg-slate-700 text-slate-300 text-[12px] font-semibold">
               👤 {sale.customerName}
             </span>
           )}
@@ -766,76 +671,79 @@ export default function SaleSuccessScreen({
           ref={receiptRef}
           className="bg-white rounded-3xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.35)]"
         >
+          {/* Pending delivery banner */}
+          {isPendingDelivery && (
+            <div className="mx-4 mb-2 mt-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-center gap-3">
+              <span className="text-xl">🚚</span>
+              <div>
+                <p className="text-[12px] font-bold text-amber-800">Scheduled for Delivery</p>
+                <p className="text-[11px] text-amber-600 mt-0.5">
+                  {sale.deliveryStatus === 'dispatched' ? 'On the way' : 'Pending dispatch'}
+                  {expectedDateStr ? ` · Expected ${expectedDateStr}` : ''}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Receipt header */}
           <div className="px-5 py-4 border-b border-slate-100">
             <div className="flex items-center justify-between mb-1">
               <div>
-                <p className="text-[15px] font-black text-slate-900 tracking-tight">
-                  Extreme Dept Kidz
-                </p>
+                <p className="text-[15px] font-black text-slate-900 tracking-tight">Hunnid Official</p>
                 <p className="text-[11px] text-slate-400 font-medium mt-0.5">Official Receipt</p>
               </div>
               <div className="text-right">
                 <p className="text-[11px] font-mono font-bold text-slate-700">{receiptNo}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  {fmtDateTime(sale.completedAt)}
-                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">{fmtDateTime(sale.completedAt)}</p>
               </div>
             </div>
+
+            {/* Dashed rule */}
             <div className="mt-3 border-t border-dashed border-slate-200" />
           </div>
 
+          {/* Line items */}
           <div className="px-5 py-1">
-            {sale.lines.map((line, i) => (
-              <ReceiptLine
-                key={(line as CompletedSaleLine).key ?? `line-${i}-${line.productId}-${line.sizeCode ?? 'na'}`}
-                line={line as CompletedSaleLine}
-              />
+            {sale.lines.map(line => (
+              <ReceiptLine key={line.key} line={line} />
             ))}
           </div>
 
+          {/* Totals */}
           <div className="px-5 pb-5 pt-3 border-t border-dashed border-slate-200 space-y-2">
             {sale.subtotal !== sale.total && (
               <div className="flex justify-between text-[13px]">
                 <span className="text-slate-500">Subtotal</span>
-                <span className="font-semibold text-slate-600 tabular-nums">
-                  {fmt(sale.subtotal)}
-                </span>
+                <span className="font-semibold text-slate-600 tabular-nums">{fmt(sale.subtotal)}</span>
               </div>
             )}
 
-            {(sale.discountPct ?? 0) > 0 && (
+            {sale.discountPct > 0 && (
               <div className="flex justify-between text-[13px]">
                 <span className="text-slate-500">Discount ({sale.discountPct}%)</span>
-                <span className="font-semibold text-emerald-600 tabular-nums">
-                  −{fmt(sale.discountAmt ?? 0)}
-                </span>
+                <span className="font-semibold text-emerald-600 tabular-nums">−{fmt(sale.discountAmt)}</span>
               </div>
             )}
 
             <div className="flex justify-between items-baseline pt-2 border-t border-slate-200">
               <span className="text-[15px] font-black text-slate-900">Total</span>
-              <span className="text-[22px] font-black text-slate-900 tabular-nums">
-                {fmt(sale.total)}
-              </span>
+              <span className="text-[22px] font-black text-slate-900 tabular-nums">{fmt(sale.total)}</span>
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-dashed border-slate-100">
               <span className="text-[12px] text-slate-400">Payment method</span>
-              <span
-                className={`
+              <span className={`
                 inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-bold text-white
                 ${payment.color}
-              `}
-              >
+              `}>
                 {payment.icon} {payment.label}
               </span>
             </div>
           </div>
 
+          {/* Footer */}
           <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 text-center">
-            <p className="text-[11px] text-slate-400 font-medium">
-              Thank you for shopping with us! 🙏
-            </p>
+            <p className="text-[11px] text-slate-400 font-medium">Thank you for shopping with us! 🙏</p>
             <p className="text-[10px] text-slate-300 mt-0.5 font-mono">{receiptNo}</p>
           </div>
         </div>
@@ -850,7 +758,9 @@ export default function SaleSuccessScreen({
         `}
         style={{ transitionDelay: '240ms' }}
       >
+        {/* Top row: 3 action buttons */}
         <div className="flex gap-2">
+          {/* Print */}
           <button
             type="button"
             onClick={() => onPrint(sale)}
@@ -865,6 +775,7 @@ export default function SaleSuccessScreen({
             <span className="text-[10px] font-bold tracking-wide">PRINT</span>
           </button>
 
+          {/* Download */}
           <button
             type="button"
             onClick={() => downloadReceipt(sale)}
@@ -879,6 +790,7 @@ export default function SaleSuccessScreen({
             <span className="text-[10px] font-bold tracking-wide">SAVE</span>
           </button>
 
+          {/* WhatsApp share */}
           <button
             type="button"
             onClick={() => onShareReceipt(sale)}
@@ -894,6 +806,7 @@ export default function SaleSuccessScreen({
           </button>
         </div>
 
+        {/* New sale — primary CTA */}
         <button
           type="button"
           onClick={onNewSale}
@@ -912,6 +825,7 @@ export default function SaleSuccessScreen({
         </button>
       </div>
 
+      {/* Keyframes */}
       <style>{`
         @keyframes successPop {
           0%   { transform: scale(0.4); opacity: 0; }

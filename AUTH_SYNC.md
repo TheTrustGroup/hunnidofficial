@@ -2,7 +2,7 @@
 
 ## Login credentials (unchanged)
 
-- **Email:** `info@extremedeptkidz.com`
+- **Email:** `admin@hunnidofficial.com`
 - **Password:** `Admin123!@#`
 
 Use these on the warehouse POS login page. Email is normalized (trimmed, lowercased) before sending.
@@ -13,9 +13,9 @@ Use these on the warehouse POS login page. Email is normalized (trimmed, lowerca
 
 ### 1. API base URL
 
-- **Before:** `.env.local` used `VITE_API_BASE_URL=https://api.extremedeptkidz.com` (different host).
-- **After:** `VITE_API_BASE_URL=https://extremedeptkidz.com` so `/admin/api/*` is on the **same origin** as the admin panel.
-- **Reason:** Admin endpoints (`/admin/api/me`, `/admin/api/login`) live on `extremedeptkidz.com`; calling them from the correct origin avoids CORS/credential issues.
+- **Before:** `.env.local` used `VITE_API_BASE_URL=https://api.hunnidofficial.com` (different host).
+- **After:** `VITE_API_BASE_URL=https://hunnidofficial.com` so `/admin/api/*` is on the **same origin** as the admin panel.
+- **Reason:** Admin endpoints (`/admin/api/me`, `/admin/api/login`) live on `hunnidofficial.com`; calling them from the correct origin avoids CORS/credential issues.
 
 ### 2. Auth check (`checkAuthStatus`)
 
@@ -51,24 +51,24 @@ Use these on the warehouse POS login page. Email is normalized (trimmed, lowerca
 ## If login still says “incorrect”
 
 1. **Confirm credentials**
-   - Email: `info@extremedeptkidz.com` (no spaces, lowercase).
+   - Email: `admin@hunnidofficial.com` (no spaces, lowercase).
    - Password: `Admin123!@#` (case- and symbol-sensitive).
 
 2. **Confirm user in admin**
-   - The same email/password must work in the main admin at `https://extremedeptkidz.com/admin`.
+   - The same email/password must work in the main admin at `https://hunnidofficial.com/admin`.
    - If it doesn’t work there, fix the user in the admin first.
 
 3. **Check Network tab**
    - Open DevTools → Network.
    - Try to log in and find the login request (e.g. `login` or `admin/api/login`).
    - Check:
-     - **Request URL** (should be `https://extremedeptkidz.com/admin/api/login` or fallback).
+     - **Request URL** (should be `https://hunnidofficial.com/admin/api/login` or fallback).
      - **Status** (401 = wrong credentials or not allowed; 422 = validation error).
      - **Response** body for the exact message (e.g. “incorrect”, “Invalid credentials”).
 
 4. **CORS / credentials**
    - If the request fails before reaching the server (e.g. CORS error), the admin backend must allow:
-     - Origin: `https://warehouse.extremedeptkidz.com`
+     - Origin: `https://warehouse.hunnidofficial.com`
      - Credentials: `true`
    - Otherwise the browser may block the request or omit cookies.
 
@@ -79,4 +79,4 @@ Use these on the warehouse POS login page. Email is normalized (trimmed, lowerca
 - `npm run build` completes successfully.
 - No linter errors in auth or login code.
 
-Credentials are still **info@extremedeptkidz.com** / **Admin123!@#**; auth flow and API base URL are aligned with the admin panel for consistent, reliable login.
+Credentials are still **admin@hunnidofficial.com** / **Admin123!@#**; auth flow and API base URL are aligned with the admin panel for consistent, reliable login.

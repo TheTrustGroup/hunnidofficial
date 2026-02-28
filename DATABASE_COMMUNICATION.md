@@ -6,10 +6,10 @@ The **frontend never talks to the database**. Only the **backend (inventory-serv
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  Browser (warehouse.extremedeptkidz.com)                                 │
+│  Browser (warehouse.hunnidofficial.com)                                 │
 │  - React app (Vite)                                                      │
 │  - No DB connection, no SUPABASE_URL or keys                            │
-│  - Uses: VITE_API_BASE_URL (e.g. https://extremedeptkidz.com)            │
+│  - Uses: VITE_API_BASE_URL (e.g. https://hunnidofficial.com)            │
 └───────────────────────────────────┬─────────────────────────────────────┘
                                     │
                                     │  HTTPS (fetch)
@@ -17,7 +17,7 @@ The **frontend never talks to the database**. Only the **backend (inventory-serv
                                     │  Cookies (optional)
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│  API / Backend (extremedeptkidz.com or your inventory-server deploy)    │
+│  API / Backend (hunnidofficial.com or your inventory-server deploy)    │
 │  - Next.js API routes: /api/*, /admin/api/*                              │
 │  - Auth: session cookie + Bearer token (no DB for auth; in-memory env)  │
 └───────────────────────────────────┬─────────────────────────────────────┘
@@ -39,7 +39,7 @@ The **frontend never talks to the database**. Only the **backend (inventory-serv
 ## 1. Frontend (no database)
 
 - **Location:** `warehouse-pos/src/` (React + Vite).
-- **Config:** `VITE_API_BASE_URL` in `.env` or Vercel — points to the API origin (e.g. `https://extremedeptkidz.com` or your inventory-server URL).
+- **Config:** `VITE_API_BASE_URL` in `.env` or Vercel — points to the API origin (e.g. `https://hunnidofficial.com` or your inventory-server URL).
 - **Behavior:** All data goes through `fetch()` to that base URL (e.g. `GET /api/products`, `POST /admin/api/login`). No database URL or keys; no direct DB connection.
 
 ---
@@ -76,7 +76,7 @@ The **frontend never talks to the database**. Only the **backend (inventory-serv
 |----------|--------|
 | Who connects to the DB? | Only **inventory-server** (backend). Frontend never does. |
 | How does the frontend get data? | By calling **API_BASE_URL** (e.g. `/api/products`, `/api/auth/user`). |
-| What if I use a different API (e.g. extremedeptkidz.com)? | Then that server’s own DB (and env) are used. Frontend still only talks to that API. |
+| What if I use a different API (e.g. hunnidofficial.com)? | Then that server’s own DB (and env) are used. Frontend still only talks to that API. |
 | Where are SUPABASE_* set? | In **inventory-server** env (e.g. `.env.local`, Vercel env for the API project). Not in the frontend. |
 | Same DB for warehouse and storefront? | Only if both use the **same API** (same `API_BASE_URL`). That API then uses one Supabase project. |
 

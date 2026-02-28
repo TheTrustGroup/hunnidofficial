@@ -55,6 +55,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const offset = searchParams.get('offset');
     const q = searchParams.get('q') ?? undefined;
     const category = searchParams.get('category') ?? undefined;
+    const sizeCode = searchParams.get('size_code') ?? undefined;
+    const color = searchParams.get('color') ?? undefined;
     const lowStock = searchParams.get('low_stock') === '1' || searchParams.get('low_stock') === 'true';
     const outOfStock = searchParams.get('out_of_stock') === '1' || searchParams.get('out_of_stock') === 'true';
     const result = await getWarehouseProducts(warehouseId, {
@@ -62,6 +64,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       offset: offset != null ? parseInt(offset, 10) : undefined,
       q,
       category,
+      sizeCode,
+      color,
       lowStock,
       outOfStock,
     });
@@ -80,7 +84,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAdmin(request);
-  if (auth instanceof NextResponse) return auth as NextResponse;
+  if (auth instanceof NextResponse) return withCors(auth, request);
   const requestId = getRequestId(request);
   let body: Record<string, unknown>;
   try {

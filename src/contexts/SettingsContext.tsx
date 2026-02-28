@@ -32,10 +32,10 @@ interface SettingsContextType {
 }
 
 const defaultBusinessSettings: BusinessSettings = {
-  businessName: 'Extreme Dept Kidz',
+  businessName: 'Hunnid Official',
   address: 'Accra, Greater Accra, Ghana',
   phone: '+233 XX XXX XXXX',
-  email: 'info@extremedeptkidz.com',
+  email: 'admin@hunnidofficial.com',
   taxRate: 15,
   currency: 'GHS',
 };

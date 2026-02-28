@@ -9,8 +9,8 @@ This document covers manual and cross-environment testing for the Warehouse Inve
 - **Environment**: App running locally (`npm run dev`) or against a deployed URL (e.g. Vite build + preview or production).
 - **Backend**: API at `VITE_API_BASE_URL` must be reachable for online tests; use mock/offline mode for offline tests.
 - **Test accounts** (adjust to your backend):
-  - **Admin**: e.g. `info@extremedeptkidz.com` (or your admin email) → lands on Dashboard (`/`).
-  - **POS/Cashier**: e.g. `cashier@extremedeptkidz.com` or `maintown_cashier@extremedeptkidz.com` → lands on POS (`/pos`).
+  - **Admin**: e.g. `admin@hunnidofficial.com` (or your admin email) → lands on Dashboard (`/`).
+  - **POS/Cashier**: e.g. `jcashier@hunnidofficial.com` or `maintown_jcashier@hunnidofficial.com` → lands on POS (`/pos`).
 
 ---
 

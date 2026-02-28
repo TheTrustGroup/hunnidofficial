@@ -8,6 +8,10 @@ export interface ListOptions {
   offset?: number;
   q?: string;
   category?: string;
+  /** Filter to products that have this size (in warehouse_inventory_by_size for the warehouse). */
+  sizeCode?: string;
+  /** Filter to products with this color (case-insensitive match). */
+  color?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
 }
@@ -25,6 +29,8 @@ export interface ListProduct {
   name: string;
   description: string | null;
   category: string;
+  /** Product color for filter (e.g. Red, Black). Null when not set. */
+  color: string | null;
   sizeKind: string;
   sellingPrice: number;
   costPrice: number;
@@ -56,6 +62,7 @@ export interface PutProductBody {
   quantity?: number;
   quantityBySize?: Array<{ sizeCode: string; quantity: number }>;
   images?: string[];
+  color?: string | null;
   [key: string]: unknown;
 }
 
@@ -85,7 +92,7 @@ function normalizeDbConstraintError(dbMessage: string, action: 'create' | 'updat
  * Quantity is resolved from warehouse_inventory / warehouse_inventory_by_size per warehouse.
  */
 const WAREHOUSE_PRODUCTS_SELECT =
-  'id, sku, barcode, name, description, category, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
+  'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
 
 /** List products for a warehouse. Works when warehouse_products has no warehouse_id (one row per product). */
 export async function getWarehouseProducts(
@@ -104,11 +111,37 @@ export async function getWarehouseProducts(
     .range(offset, offset + limit - 1);
 
   if (options.q?.trim()) {
-    const q = options.q.trim();
-    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%`);
+    const raw = options.q.trim();
+    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
   }
   if (options.category?.trim()) {
     query = query.eq('category', options.category.trim());
+  }
+  if (options.color?.trim()) {
+    const colorVal = options.color.trim();
+    if (colorVal.toLowerCase() === 'uncategorized') {
+      // Show products with no color set (existing products before color was added).
+      query = query.is('color', null);
+    } else {
+      // Case-insensitive: ilike with no wildcards matches exact string, any case (e.g. Black matches black).
+      query = query.ilike('color', colorVal);
+    }
+  }
+
+  // When filtering by size, restrict to product IDs that have this size in this warehouse.
+  let sizeFilterProductIds: string[] | null = null;
+  if (options.sizeCode?.trim() && effectiveWarehouseId) {
+    const { data: sizeRows } = await db
+      .from('warehouse_inventory_by_size')
+      .select('product_id')
+      .eq('warehouse_id', effectiveWarehouseId)
+      .eq('size_code', options.sizeCode.trim());
+    sizeFilterProductIds = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
+    if (sizeFilterProductIds.length === 0) {
+      return { data: [], total: 0 };
+    }
+    query = query.in('id', sizeFilterProductIds);
   }
 
   const { data: rows, error, count } = await query;
@@ -174,6 +207,7 @@ export async function getWarehouseProducts(
       name: String(row.name ?? ''),
       description: row.description ?? null,
       category: String(row.category ?? ''),
+      color: row.color != null ? String(row.color).trim() || null : null,
       sizeKind: String(row.size_kind ?? 'na'),
       sellingPrice: Number(row.selling_price ?? 0),
       costPrice: Number(row.cost_price ?? 0),
@@ -239,6 +273,7 @@ export async function getProductById(
     name: String(r.name ?? ''),
     description: r.description != null ? String(r.description) : null,
     category: String(r.category ?? ''),
+    color: r.color != null ? String(r.color).trim() || null : null,
     sizeKind: String(r.size_kind ?? 'na'),
     sellingPrice: Number(r.selling_price ?? 0),
     costPrice: Number(r.cost_price ?? 0),
@@ -288,6 +323,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
   const quantity = Number(body.quantity ?? 0);
   const now = new Date().toISOString();
 
+  const colorVal = body.color != null ? String(body.color).trim() || null : null;
   const productRow = {
     id,
     sku,
@@ -295,6 +331,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
     name,
     description,
     category,
+    color: colorVal,
     size_kind: sizeKind === 'one_size' ? 'one_size' : sizeKind === 'sized' ? 'sized' : 'na',
     selling_price: sellingPrice,
     cost_price: costPrice,
@@ -359,6 +396,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
     name,
     description,
     category,
+    color: productRow.color ?? null,
     sizeKind: productRow.size_kind,
     sellingPrice,
     costPrice,
@@ -407,6 +445,7 @@ export async function updateWarehouseProduct(
   if (body.supplier !== undefined) updates.supplier = body.supplier;
   if (body.tags !== undefined) updates.tags = Array.isArray(body.tags) ? body.tags : [];
   if (body.images !== undefined) updates.images = Array.isArray(body.images) ? body.images : [];
+  if (body.color !== undefined) updates.color = body.color != null ? String(body.color).trim() || null : null;
 
   updates.version = (existing.version ?? 0) + 1;
 
@@ -419,7 +458,14 @@ export async function updateWarehouseProduct(
   }
 
   const sizeKind = String(body.sizeKind ?? existing.sizeKind ?? 'na').toLowerCase();
-  const quantityBySize = Array.isArray(body.quantityBySize) ? body.quantityBySize as Array<{ sizeCode: string; quantity: number }> : [];
+  // Preserve existing sizes when body.quantityBySize is undefined or explicitly empty (avoid accidental wipe)
+  const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize : undefined;
+  const quantityBySize =
+    quantityBySizeRaw && quantityBySizeRaw.length > 0
+      ? (quantityBySizeRaw as Array<{ sizeCode: string; quantity: number }>)
+      : (existing.quantityBySize?.length
+          ? (existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
+          : []);
   const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
   const totalQty = isSized
     ? quantityBySize.reduce((s, r) => s + (Number(r.quantity) || 0), 0)

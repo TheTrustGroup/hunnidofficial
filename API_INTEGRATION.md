@@ -7,7 +7,7 @@ This document describes how to integrate the Warehouse POS system with your back
 The API base URL is configured in `.env.local`:
 
 ```env
-VITE_API_BASE_URL=https://api.extremedeptkidz.com
+VITE_API_BASE_URL=https://api.hunnidofficial.com
 ```
 
 For local development, you can set it to:
@@ -30,7 +30,7 @@ The system uses the following authentication endpoints:
 **Request Body:**
 ```json
 {
-  "email": "info@extremedeptkidz.com",
+  "email": "admin@hunnidofficial.com",
   "password": "Admin123!@#"
 }
 ```
@@ -252,7 +252,7 @@ The system includes offline support:
 If your API is on a different domain, ensure CORS is properly configured:
 
 ```
-Access-Control-Allow-Origin: https://warehouse.extremedeptkidz.com
+Access-Control-Allow-Origin: https://warehouse.hunnidofficial.com
 Access-Control-Allow-Credentials: true
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization, Accept

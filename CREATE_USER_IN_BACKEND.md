@@ -1,13 +1,13 @@
 # How to Create Users in Your Backend Database
 
-This guide explains how to create the `cashier@extremedeptkidz.com` user (and other role users) in your backend database so they can log in to the warehouse app.
+This guide explains how to create the `jcashier@hunnidofficial.com` user (and other role users) in your backend database so they can log in to the warehouse app.
 
 ---
 
 ## Quick Summary
 
 You need to create a user in your **backend database** with:
-- **Email:** `cashier@extremedeptkidz.com` (exactly, lowercase, no spaces)
+- **Email:** `jcashier@hunnidofficial.com` (exactly, lowercase, no spaces)
 - **Password:** `EDK-!@#` (exactly, case-sensitive)
 - **Role:** `cashier` (must match exactly)
 - **Status:** Active/Enabled
@@ -16,12 +16,12 @@ You need to create a user in your **backend database** with:
 
 ## Option 1: Using Your Backend Admin Panel (Easiest)
 
-If you have access to your backend admin panel (e.g., `extremedeptkidz.com/admin`):
+If you have access to your backend admin panel (e.g., `hunnidofficial.com/admin`):
 
 ### Steps:
 
 1. **Log into your backend admin panel**
-   - Go to `https://extremedeptkidz.com/admin` (or wherever your admin panel is)
+   - Go to `https://hunnidofficial.com/admin` (or wherever your admin panel is)
    - Log in with your admin credentials
 
 2. **Navigate to User Management**
@@ -32,7 +32,7 @@ If you have access to your backend admin panel (e.g., `extremedeptkidz.com/admin
 
 4. **Fill in the form with these exact values:**
    - **Full Name:** `Jane Doe` (or any name)
-   - **Email:** `cashier@extremedeptkidz.com` (must be exact, lowercase)
+   - **Email:** `jcashier@hunnidofficial.com` (must be exact, lowercase)
    - **Password:** `EDK-!@#` (must be exact, case-sensitive)
    - **Role:** Select `cashier` (or set role field to `cashier`)
    - **Status:** Active/Enabled
@@ -40,13 +40,13 @@ If you have access to your backend admin panel (e.g., `extremedeptkidz.com/admin
 5. **Save the user**
 
 6. **Verify the user was created:**
-   - Check that the email is exactly `cashier@extremedeptkidz.com`
+   - Check that the email is exactly `jcashier@hunnidofficial.com`
    - Check that the role is set to `cashier` (not "Cashier" or "CASHIER")
    - Check that the user is Active/Enabled
 
 7. **Test login:**
-   - Go to `https://warehouse.extremedeptkidz.com/login`
-   - Try logging in with `cashier@extremedeptkidz.com` / `EDK-!@#`
+   - Go to `https://warehouse.hunnidofficial.com/login`
+   - Try logging in with `jcashier@hunnidofficial.com` / `EDK-!@#`
 
 ---
 
@@ -66,7 +66,7 @@ php artisan tinker
 # Create the user
 $user = new App\Models\User();
 $user->name = 'Jane Doe';
-$user->email = 'cashier@extremedeptkidz.com';
+$user->email = 'jcashier@hunnidofficial.com';
 $user->password = Hash::make('EDK-!@#');
 $user->role = 'cashier';
 $user->is_active = true;
@@ -96,31 +96,31 @@ class RoleUsersSeeder extends Seeder
         $users = [
             [
                 'name' => 'Store Manager',
-                'email' => 'manager@extremedeptkidz.com',
+                'email' => 'manager@hunnidofficial.com',
                 'password' => 'EDK-!@#',
                 'role' => 'manager',
             ],
             [
                 'name' => 'Jane Doe',
-                'email' => 'cashier@extremedeptkidz.com',
+                'email' => 'jcashier@hunnidofficial.com',
                 'password' => 'EDK-!@#',
                 'role' => 'cashier',
             ],
             [
                 'name' => 'Warehouse Staff',
-                'email' => 'warehouse@extremedeptkidz.com',
+                'email' => 'warehouse@hunnidofficial.com',
                 'password' => 'EDK-!@#',
                 'role' => 'warehouse',
             ],
             [
                 'name' => 'Delivery Driver',
-                'email' => 'driver@extremedeptkidz.com',
+                'email' => 'driver@hunnidofficial.com',
                 'password' => 'EDK-!@#',
                 'role' => 'driver',
             ],
             [
                 'name' => 'View Only Accountant',
-                'email' => 'viewer@extremedeptkidz.com',
+                'email' => 'viewer@hunnidofficial.com',
                 'password' => 'EDK-!@#',
                 'role' => 'viewer',
             ],
@@ -164,35 +164,35 @@ async function createRoleUsers() {
   const users = [
     {
       name: 'Store Manager',
-      email: 'manager@extremedeptkidz.com',
+      email: 'manager@hunnidofficial.com',
       password: 'EDK-!@#',
       role: 'manager',
       isActive: true,
     },
     {
       name: 'Jane Doe',
-      email: 'cashier@extremedeptkidz.com',
+      email: 'jcashier@hunnidofficial.com',
       password: 'EDK-!@#',
       role: 'cashier',
       isActive: true,
     },
     {
       name: 'Warehouse Staff',
-      email: 'warehouse@extremedeptkidz.com',
+      email: 'warehouse@hunnidofficial.com',
       password: 'EDK-!@#',
       role: 'warehouse',
       isActive: true,
     },
     {
       name: 'Delivery Driver',
-      email: 'driver@extremedeptkidz.com',
+      email: 'driver@hunnidofficial.com',
       password: 'EDK-!@#',
       role: 'driver',
       isActive: true,
     },
     {
       name: 'View Only Accountant',
-      email: 'viewer@extremedeptkidz.com',
+      email: 'viewer@hunnidofficial.com',
       password: 'EDK-!@#',
       role: 'viewer',
       isActive: true,
@@ -242,13 +242,13 @@ If you have direct database access (MySQL, PostgreSQL, etc.):
 -- For this example, you'd need to generate the hash first
 
 -- Check if user exists
-SELECT * FROM users WHERE email = 'cashier@extremedeptkidz.com';
+SELECT * FROM users WHERE email = 'jcashier@hunnidofficial.com';
 
 -- If user doesn't exist, insert (replace PASSWORD_HASH with actual bcrypt hash)
 INSERT INTO users (name, email, password, role, is_active, created_at, updated_at)
 VALUES (
   'Jane Doe',
-  'cashier@extremedeptkidz.com',
+  'jcashier@hunnidofficial.com',
   '$2y$10$YOUR_BCRYPT_HASH_HERE', -- Generate this using your app's password hashing
   'cashier',
   1,
@@ -264,7 +264,7 @@ SET
   role = 'cashier',
   is_active = 1,
   updated_at = NOW()
-WHERE email = 'cashier@extremedeptkidz.com';
+WHERE email = 'jcashier@hunnidofficial.com';
 ```
 
 **⚠️ Important:** Don't insert plain text passwords! You must hash them using your application's password hashing method (bcrypt, argon2, etc.).
@@ -286,32 +286,32 @@ I need to create users in the backend database for the warehouse POS system.
 Please create the following users:
 
 1. Cashier User:
-   - Email: cashier@extremedeptkidz.com
+   - Email: jcashier@hunnidofficial.com
    - Password: EDK-!@#
    - Role: cashier
    - Full Name: Jane Doe
    - Status: Active
 
 2. Manager User:
-   - Email: manager@extremedeptkidz.com
+   - Email: manager@hunnidofficial.com
    - Password: EDK-!@#
    - Role: manager
    - Status: Active
 
 3. Warehouse User:
-   - Email: warehouse@extremedeptkidz.com
+   - Email: warehouse@hunnidofficial.com
    - Password: EDK-!@#
    - Role: warehouse
    - Status: Active
 
 4. Driver User:
-   - Email: driver@extremedeptkidz.com
+   - Email: driver@hunnidofficial.com
    - Password: EDK-!@#
    - Role: driver
    - Status: Active
 
 5. Viewer User:
-   - Email: viewer@extremedeptkidz.com
+   - Email: viewer@hunnidofficial.com
    - Password: EDK-!@#
    - Role: viewer
    - Status: Active
@@ -335,7 +335,7 @@ Thanks!
 
 **Check:**
 1. ✅ User exists in database
-2. ✅ Email is exactly `cashier@extremedeptkidz.com` (no spaces, lowercase)
+2. ✅ Email is exactly `jcashier@hunnidofficial.com` (no spaces, lowercase)
 3. ✅ Password is exactly `EDK-!@#` (case-sensitive)
 4. ✅ Role field is set to `cashier` (not "Cashier" or "CASHIER")
 5. ✅ User is Active/Enabled
@@ -370,17 +370,17 @@ After creating the user, verify:
 
 1. **Check in database/admin panel:**
    ```sql
-   SELECT email, role, is_active FROM users WHERE email = 'cashier@extremedeptkidz.com';
+   SELECT email, role, is_active FROM users WHERE email = 'jcashier@hunnidofficial.com';
    ```
-   Should return: `cashier@extremedeptkidz.com`, `cashier`, `1` (or `true`)
+   Should return: `jcashier@hunnidofficial.com`, `cashier`, `1` (or `true`)
 
 2. **Test login in backend admin:**
-   - Try logging into your backend admin panel with `cashier@extremedeptkidz.com` / `EDK-!@#`
+   - Try logging into your backend admin panel with `jcashier@hunnidofficial.com` / `EDK-!@#`
    - If this works, the warehouse app login should also work
 
 3. **Test login in warehouse app:**
-   - Go to `https://warehouse.extremedeptkidz.com/login`
-   - Try logging in with `cashier@extremedeptkidz.com` / `EDK-!@#`
+   - Go to `https://warehouse.hunnidofficial.com/login`
+   - Try logging in with `jcashier@hunnidofficial.com` / `EDK-!@#`
    - Should succeed!
 
 ---
@@ -389,11 +389,11 @@ After creating the user, verify:
 
 | Role      | Email                        | Password  | Full Name (example)     |
 |-----------|------------------------------|-----------|-------------------------|
-| Manager   | manager@extremedeptkidz.com  | EDK-!@#   | Store Manager           |
-| Cashier   | cashier@extremedeptkidz.com | EDK-!@#   | Jane Doe                |
-| Warehouse | warehouse@extremedeptkidz.com| EDK-!@#   | Warehouse Staff         |
-| Driver    | driver@extremedeptkidz.com   | EDK-!@#   | Delivery Driver         |
-| Viewer    | viewer@extremedeptkidz.com   | EDK-!@#   | View Only Accountant    |
+| Manager   | manager@hunnidofficial.com  | EDK-!@#   | Store Manager           |
+| Cashier   | jcashier@hunnidofficial.com | EDK-!@#   | Jane Doe                |
+| Warehouse | warehouse@hunnidofficial.com| EDK-!@#   | Warehouse Staff         |
+| Driver    | driver@hunnidofficial.com   | EDK-!@#   | Delivery Driver         |
+| Viewer    | viewer@hunnidofficial.com   | EDK-!@#   | View Only Accountant    |
 
 **Admin user:** Keep your existing admin credentials as-is.
 

@@ -12,15 +12,15 @@ I've prepared a comprehensive requirements document that specifies all the API e
 
 ## Key Information
 
-- **Frontend Domain:** `https://warehouse.extremedeptkidz.com`
-- **API Base URL:** `https://extremedeptkidz.com/api`
+- **Frontend Domain:** `https://warehouse.hunnidofficial.com`
+- **API Base URL:** `https://hunnidofficial.com/api`
 - **Required Endpoints:** Authentication, Products, Orders, Transactions
 
 ## Critical Requirements
 
-1. **CORS Configuration** - The backend MUST allow requests from `warehouse.extremedeptkidz.com`
+1. **CORS Configuration** - The backend MUST allow requests from `warehouse.hunnidofficial.com`
 2. **Authentication** - Support for Bearer tokens OR httpOnly cookies
-3. **Test Credentials** - User: `info@extremedeptkidz.com` / Password: `Admin123!@#`
+3. **Test Credentials** - User: `admin@hunnidofficial.com` / Password: `Admin123!@#`
 
 ## Documentation
 
@@ -47,9 +47,9 @@ Once the endpoints are implemented, you can test them using:
 
 ```bash
 # Test login
-curl -X POST https://extremedeptkidz.com/api/auth/login \
+curl -X POST https://hunnidofficial.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"info@extremedeptkidz.com","password":"Admin123!@#"}'
+  -d '{"email":"admin@hunnidofficial.com","password":"Admin123!@#"}'
 ```
 
 ## Questions?

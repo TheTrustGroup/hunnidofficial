@@ -18,7 +18,7 @@ So: **you are using that single Supabase project.** The frontend never talks to 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  Browser (your app)                                              │
-│  • URL: e.g. house.extremedeptkidz.com or localhost              │
+│  • URL: e.g. house.hunnidofficial.com or localhost              │
 │  • Reads VITE_API_BASE_URL → https://warehouse-pos-api-v2...     │
 └────────────────────────────┬──────────────────────────────────┘
                                │

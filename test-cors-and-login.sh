@@ -1,9 +1,9 @@
 #!/bin/bash
-# Test CORS and login endpoint for warehouse.extremedeptkidz.com
+# Test CORS and login endpoint for warehouse.hunnidofficial.com
 # Run: ./test-cors-and-login.sh
 
-BASE="https://extremedeptkidz.com"
-ORIGIN="https://warehouse.extremedeptkidz.com"
+BASE="https://hunnidofficial.com"
+ORIGIN="https://warehouse.hunnidofficial.com"
 
 echo "=========================================="
 echo "1. Testing OPTIONS (CORS preflight)"

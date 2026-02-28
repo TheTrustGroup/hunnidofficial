@@ -1,14 +1,14 @@
--- Consolidate Main Store location into a single warehouse: keep MAIN ("Main Store"), remove DC.
--- DC and Main Store are the same location; merge DC inventory into MAIN, then delete DC and all references.
+-- Consolidate Main Jeff location into a single warehouse: keep MAIN ("Main Jeff"), remove DC.
+-- DC and Main Jeff are the same location; merge DC inventory into MAIN, then delete DC and all references.
 -- Idempotent: if DC does not exist, no-op. Run once after seed has created both MAIN and DC.
 
--- 1. Ensure MAIN warehouse exists and is linked to Main Store (in case only DC existed)
+-- 1. Ensure MAIN warehouse exists and is linked to Main Jeff (in case only DC existed)
 INSERT INTO warehouses (id, name, code, created_at, updated_at)
-SELECT gen_random_uuid(), 'Main Store', 'MAIN', now(), now()
+SELECT gen_random_uuid(), 'Main Jeff', 'MAIN', now(), now()
 WHERE NOT EXISTS (SELECT 1 FROM warehouses WHERE code = 'MAIN');
 
 UPDATE warehouses
-SET store_id = (SELECT id FROM stores WHERE name = 'Main Store' LIMIT 1)
+SET store_id = (SELECT id FROM stores WHERE name = 'Main Jeff' LIMIT 1)
 WHERE code = 'MAIN';
 
 -- 2. Merge warehouse_inventory_by_size: DC quantities into MAIN (sum on conflict)

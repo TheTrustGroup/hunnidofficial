@@ -5,7 +5,7 @@
  */
 
 /** Dev-only fallback when VITE_API_BASE_URL is unset. Production must never use fallback. */
-const DEFAULT_API_BASE = import.meta.env.PROD ? '' : 'https://extremedeptkidz.com';
+const DEFAULT_API_BASE = import.meta.env.PROD ? '' : 'https://warehouse.hunnidofficial.com';
 const _rawApiBase = import.meta.env.VITE_API_BASE_URL;
 const _hasProdUrl = _rawApiBase != null && String(_rawApiBase).trim().length > 0;
 if (import.meta.env.PROD && !_hasProdUrl) {

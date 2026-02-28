@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js';
 function corsHeaders(req: NextRequest): Record<string, string> {
   const origin  = req.headers.get('origin') ?? '';
   const allowed = [
-    'https://warehouse.extremedeptkidz.com',
+    'https://warehouse.hunnidofficial.com',
     'http://localhost:5173',
     'http://localhost:3000',
     'http://localhost:4173',

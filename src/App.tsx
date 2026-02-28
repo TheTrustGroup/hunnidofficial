@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { StoreProvider } from './contexts/StoreContext';
-import { WarehouseProvider } from './contexts/WarehouseContext';
+import { WarehouseProvider, useWarehouse } from './contexts/WarehouseContext';
 import { InventoryProvider } from './contexts/InventoryContext';
 import { API_BASE_URL } from './lib/api';
 import { POSProvider } from './contexts/POSContext';
@@ -42,6 +42,7 @@ const Dashboard = lazyWithRetry(() => import('./pages/Dashboard').then(m => ({ d
 const InventoryPage = lazyWithRetry(() => import('./pages/InventoryPage').then(m => ({ default: m.default })));
 const POSPage = lazyWithRetry(() => import('./pages/POSPage').then(m => ({ default: m.default })));
 const SalesHistoryPage = lazyWithRetry(() => import('./pages/SalesHistoryPage').then(m => ({ default: m.default })));
+const DeliveriesPage = lazyWithRetry(() => import('./pages/DeliveriesPage').then(m => ({ default: m.default })));
 const Orders = lazyWithRetry(() => import('./pages/Orders').then(m => ({ default: m.Orders })));
 const Reports = lazyWithRetry(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Settings = lazyWithRetry(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
@@ -81,8 +82,10 @@ const Users = () => {
 
 const NotFound = lazyWithRetry(() => import('./pages/NotFound').then(m => ({ default: m.NotFound })));
 
-/** Inventory route. Warehouse is selected in-page via dropdown; API base from lib/api. */
+/** Inventory route. Not available at POS locations (Main Store / Main Town bound); redirect to POS. */
 function InventoryPageRoute() {
+  const { isWarehouseBoundToSession } = useWarehouse();
+  if (isWarehouseBoundToSession) return <Navigate to="/pos" replace />;
   return <InventoryPage />;
 }
 
@@ -94,6 +97,12 @@ function POSPageRoute() {
 /** Sales history: revenue summary, payment breakdown, searchable list, CSV export. Uses GET /api/sales. */
 function SalesHistoryPageRoute() {
   return <SalesHistoryPage apiBaseUrl={API_BASE_URL} />;
+}
+
+/** Deliveries: pending/dispatched list, mark delivered. warehouseId from WarehouseProvider. */
+function DeliveriesPageRoute() {
+  const { currentWarehouseId } = useWarehouse();
+  return <DeliveriesPage warehouseId={currentWarehouseId} apiBaseUrl={API_BASE_URL} />;
 }
 
 /** Listens for service worker update event and shows toast. Must be inside ToastProvider. */
@@ -260,10 +269,22 @@ function App() {
                           }
                         />
                         <Route
+                          path="deliveries"
+                          element={
+                            <ProtectedRoute
+                              anyPermissions={[PERMISSIONS.REPORTS.VIEW_SALES]}
+                              redirectPathIfForbidden="/pos"
+                            >
+                              <RouteErrorBoundary routeName="Deliveries">
+                                <DeliveriesPageRoute />
+                              </RouteErrorBoundary>
+                            </ProtectedRoute>
+                          }
+                        />
+                        <Route
                           path="reports"
                           element={
                             <ProtectedRoute
-                              allowedRoles={['admin', 'super_admin', 'manager']}
                               redirectPathIfForbidden="/pos"
                               anyPermissions={[
                                 PERMISSIONS.REPORTS.VIEW_SALES,

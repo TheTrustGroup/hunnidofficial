@@ -18,10 +18,20 @@ import SizesSection, {
   getValidationError,
 } from './SizesSection';
 
-// ── Image compression helper (canvas resize → compressed JPEG data-URL) ───
-// Resizes to max 900px, compresses to 0.82 quality — keeps file tiny in DB.
-// No external dependencies. Works in all modern browsers.
-function compressImage(file: File, maxPx = 900, quality = 0.82): Promise<string> {
+// ── Image compression helper (canvas resize → compressed data-URL) ───────────
+// Resizes to max 800px, compresses to target quality; optionally enforces max byte size.
+// All uploads are resized before save. No external deps; works in all modern browsers.
+const DEFAULT_MAX_PX = 800;
+const DEFAULT_QUALITY = 0.78;
+/** ~200KB; base64 is ~4/3 of raw bytes. */
+const DEFAULT_MAX_BYTES = 200 * 1024;
+
+function compressImage(
+  file: File,
+  maxPx = DEFAULT_MAX_PX,
+  quality = DEFAULT_QUALITY,
+  maxBytes = DEFAULT_MAX_BYTES
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
@@ -29,18 +39,34 @@ function compressImage(file: File, maxPx = 900, quality = 0.82): Promise<string>
       URL.revokeObjectURL(url);
       let { width, height } = img;
       if (width > maxPx || height > maxPx) {
-        if (width > height) { height = Math.round(height * maxPx / width); width = maxPx; }
-        else                { width  = Math.round(width  * maxPx / height); height = maxPx; }
+        if (width > height) {
+          height = Math.round((height * maxPx) / width);
+          width = maxPx;
+        } else {
+          width = Math.round((width * maxPx) / height);
+          height = maxPx;
+        }
       }
       const canvas = document.createElement('canvas');
-      canvas.width = width; canvas.height = height;
+      canvas.width = width;
+      canvas.height = height;
       const ctx = canvas.getContext('2d')!;
       ctx.drawImage(img, 0, 0, width, height);
-      // PNG for transparent, JPEG for everything else
       const mime = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-      resolve(canvas.toDataURL(mime, quality));
+
+      let dataUrl = canvas.toDataURL(mime, quality);
+      let q = quality;
+      // If over max bytes, reduce quality stepwise until under cap (JPEG/PNG only).
+      while (maxBytes > 0 && dataUrl.length * 0.75 > maxBytes && q > 0.2) {
+        q = Math.max(0.2, q - 0.12);
+        dataUrl = canvas.toDataURL(mime, q);
+      }
+      resolve(dataUrl);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image')); };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image'));
+    };
     img.src = url;
   });
 }
@@ -53,6 +79,8 @@ export interface Product {
   sku: string;
   barcode?: string;
   category: string;
+  /** Product color for filter (e.g. Red, Black). Optional. */
+  color?: string | null;
   description?: string;
   sellingPrice: number;
   costPrice: number;
@@ -72,6 +100,7 @@ interface FormState {
   sku: string;
   barcode: string;
   category: string;
+  color: string;
   description: string;
   sellingPrice: number | '';
   costPrice: number | '';
@@ -106,6 +135,7 @@ export function buildInitialForm(product?: Product | null): FormState {
       sku: product.sku ?? '',
       barcode: product.barcode ?? '',
       category: product.category ?? '',
+      color: (product as { color?: string | null }).color?.trim() ?? '',
       description: product.description ?? '',
       sellingPrice: product.sellingPrice ?? '',
       costPrice: product.costPrice ?? '',
@@ -138,6 +168,7 @@ export function buildInitialForm(product?: Product | null): FormState {
     sku: generateSKU(),
     barcode: '',
     category: '',
+    color: '',
     description: '',
     sellingPrice: '',
     costPrice: '',
@@ -340,6 +371,7 @@ function ImageUpload({ images, onChange, disabled }: ImageUploadProps) {
                 src={src}
                 alt={`Product image ${idx + 1}`}
                 className="w-full h-full object-cover"
+                loading="lazy"
                 onError={e => { (e.target as HTMLImageElement).src = ''; }}
               />
               {/* Primary badge */}
@@ -593,6 +625,7 @@ export default function ProductModal({
         sku: form.sku.trim(),
         barcode: form.barcode.trim(),
         category: form.category.trim(),
+        color: form.color.trim() || undefined,
         description: form.description.trim(),
         sellingPrice: Number(form.sellingPrice) || 0,
         costPrice: Number(form.costPrice) || 0,
@@ -749,6 +782,23 @@ export default function ProductModal({
                 />
                 <datalist id="category-datalist">
                   {['Sneakers','Slippers','Boots','Sandals','Accessories'].map(c => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </Field>
+
+              {/* Color */}
+              <Field label="Color" hint="Optional — for filter in admin & POS">
+                <input
+                  type="text"
+                  list="color-datalist"
+                  value={form.color}
+                  onChange={e => set('color', e.target.value)}
+                  placeholder="e.g. Black, White, Red"
+                  className={inputCls()}
+                />
+                <datalist id="color-datalist">
+                  {['Black','White','Red','Blue','Brown','Green','Grey','Navy','Beige','Multi','Uncategorized'].map(c => (
                     <option key={c} value={c} />
                   ))}
                 </datalist>

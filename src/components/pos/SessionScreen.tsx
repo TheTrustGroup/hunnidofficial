@@ -1,10 +1,10 @@
-export interface Warehouse {
-  id: string;
-  name: string;
-  code?: string;
-}
+/**
+ * POS session screen: select warehouse before using the POS.
+ * Uses Warehouse type from app types (id, name, code).
+ */
+import type { Warehouse } from '../../types';
 
-interface SessionScreenProps {
+export interface SessionScreenProps {
   isOpen: boolean;
   warehouses: Warehouse[];
   activeWarehouseId: string;
@@ -20,26 +20,26 @@ export default function SessionScreen({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Select location</h2>
-        <ul className="space-y-2">
-          {warehouses.map((w) => (
-            <li key={w.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(w)}
-                className={`w-full rounded-xl px-4 py-3 text-left font-medium transition ${
-                  w.id === activeWarehouseId
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
-                }`}
-              >
-                {w.name}
-              </button>
-            </li>
-          ))}
-        </ul>
+    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-900 px-4">
+      <p className="text-slate-300 text-[14px] font-medium mb-4">Select warehouse to start</p>
+      <div className="w-full max-w-sm space-y-2">
+        {warehouses.length === 0 ? (
+          <p className="text-slate-500 text-[13px] text-center py-6">No warehouses loaded</p>
+        ) : (
+          warehouses.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              onClick={() => onSelect(w)}
+              className={`w-full py-4 px-4 rounded-2xl text-left font-semibold text-[15px] transition-all duration-150 active:scale-[0.98]
+                ${activeWarehouseId === w.id
+                  ? 'bg-red-500 text-white shadow-[0_4px_16px_rgba(239,68,68,0.35)]'
+                  : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'}`}
+            >
+              {w.name}
+            </button>
+          ))
+        )}
       </div>
     </div>
   );

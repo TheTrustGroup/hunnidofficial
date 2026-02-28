@@ -10,7 +10,7 @@ You have (at least) two separate things:
 
 | Part | What it is | Where it lives |
 |------|------------|----------------|
-| **Frontend** | The React app (Inventory, POS, login, etc.) | Often its own Vercel project or host; URL might be like `warehouse.extremedeptkidz.com` |
+| **Frontend** | The React app (Inventory, POS, login, etc.) | Often its own Vercel project or host; URL might be like `warehouse.hunnidofficial.com` |
 | **Backend API** | The server that fetches products from the database | The code in **this folder** (`inventory-server/`). It gets deployed as **warehouse-pos-api-v2.vercel.app** (or whatever URL you use for the API) |
 
 **Set the variables in the project that deploys the backend API** — i.e. the **Vercel project that builds and deploys the `inventory-server` app** (the one that ends up at `warehouse-pos-api-v2.vercel.app`).

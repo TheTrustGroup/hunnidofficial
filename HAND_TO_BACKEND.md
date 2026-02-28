@@ -1,6 +1,6 @@
 # Hand This to Your Backend / Server Person
 
-**Goal:** So that **warehouse.extremedeptkidz.com** can log in without "Load failed", the server at **extremedeptkidz.com** must do two things.
+**Goal:** So that **warehouse.hunnidofficial.com** can log in without "Load failed", the server at **hunnidofficial.com** must do two things.
 
 ---
 
@@ -8,7 +8,7 @@
 
 Allow the warehouse app origin and credentials.
 
-- **Origin to allow:** `https://warehouse.extremedeptkidz.com`
+- **Origin to allow:** `https://warehouse.hunnidofficial.com`
 - **Credentials:** `true`
 - **Methods:** `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`
 - **Headers:** `Content-Type`, `Accept`, `Authorization`
@@ -22,7 +22,7 @@ Allow the warehouse app origin and credentials.
 
 The warehouse app calls:
 
-- **URL:** `POST https://extremedeptkidz.com/admin/api/login`
+- **URL:** `POST https://hunnidofficial.com/admin/api/login`
 - **Body (JSON):** `{ "email": "user@example.com", "password": "..." }`
 - **Response (JSON):** e.g. `{ "user": { ... }, "token": "..." }` or session cookie + user object
 
@@ -45,13 +45,13 @@ Or manually:
 
 ```bash
 # CORS preflight
-curl -X OPTIONS "https://extremedeptkidz.com/admin/api/login" \
-  -H "Origin: https://warehouse.extremedeptkidz.com" \
+curl -X OPTIONS "https://hunnidofficial.com/admin/api/login" \
+  -H "Origin: https://warehouse.hunnidofficial.com" \
   -H "Access-Control-Request-Method: POST" \
   -v
 
 # Login (expect 401/422 with JSON)
-curl -X POST "https://extremedeptkidz.com/admin/api/login" \
+curl -X POST "https://hunnidofficial.com/admin/api/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"test@test.com","password":"test"}' \
   -v

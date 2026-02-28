@@ -4,7 +4,7 @@
 
 You mentioned the warehouse POS should be **linked to the main store admin**. This means:
 
-1. ✅ There's likely an **existing admin panel** at `extremedeptkidz.com`
+1. ✅ There's likely an **existing admin panel** at `hunnidofficial.com`
 2. ✅ That admin system probably has **API endpoints** already
 3. ✅ We need to **discover** what endpoints exist and how they work
 4. ✅ Then **connect** the warehouse POS to use those existing endpoints
@@ -16,8 +16,8 @@ You mentioned the warehouse POS should be **linked to the main store admin**. Th
 To connect to your existing admin API, we need to know:
 
 ### 1. **Where is the admin panel located?**
-- Is it at `https://extremedeptkidz.com/admin`?
-- Or `https://admin.extremedeptkidz.com`?
+- Is it at `https://hunnidofficial.com/admin`?
+- Or `https://admin.hunnidofficial.com`?
 - Or somewhere else?
 
 ### 2. **What API endpoints already exist?**
@@ -32,9 +32,9 @@ To connect to your existing admin API, we need to know:
 - API keys?
 
 ### 4. **What's the API base URL?**
-- `https://extremedeptkidz.com/api`?
-- `https://extremedeptkidz.com/admin/api`?
-- `https://api.extremedeptkidz.com`?
+- `https://hunnidofficial.com/api`?
+- `https://hunnidofficial.com/admin/api`?
+- `https://api.hunnidofficial.com`?
 
 ---
 
@@ -42,7 +42,7 @@ To connect to your existing admin API, we need to know:
 
 ### Step 1: Check the Admin Panel
 
-1. **Log into your admin panel** at `extremedeptkidz.com`
+1. **Log into your admin panel** at `hunnidofficial.com`
 2. **Open browser DevTools** (F12)
 3. **Go to Network tab**
 4. **Perform actions** (view products, check orders, etc.)
@@ -118,8 +118,8 @@ Once we know the existing API structure:
 
 Try accessing these URLs in your browser (while logged into admin):
 
-- `https://extremedeptkidz.com/api/products`
-- `https://extremedeptkidz.com/api/auth/user`
-- `https://extremedeptkidz.com/admin/api/products`
+- `https://hunnidofficial.com/api/products`
+- `https://hunnidofficial.com/api/auth/user`
+- `https://hunnidofficial.com/admin/api/products`
 
 If any return JSON data (even if it's an error), that's the API we need to connect to!

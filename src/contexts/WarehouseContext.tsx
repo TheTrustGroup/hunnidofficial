@@ -28,6 +28,12 @@ export const DEFAULT_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
 
 const STORAGE_KEY = 'warehouse_current_id';
 
+/** Fallback names when /api/warehouses does not return the warehouse (e.g. bound POS). Match server posPasswords. */
+const KNOWN_WAREHOUSE_NAMES: Record<string, string> = {
+  '00000000-0000-0000-0000-000000000001': 'Main Jeff',
+  '00000000-0000-0000-0000-000000000002': 'Hunnid Main',
+};
+
 /** DC was consolidated into Main Store; never show in UI (backend also excludes it). */
 function excludeRemovedWarehouses(arr: Warehouse[]): Warehouse[] {
   return arr.filter(
@@ -103,22 +109,28 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   }, [boundWarehouseId]);
 
   // Fetch warehouses only after auth is ready and user is authenticated (API requires auth).
-  // This prevents the dropdown from staying empty due to 401 when fetch ran before token was set.
+  // POS locations (bound): skip fetch so POS can load products immediately; display uses KNOWN_WAREHOUSE_NAMES.
   useEffect(() => {
     if (authLoading) return;
     if (!isAuthenticated) {
       setIsLoading(false);
       return;
     }
-    refreshWarehouses();
-  }, [authLoading, isAuthenticated, refreshWarehouses]);
-
-  // When session is bound to a warehouse, keep currentWarehouseId in sync with it (e.g. after login with binding).
-  useEffect(() => {
-    if (boundWarehouseId && warehouses.some((w) => w.id === boundWarehouseId)) {
-      setCurrentWarehouseIdState(boundWarehouseId);
+    if (boundWarehouseId) {
+      setIsLoading(false);
+      return;
     }
-  }, [boundWarehouseId, warehouses]);
+    refreshWarehouses();
+  }, [authLoading, isAuthenticated, boundWarehouseId, refreshWarehouses]);
+
+  // When session is bound to a warehouse (e.g. Main Town POS), always show that warehouse.
+  // Set unconditionally so we don't depend on /api/warehouses including it or on stale localStorage.
+  useEffect(() => {
+    if (boundWarehouseId) {
+      setCurrentWarehouseIdState(boundWarehouseId);
+      if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, boundWarehouseId);
+    }
+  }, [boundWarehouseId]);
 
   useEffect(() => {
     if (typeof localStorage !== 'undefined' && currentWarehouseId && !boundWarehouseId) {
@@ -135,7 +147,11 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   );
 
   const effectiveWarehouseId = boundWarehouseId || currentWarehouseId;
-  const currentWarehouse = warehouses.find((w) => w.id === effectiveWarehouseId) ?? null;
+  const currentWarehouse: Warehouse | null =
+    warehouses.find((w) => w.id === effectiveWarehouseId) ??
+    (effectiveWarehouseId && KNOWN_WAREHOUSE_NAMES[effectiveWarehouseId]
+      ? ({ id: effectiveWarehouseId, name: KNOWN_WAREHOUSE_NAMES[effectiveWarehouseId], code: '', createdAt: '', updatedAt: '' } as Warehouse)
+      : null);
   const isWarehouseSelectedForPOS = !!(
     effectiveWarehouseId &&
     (warehouses.length <= 1 || warehouses.some((w) => w.id === effectiveWarehouseId))

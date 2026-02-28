@@ -39,6 +39,12 @@ export interface DashboardStatsResult {
   categorySummary: DashboardCategorySummary;
 }
 
+/** Warehouse IDs used for "today by warehouse" summary (match frontend Main Store / Main Town). */
+const DEFAULT_WAREHOUSE_IDS = [
+  '00000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000002',
+];
+
 /**
  * Fetch today's sales total for a warehouse (sum of sale totals for the given date).
  */
@@ -50,6 +56,7 @@ async function getTodaySalesTotal(warehouseId: string, date: string): Promise<nu
     .from('sales')
     .select('total')
     .eq('warehouse_id', warehouseId)
+    .is('voided_at', null)
     .gte('created_at', start)
     .lt('created_at', end);
   if (error) {
@@ -58,6 +65,19 @@ async function getTodaySalesTotal(warehouseId: string, date: string): Promise<nu
   }
   const total = (data ?? []).reduce((sum, row) => sum + Number((row as { total?: number }).total ?? 0), 0);
   return total;
+}
+
+/**
+ * Today's sales total per warehouse (for super-admin "sales by location" summary).
+ * Uses DEFAULT_WAREHOUSE_IDS; returns a map warehouseId -> total.
+ */
+export async function getTodaySalesByWarehouse(
+  date: string
+): Promise<Record<string, number>> {
+  const totals = await Promise.all(
+    DEFAULT_WAREHOUSE_IDS.map(async (id) => ({ id, total: await getTodaySalesTotal(id, date) }))
+  );
+  return Object.fromEntries(totals.map(({ id, total }) => [id, total]));
 }
 
 /**

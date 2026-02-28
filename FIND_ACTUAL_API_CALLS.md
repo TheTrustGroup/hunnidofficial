@@ -2,7 +2,7 @@
 
 ## ⚠️ What You Just Showed Me
 
-`https://extremedeptkidz.com/admin/products` is the **page URL** (where you navigate), not the API endpoint.
+`https://hunnidofficial.com/admin/products` is the **page URL** (where you navigate), not the API endpoint.
 
 We need to find the **API calls** that fetch data (JSON), not page navigations.
 
@@ -72,8 +72,8 @@ Try this:
 When you find the API call, share:
 
 1. **Request URL** - Full URL like:
-   - `https://extremedeptkidz.com/api/products`
-   - `https://extremedeptkidz.com/admin/api/products`
+   - `https://hunnidofficial.com/api/products`
+   - `https://hunnidofficial.com/admin/api/products`
    - Or similar
 
 2. **Request Method** - GET, POST, etc.
@@ -89,8 +89,8 @@ When you find the API call, share:
 
 The console errors showed `/me` and `/products` endpoints. These are likely:
 
-- `https://extremedeptkidz.com/api/me`
-- `https://extremedeptkidz.com/api/products`
+- `https://hunnidofficial.com/api/me`
+- `https://hunnidofficial.com/api/products`
 
 But we need to confirm the full URL. Can you:
 

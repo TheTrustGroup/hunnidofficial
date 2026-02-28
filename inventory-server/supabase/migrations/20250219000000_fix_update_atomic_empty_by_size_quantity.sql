@@ -73,5 +73,3 @@ begin
   return (select to_jsonb(wp) from warehouse_products wp where wp.id = p_id);
 end;
 $$;
-
-comment on function update_warehouse_product_atomic is 'Atomic update: product (with version check) + warehouse_inventory + warehouse_inventory_by_size. When by_size is empty, uses p_quantity for total.';

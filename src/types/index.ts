@@ -56,6 +56,8 @@ export interface Product {
     email: string;
   };
   images: string[];
+  /** Product color for filter (e.g. Red, Black). Optional. */
+  color?: string | null;
   expiryDate: Date | null;
   variants?: {
     size?: string;

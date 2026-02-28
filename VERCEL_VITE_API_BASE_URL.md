@@ -15,7 +15,7 @@
 3. Go to **Settings** → **Environment Variables**.
 4. Add:
    - **Name:** `VITE_API_BASE_URL`
-   - **Value:** `https://extremedeptkidz.com` (or your API base URL, e.g. your inventory-server URL if it’s separate)
+   - **Value:** `https://hunnidofficial.com` (or your API base URL, e.g. your inventory-server URL if it’s separate)
    - **Environments:** Production (and Preview if you want preview deployments to use the same API).
 5. **Redeploy** the project (Deployments → ⋮ on latest → Redeploy).  
    Vite only reads this at **build time**, so a new build is required for the value to apply.
@@ -27,12 +27,12 @@
 The repo has a **`.env.production`** file (committed) with:
 
 ```env
-VITE_API_BASE_URL=https://extremedeptkidz.com
+VITE_API_BASE_URL=https://hunnidofficial.com
 ```
 
 When you run `npm run build` locally or when Vercel runs it, Vite loads `.env.production` in production mode, so the build and app use that value **if the file is present** in the built repo.
 
-If your Vercel deployment was still failing, it may have been due to the previous **build-time throw** when the env was missing (now removed). With the current code, the build no longer throws; if neither `.env.production` nor Vercel env is set, the app falls back to `https://extremedeptkidz.com` in `src/lib/api.ts`.
+If your Vercel deployment was still failing, it may have been due to the previous **build-time throw** when the env was missing (now removed). With the current code, the build no longer throws; if neither `.env.production` nor Vercel env is set, the app falls back to `https://hunnidofficial.com` in `src/lib/api.ts`.
 
 ---
 

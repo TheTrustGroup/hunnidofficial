@@ -29,12 +29,12 @@ Based on your console errors showing `/me`, `/products`, and `/analytics` endpoi
 The code now tries these API endpoints in order:
 
 **For Authentication:**
-1. `https://extremedeptkidz.com/admin/api/me` (get user)
-2. `https://extremedeptkidz.com/api/auth/user` (fallback)
+1. `https://hunnidofficial.com/admin/api/me` (get user)
+2. `https://hunnidofficial.com/api/auth/user` (fallback)
 
 **For Products:**
-1. `https://extremedeptkidz.com/admin/api/products`
-2. `https://extremedeptkidz.com/api/products` (fallback)
+1. `https://hunnidofficial.com/admin/api/products`
+2. `https://hunnidofficial.com/api/products` (fallback)
 
 ### Step 2: Check Browser Console
 
@@ -47,7 +47,7 @@ The code now tries these API endpoints in order:
 
 ### Step 3: Test Login
 
-1. Try logging in with: `info@extremedeptkidz.com` / `Admin123!@#`
+1. Try logging in with: `admin@hunnidofficial.com` / `Admin123!@#`
 2. Watch the console for API calls
 3. Check if authentication works
 
@@ -70,7 +70,7 @@ Once we have the exact URL, I can update the code to match it exactly!
 ## 📋 Current API Structure Assumption
 
 I'm assuming the API is at:
-- Base: `https://extremedeptkidz.com`
+- Base: `https://hunnidofficial.com`
 - Auth: `/admin/api/me`, `/admin/api/login`
 - Products: `/admin/api/products`
 

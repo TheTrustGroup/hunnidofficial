@@ -91,7 +91,7 @@ The app is **offline-first**: all create, update, and delete operations on produ
 
 The app uses **Dexie.js** with two databases:
 
-### 1. ExtremeDeptKidzDB (main app data)
+### 1. HunnidOfficialDB (main app data)
 
 | Table       | Key schema                          | Description |
 |------------|--------------------------------------|-------------|

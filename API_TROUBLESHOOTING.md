@@ -8,10 +8,10 @@ This guide will help you diagnose and fix the "Failed to fetch" error when conne
 
 ```bash
 # Test the auth/user endpoint (should return 401 if not authenticated, which is OK)
-curl -v https://extremedeptkidz.com/api/auth/user
+curl -v https://hunnidofficial.com/api/auth/user
 
 # Test with credentials included
-curl -v https://extremedeptkidz.com/api/auth/user \
+curl -v https://hunnidofficial.com/api/auth/user \
   -H "Accept: application/json" \
   --cookie "your_session_cookie_here"
 ```
@@ -25,13 +25,13 @@ curl -v https://extremedeptkidz.com/api/auth/user \
 
 ### Test from Browser Console:
 
-1. Open your deployed app: `https://warehouse.extremedeptkidz.com`
+1. Open your deployed app: `https://warehouse.hunnidofficial.com`
 2. Open browser DevTools (F12)
 3. Go to Console tab
 4. Run this command:
 
 ```javascript
-fetch('https://extremedeptkidz.com/api/auth/user', {
+fetch('https://hunnidofficial.com/api/auth/user', {
   method: 'GET',
   headers: { 'Accept': 'application/json' },
   credentials: 'include'
@@ -59,7 +59,7 @@ return [
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
     'allowed_methods' => ['*'],
     'allowed_origins' => [
-        'https://warehouse.extremedeptkidz.com',
+        'https://warehouse.hunnidofficial.com',
         'http://localhost:5173', // For local development
     ],
     'allowed_origins_patterns' => [],
@@ -77,7 +77,7 @@ return [
 public function handle($request, Closure $next)
 {
     return $next($request)
-        ->header('Access-Control-Allow-Origin', 'https://warehouse.extremedeptkidz.com')
+        ->header('Access-Control-Allow-Origin', 'https://warehouse.hunnidofficial.com')
         ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-CSRF-TOKEN')
         ->header('Access-Control-Allow-Credentials', 'true');
@@ -91,7 +91,7 @@ const cors = require('cors');
 
 app.use(cors({
   origin: [
-    'https://warehouse.extremedeptkidz.com',
+    'https://warehouse.hunnidofficial.com',
     'http://localhost:5173' // For local development
   ],
   credentials: true, // Important for cookies!
@@ -106,7 +106,7 @@ app.use(cors({
 
 ```python
 CORS_ALLOWED_ORIGINS = [
-    "https://warehouse.extremedeptkidz.com",
+    "https://warehouse.hunnidofficial.com",
     "http://localhost:5173",  # For local development
 ]
 
@@ -132,7 +132,7 @@ CORS_ALLOW_HEADERS = [
 
 ```bash
 # Check if the API responds
-curl -I https://extremedeptkidz.com/api/auth/user
+curl -I https://hunnidofficial.com/api/auth/user
 
 # Check server logs for errors
 # (Location depends on your hosting: cPanel, Vercel, AWS, etc.)
@@ -146,12 +146,12 @@ curl -I https://extremedeptkidz.com/api/auth/user
    - Check server logs for errors
 
 2. **Wrong API URL**
-   - Verify the API is actually at `https://extremedeptkidz.com/api`
-   - It might be at `https://api.extremedeptkidz.com` instead
+   - Verify the API is actually at `https://hunnidofficial.com/api`
+   - It might be at `https://api.hunnidofficial.com` instead
    - Check your backend deployment configuration
 
 3. **SSL Certificate Issues**
-   - Ensure SSL certificate is valid for `extremedeptkidz.com`
+   - Ensure SSL certificate is valid for `hunnidofficial.com`
    - Check for mixed content warnings (HTTP/HTTPS mismatch)
 
 ---
@@ -165,8 +165,8 @@ Make sure your production build uses the correct environment variables. If deplo
 1. **Vercel:**
    - Go to Project Settings → Environment Variables
    - Add:
-     - `VITE_API_BASE_URL` = `https://extremedeptkidz.com`
-     - `VITE_API_URL` = `https://extremedeptkidz.com/api`
+     - `VITE_API_BASE_URL` = `https://hunnidofficial.com`
+     - `VITE_API_URL` = `https://hunnidofficial.com/api`
    - Redeploy
 
 2. **Netlify:**
@@ -185,11 +185,11 @@ Make sure your production build uses the correct environment variables. If deplo
 ### Test Login Endpoint:
 
 ```bash
-curl -X POST https://extremedeptkidz.com/api/auth/login \
+curl -X POST https://hunnidofficial.com/api/auth/login \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
   -d '{
-    "email": "info@extremedeptkidz.com",
+    "email": "admin@hunnidofficial.com",
     "password": "Admin123!@#"
   }'
 ```
@@ -199,7 +199,7 @@ curl -X POST https://extremedeptkidz.com/api/auth/login \
 {
   "user": {
     "id": "...",
-    "email": "info@extremedeptkidz.com",
+    "email": "admin@hunnidofficial.com",
     "role": "admin",
     ...
   },
@@ -238,16 +238,16 @@ curl -X POST https://extremedeptkidz.com/api/auth/login \
 
 ### Option 1: Use Same Domain for API
 
-If your frontend is at `warehouse.extremedeptkidz.com`, consider:
+If your frontend is at `warehouse.hunnidofficial.com`, consider:
 - Using a proxy/rewrite rule to serve API from same domain
 - Or ensure CORS is properly configured
 
 ### Option 2: Check API Path
 
 Your API might be at a different path. Try:
-- `https://extremedeptkidz.com/api/auth/user` (current)
-- `https://api.extremedeptkidz.com/auth/user`
-- `https://extremedeptkidz.com/auth/user`
+- `https://hunnidofficial.com/api/auth/user` (current)
+- `https://api.hunnidofficial.com/auth/user`
+- `https://hunnidofficial.com/auth/user`
 
 ### Option 3: Verify Backend Routes
 
@@ -262,12 +262,12 @@ Ensure your backend has these routes:
 
 If you don't have backend access, provide them with:
 
-1. **Frontend Domain:** `warehouse.extremedeptkidz.com`
+1. **Frontend Domain:** `warehouse.hunnidofficial.com`
 2. **Required Endpoints:**
    - `GET /api/auth/user`
    - `POST /api/auth/login`
    - `POST /api/auth/logout`
-3. **CORS Requirements:** Allow origin `https://warehouse.extremedeptkidz.com`
+3. **CORS Requirements:** Allow origin `https://warehouse.hunnidofficial.com`
 4. **Authentication Method:** Cookie-based (httpOnly) or Bearer token
 
 ---
@@ -275,7 +275,7 @@ If you don't have backend access, provide them with:
 ## Quick Diagnostic Checklist
 
 - [ ] API endpoint is accessible (test with curl/browser)
-- [ ] CORS is configured to allow `warehouse.extremedeptkidz.com`
+- [ ] CORS is configured to allow `warehouse.hunnidofficial.com`
 - [ ] API server is running and responding
 - [ ] SSL certificate is valid
 - [ ] Environment variables are set correctly in production

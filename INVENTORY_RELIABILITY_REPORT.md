@@ -75,13 +75,13 @@ Run the migration so the in-repo backend can persist inventory:
 
 - **Warehouse UI (Vite):**  
   Set `VITE_API_BASE_URL` in `.env.production` (and in CI) to the URL of the app that serves the products API.  
-  - If you use the in-repo backend: point this to your deployed `inventory-server` origin (e.g. `https://api.extremedeptkidz.com` or the same host as the storefront if you serve both from one app).  
+  - If you use the in-repo backend: point this to your deployed `inventory-server` origin (e.g. `https://api.hunnidofficial.com` or the same host as the storefront if you serve both from one app).  
   - Production build fails if `VITE_API_BASE_URL` is unset.
 
 ### 3. Deploy and point both domains to the same backend
 
 - Deploy `inventory-server` (or the app that hosts these API routes) so it is reachable at the URL you set in `VITE_API_BASE_URL`.
-- Ensure **warehouse.extremedeptkidz.com** and **extremedeptkidz.com** (or your storefront) both use the same `VITE_API_BASE_URL` / same backend. One backend, one DB (e.g. one Supabase project and one `warehouse_products` table) = single source of truth and no cross-device desync.
+- Ensure **warehouse.hunnidofficial.com** and **hunnidofficial.com** (or your storefront) both use the same `VITE_API_BASE_URL` / same backend. One backend, one DB (e.g. one Supabase project and one `warehouse_products` table) = single source of truth and no cross-device desync.
 
 ### 4. CI / production checklist
 

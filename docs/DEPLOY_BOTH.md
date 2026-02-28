@@ -18,7 +18,7 @@ git push origin main
 - In **Vercel**: open the project whose **Root Directory** is **`warehouse-pos/inventory-server`** (or create one and set root to that).
 - Ensure **Production** (and Preview if you want) use the same branch you pushed (e.g. `main`).
 - Vercel will build and deploy on every push to that branch.
-- **Env vars** (Settings → Environment Variables): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CORS_ORIGINS` (e.g. `https://warehouse.extremedeptkidz.com`).
+- **Env vars** (Settings → Environment Variables): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CORS_ORIGINS` (e.g. `https://warehouse.hunnidofficial.com`).
 - After deploy, note the API URL (e.g. `https://warehouse-pos-api-v2.vercel.app` or your custom domain).
 
 ### 3. Frontend (warehouse-pos)

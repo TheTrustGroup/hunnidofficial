@@ -1,6 +1,6 @@
 /**
  * RBAC: permission strings for UI gating. Backend is the authority — never trust client for role.
- * Cashier: POS + view products/orders only. No dashboard, reports, users, settings, inventory editing.
+ * Cashier (POS locations): Orders, POS, Reports, Sales, Deliveries; no Dashboard, Inventory, Users, Settings.
  */
 
 export const PERMISSIONS = {
@@ -129,10 +129,10 @@ export const ROLES: Record<string, Role> = {
       PERMISSIONS.POS.ACCESS,
       PERMISSIONS.POS.APPLY_DISCOUNT,
       PERMISSIONS.POS.VIEW_DAILY_SALES,
-      PERMISSIONS.INVENTORY.VIEW,
       PERMISSIONS.ORDERS.VIEW,
       PERMISSIONS.ORDERS.CREATE,
       PERMISSIONS.ORDERS.UPDATE_STATUS,
+      PERMISSIONS.REPORTS.VIEW_SALES,
     ],
     limits: {
       maxDiscount: 10,

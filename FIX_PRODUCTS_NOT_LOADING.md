@@ -8,7 +8,7 @@ You’re seeing **“Loading products…”** forever and **401 / 404** in the c
 
 | Vercel project name   | What it runs        | URL (example)                    | Needs these env vars |
 |-----------------------|---------------------|----------------------------------|-----------------------|
-| **warehouse-pos**     | Frontend (React)    | warehouse.extremedeptkidz.com    | `VITE_API_BASE_URL`, `VITE_SUPER_ADMIN_EMAILS` only. **No Supabase.** |
+| **warehouse-pos**     | Frontend (React)    | warehouse.hunnidofficial.com    | `VITE_API_BASE_URL`, `VITE_SUPER_ADMIN_EMAILS` only. **No Supabase.** |
 | **warehouse-pos-api-v2** | Backend API (inventory-server) | **warehouse-pos-api-v2.vercel.app** | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`, `CORS_ORIGINS`, etc. |
 
 The frontend calls **warehouse-pos-api-v2.vercel.app**. That URL is served by the **warehouse-pos-api-v2** project, not by **warehouse-pos**.

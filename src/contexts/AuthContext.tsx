@@ -63,13 +63,24 @@ function getSuperAdminEmails(): Set<string> {
 }
 
 /** Known admin email so login always works even when backend returns wrong/missing role. Prevents "Role could not be verified" for admin. */
-const KNOWN_ADMIN_EMAIL = 'info@extremedeptkidz.com';
+const KNOWN_ADMIN_EMAIL = 'admin@hunnidofficial.com';
 
-/** POS emails (Main Store/DC and Main Town) — same as backend; fallback to cashier when server returns 200 but role invalid/missing. */
+/** POS emails (Main Jeff and Hunnid Main) — same as backend; fallback to cashier when server returns 200 but role invalid/missing. */
 const KNOWN_POS_EMAILS = new Set([
-  'cashier@extremedeptkidz.com',
-  'maintown_cashier@extremedeptkidz.com',
+  'jcashier@hunnidofficial.com',
+  'hcashier@hunnidofficial.com',
 ]);
+
+/** Default warehouse UUIDs (must match server posPasswords.ts). Used when API does not return warehouseId for POS. */
+const MAIN_STORE_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
+const MAIN_TOWN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000002';
+
+function getDefaultWarehouseIdForPosEmail(email: string): string | undefined {
+  const e = email.trim().toLowerCase();
+  if (e === 'jcashier@hunnidofficial.com') return MAIN_STORE_WAREHOUSE_ID;
+  if (e === 'hcashier@hunnidofficial.com') return MAIN_TOWN_WAREHOUSE_ID;
+  return undefined;
+}
 
 /** Backend role values that should be treated as cashier (POS access, no admin). */
 const CASHIER_ROLE_ALIASES = ['cashier', 'sales_person', 'salesperson', 'sales'];
@@ -120,7 +131,7 @@ function buildFallbackCashierUser(userData: any): User {
     isActive: userData.isActive !== undefined ? userData.isActive : true,
     lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : new Date(),
     createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
-    warehouseId: userData.warehouse_id ?? userData.warehouseId ?? undefined,
+    warehouseId: userData.warehouse_id ?? userData.warehouseId ?? getDefaultWarehouseIdForPosEmail(email),
     storeId: userData.store_id !== undefined ? userData.store_id : userData.storeId,
     deviceId: userData.device_id ?? userData.deviceId ?? undefined,
     assignedPos: userData.assignedPos === 'main_town' || userData.assignedPos === 'store' ? userData.assignedPos : undefined,
@@ -153,12 +164,16 @@ export function getDefaultPathForRole(role: User['role']): string {
   }
 }
 
+/** Key used by WarehouseContext; clear on login so POS binding wins over previous selection. */
+const WAREHOUSE_STORAGE_KEY = 'warehouse_current_id';
+
 /** Clear all auth-related storage so a new login has no stale session (admin vs POS). */
 function clearAllSessionData(): void {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('current_user');
     localStorage.removeItem('auth_token');
     localStorage.removeItem(DEMO_ROLE_KEY);
+    localStorage.removeItem(WAREHOUSE_STORAGE_KEY);
   }
   if (typeof sessionStorage !== 'undefined') {
     sessionStorage.removeItem('user_role');
@@ -194,6 +209,7 @@ function normalizeUserData(userData: any): User | null {
     return null; // Invalid role → force logout (no viewer fallback).
   }
 
+  const posWarehouseId = KNOWN_POS_EMAILS.has(email) ? getDefaultWarehouseIdForPosEmail(email) : undefined;
   return {
     id: userData.id,
     username: userData.username || userData.email?.split('@')[0] || 'user',
@@ -205,7 +221,7 @@ function normalizeUserData(userData: any): User | null {
     isActive: userData.isActive !== undefined ? userData.isActive : true,
     lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : new Date(),
     createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
-    warehouseId: userData.warehouse_id ?? userData.warehouseId ?? undefined,
+    warehouseId: userData.warehouse_id ?? userData.warehouseId ?? posWarehouseId,
     storeId: userData.store_id !== undefined ? userData.store_id : userData.storeId,
     deviceId: userData.device_id ?? userData.deviceId ?? undefined,
     assignedPos: userData.assignedPos === 'main_town' || userData.assignedPos === 'store' ? userData.assignedPos : undefined,
@@ -276,22 +292,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [user]);
 
+  /** Timeout for auth check so we never hang on "Loading your data..." (e.g. server cold start or 401 after delay). */
+  const AUTH_CHECK_TIMEOUT_MS = 12_000;
+
   /**
    * Check if user is authenticated by calling the API
    */
   const checkAuthStatus = async () => {
+    const ac = new AbortController();
+    const timeoutId = setTimeout(() => ac.abort(), AUTH_CHECK_TIMEOUT_MS);
     try {
       setIsLoading(true);
       const headers: HeadersInit = { 'Accept': 'application/json' };
       const token = getAuthToken();
       if (token) headers['Authorization'] = token;
-      const opts = { method: 'GET' as const, headers, credentials: 'include' as const };
+      const opts = { method: 'GET' as const, headers, credentials: 'include' as const, signal: ac.signal };
 
       // Always call auth/me on load: /admin/api/me first, then /api/auth/user on 404, 403, or 401 (cross-browser).
-      let response = await fetch(`${API_BASE_URL}/admin/api/me`, opts);
-      if (response.status === 404 || response.status === 403 || response.status === 401) {
-        response = await fetch(`${API_BASE_URL}/api/auth/user`, opts);
+      let response: Response;
+      try {
+        response = await fetch(`${API_BASE_URL}/admin/api/me`, opts);
+      } catch (fetchErr) {
+        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+          clearTimeout(timeoutId);
+          setUser(null);
+          setAuthError(null);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('current_user');
+            localStorage.removeItem('auth_token');
+          }
+          return;
+        }
+        throw fetchErr;
       }
+      if (response.status === 404 || response.status === 403 || response.status === 401) {
+        try {
+          response = await fetch(`${API_BASE_URL}/api/auth/user`, opts);
+        } catch (fallbackErr) {
+          if (fallbackErr instanceof Error && fallbackErr.name === 'AbortError') {
+            clearTimeout(timeoutId);
+            setUser(null);
+            setAuthError(null);
+            if (typeof localStorage !== 'undefined') {
+              localStorage.removeItem('current_user');
+              localStorage.removeItem('auth_token');
+            }
+            return;
+          }
+          throw fallbackErr;
+        }
+      }
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const userData = await handleApiResponse<User>(response);
@@ -337,8 +388,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('auth_token');
       }
     } catch (error) {
+      clearTimeout(timeoutId);
       setAuthError(null);
       if (error instanceof TypeError && error.message.includes('fetch')) {
+        setUser(null);
+        localStorage.removeItem('current_user');
+        localStorage.removeItem('auth_token');
+      } else if (error instanceof Error && error.name === 'AbortError') {
         setUser(null);
         localStorage.removeItem('current_user');
         localStorage.removeItem('auth_token');

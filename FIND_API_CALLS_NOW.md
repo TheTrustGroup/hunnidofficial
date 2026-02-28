@@ -67,7 +67,7 @@ Status: 200
 **Click on that request** and check:
 
 1. **Headers tab:**
-   - **Request URL:** `https://extremedeptkidz.com/api/products` ← This is what we need!
+   - **Request URL:** `https://hunnidofficial.com/api/products` ← This is what we need!
    - **Request Method:** `GET` or `POST`
    - **Authorization:** `Bearer ...` or `Cookie: ...` ← Shows auth method
 
@@ -110,7 +110,7 @@ If you're not seeing API calls in Network tab:
 
 Once you find API calls, share:
 
-1. **API Endpoint URL** - e.g., `https://extremedeptkidz.com/api/products`
+1. **API Endpoint URL** - e.g., `https://hunnidofficial.com/api/products`
 2. **Request Method** - GET, POST, etc.
 3. **Headers** - Especially Authorization or Cookie headers
 4. **Sample Response** - Copy the JSON response

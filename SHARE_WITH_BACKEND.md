@@ -57,9 +57,9 @@ Share these **3 files** with your backend developer:
 When sharing with your backend developer, make sure to highlight:
 
 1. **CORS is CRITICAL** - Without proper CORS, the frontend won't work
-2. **Frontend Domain:** `https://warehouse.extremedeptkidz.com`
-3. **API Base URL:** `https://extremedeptkidz.com/api`
-4. **Test Credentials:** `info@extremedeptkidz.com` / `Admin123!@#`
+2. **Frontend Domain:** `https://warehouse.hunnidofficial.com`
+3. **API Base URL:** `https://hunnidofficial.com/api`
+4. **Test Credentials:** `admin@hunnidofficial.com` / `Admin123!@#`
 
 ---
 

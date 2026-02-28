@@ -50,17 +50,17 @@ Keep **admin** credentials as you already have them. For the **other roles** (ma
 
 | Role      | Email (login)                  | Password  |
 |-----------|--------------------------------|-----------|
-| Manager   | manager@extremedeptkidz.com    | EDK-!@#   |
-| Cashier   | cashier@extremedeptkidz.com   | EDK-!@#   |
-| Warehouse | warehouse@extremedeptkidz.com | EDK-!@#   |
-| Driver    | driver@extremedeptkidz.com    | EDK-!@#   |
-| Viewer    | viewer@extremedeptkidz.com    | EDK-!@#   |
+| Manager   | manager@hunnidofficial.com    | EDK-!@#   |
+| Cashier   | jcashier@hunnidofficial.com   | EDK-!@#   |
+| Warehouse | warehouse@hunnidofficial.com | EDK-!@#   |
+| Driver    | driver@hunnidofficial.com    | EDK-!@#   |
+| Viewer    | viewer@hunnidofficial.com    | EDK-!@#   |
 
 **Password for these roles is the same:** `EDK-!@#`. Create these users in your backend with the emails above and this password.
 
-1. **In your main store admin** (e.g. `extremedeptkidz.com/admin` or wherever you manage users):
+1. **In your main store admin** (e.g. `hunnidofficial.com/admin` or wherever you manage users):
    - **Admin:** Keep your existing admin email and password.
-   - **Other roles:** Create or edit the user with **email** `{role}@extremedeptkidz.com` and **password** `EDK-!@#`. Set **role** to one of: `manager`, `cashier`, `warehouse`, `driver`, `viewer`.
+   - **Other roles:** Create or edit the user with **email** `{role}@hunnidofficial.com` and **password** `EDK-!@#`. Set **role** to one of: `manager`, `cashier`, `warehouse`, `driver`, `viewer`.
 
 2. **When they log in to the warehouse app**, the app calls your API (e.g. `/admin/api/me` or `/api/auth/user`). That API must return a user object that includes:
    - **`role`** – one of the role IDs above (e.g. `"manager"`, `"cashier"`).

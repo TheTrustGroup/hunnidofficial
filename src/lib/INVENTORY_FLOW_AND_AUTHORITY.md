@@ -26,10 +26,10 @@
                                         │
                                         ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│ 4. Backend (extremedeptkidz.com – EXTERNAL)                                              │
+│ 4. Backend (hunnidofficial.com – EXTERNAL)                                              │
 │    Validation → database write (authoritative store).                                    │
 │    This repo does NOT contain the backend that serves /admin/api/products.               │
-│    warehouse.extremedeptkidz.com and extremedeptkidz.com must use SAME backend + DB.    │
+│    warehouse.hunnidofficial.com and hunnidofficial.com must use SAME backend + DB.    │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
                                         │
                                         ▼
@@ -66,13 +66,13 @@
 ## Authoritative data store (explicit answers in code)
 
 - **What database is used?**  
-  The database is owned by the backend at `API_BASE_URL` (extremedeptkidz.com). This frontend does not connect to any database. The inventory-server in this repo uses Supabase (Product, ProductVariant tables) but that is a different app and schema; the warehouse UI does NOT use inventory-server for /api/products.
+  The database is owned by the backend at `API_BASE_URL` (hunnidofficial.com). This frontend does not connect to any database. The inventory-server in this repo uses Supabase (Product, ProductVariant tables) but that is a different app and schema; the warehouse UI does NOT use inventory-server for /api/products.
 
 - **Is it the same in all environments?**  
   Only if `VITE_API_BASE_URL` is set consistently. Build fails in production if it is missing (no default), so all production builds must point to the same backend.
 
 - **Is warehouse using a different DB than storefront?**  
-  Warehouse (warehouse.extremedeptkidz.com) and storefront (extremedeptkidz.com) both call the same `API_BASE_URL`. If that URL points to one backend, they share one DB. If warehouse were to use a different API_BASE_URL (e.g. warehouse API), they would be different — we fail the build if API base is unset to avoid accidental default.
+  Warehouse (warehouse.hunnidofficial.com) and storefront (hunnidofficial.com) both call the same `API_BASE_URL`. If that URL points to one backend, they share one DB. If warehouse were to use a different API_BASE_URL (e.g. warehouse API), they would be different — we fail the build if API base is unset to avoid accidental default.
 
 - **Are credentials/env vars identical?**  
   Frontend only has `VITE_API_BASE_URL`. Auth is via cookies or Bearer in headers (getAuthToken()). Backend credentials are on the server; env vars must be identical per environment (e.g. same DB URL for the app that serves both domains).

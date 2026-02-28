@@ -22,7 +22,7 @@ Your backend needs to implement these endpoints for the frontend to work:
 **Request:**
 ```json
 {
-  "email": "info@extremedeptkidz.com",
+  "email": "admin@hunnidofficial.com",
   "password": "Admin123!@#"
 }
 ```
@@ -32,7 +32,7 @@ Your backend needs to implement these endpoints for the frontend to work:
 {
   "user": {
     "id": "1",
-    "email": "info@extremedeptkidz.com",
+    "email": "admin@hunnidofficial.com",
     "username": "admin",
     "role": "admin",
     "fullName": "Administrator",
@@ -63,7 +63,7 @@ Your backend needs to implement these endpoints for the frontend to work:
 ```json
 {
   "id": "1",
-  "email": "info@extremedeptkidz.com",
+  "email": "admin@hunnidofficial.com",
   "username": "admin",
   "role": "admin",
   "fullName": "Administrator",
@@ -239,7 +239,7 @@ app.use('/api/transactions', authenticate, require('./routes/transactions'));
 ## CORS Configuration
 
 **Critical:** Your backend MUST allow requests from:
-- `https://warehouse.extremedeptkidz.com` (production)
+- `https://warehouse.hunnidofficial.com` (production)
 - `http://localhost:5173` (local development)
 
 See `API_TROUBLESHOOTING.md` Step 2 for detailed CORS configuration.
@@ -257,7 +257,7 @@ See `API_TROUBLESHOOTING.md` Step 2 for detailed CORS configuration.
 2. **If you DON'T have backend access:**
    - Contact your backend developer
    - Share this document with them
-   - Provide the frontend domain: `warehouse.extremedeptkidz.com`
+   - Provide the frontend domain: `warehouse.hunnidofficial.com`
    - Request CORS configuration
 
 3. **Once endpoints are ready:**
@@ -271,12 +271,12 @@ See `API_TROUBLESHOOTING.md` Step 2 for detailed CORS configuration.
 
 ```bash
 # Test login
-curl -X POST https://extremedeptkidz.com/api/auth/login \
+curl -X POST https://hunnidofficial.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"info@extremedeptkidz.com","password":"Admin123!@#"}'
+  -d '{"email":"admin@hunnidofficial.com","password":"Admin123!@#"}'
 
 # Test user endpoint (with token from login)
-curl https://extremedeptkidz.com/api/auth/user \
+curl https://hunnidofficial.com/api/auth/user \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 

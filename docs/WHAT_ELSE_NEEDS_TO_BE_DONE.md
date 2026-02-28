@@ -1,6 +1,6 @@
 # What Else Needs to Be Done
 
-A concise checklist so the warehouse app, API, and extremedeptkidz flow work end-to-end.
+A concise checklist so the warehouse app, API, and Hunnid Official flow work end-to-end.
 
 ---
 
@@ -15,7 +15,7 @@ A concise checklist so the warehouse app, API, and extremedeptkidz flow work end
 ## 2. Point the frontend at the real API
 
 - In **warehouse-pos** (Vercel), set **`VITE_API_BASE_URL`** to the **exact URL** of **warehouse-pos-api-v2**:
-  - If the API has a custom domain (e.g. `https://api.extremedeptkidz.com`), use that.
+  - If the API has a custom domain (e.g. `https://api.hunnidofficial.com`), use that.
   - Otherwise use the Vercel deployment URL (e.g. `https://warehouse-pos-api-v2-xxxx.vercel.app`).
 - **Full URL with `https://`** (e.g. `https://warehouse-pos-api-v2-xxxx.vercel.app`). Without the protocol, login and API calls go to the wrong host and fail (405 / invalid credentials).
 - **No trailing slash.**
@@ -42,7 +42,7 @@ The API (**warehouse-pos-api-v2**) uses Supabase. Same project as in **warehouse
 
 ## 5. Test the flow
 
-1. Open **https://warehouse.extremedeptkidz.com** (or your warehouse frontend URL).
+1. Open **https://warehouse.hunnidofficial.com** (or your warehouse frontend URL).
 2. **Login** with an email in `ALLOWED_ADMIN_EMAILS` (and optionally in `VITE_SUPER_ADMIN_EMAILS`). You should land on the dashboard and see “Admin Control Panel” if you’re admin.
 3. **Warehouses:** No CORS/404 errors; warehouse list loads (or “Main Store” if only default). No persistent yellow “Server temporarily unavailable” banner from CORS.
 4. **Inventory:** Products load (or empty state). Add/edit a product and confirm it saves.
@@ -54,12 +54,12 @@ If anything fails, use the **Network** tab: check the request URL (must be `VITE
 
 ## 6. Optional: custom domain for the API
 
-If you want a clean URL like `https://api.extremedeptkidz.com` for the API:
+If you want a clean URL like `https://api.hunnidofficial.com` for the API:
 
 - In Vercel, open **warehouse-pos-api-v2** → Settings → Domains.
-- Add **api.extremedeptkidz.com** (and configure DNS as Vercel instructs).
-- In **warehouse-pos**, set **`VITE_API_BASE_URL=https://api.extremedeptkidz.com`** and redeploy.
-- In **warehouse-pos-api-v2**, ensure **`CORS_ORIGINS`** includes `https://warehouse.extremedeptkidz.com`.
+- Add **api.hunnidofficial.com** (and configure DNS as Vercel instructs).
+- In **warehouse-pos**, set **`VITE_API_BASE_URL=https://api.hunnidofficial.com`** and redeploy.
+- In **warehouse-pos-api-v2**, ensure **`CORS_ORIGINS`** includes `https://warehouse.hunnidofficial.com`.
 
 ---
 

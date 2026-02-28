@@ -7,7 +7,7 @@
 ## 🔗 API Base Information
 
 **API Base URL:** `_________________________`
-*(e.g., `https://extremedeptkidz.com/api` or `https://extremedeptkidz.com/admin/api`)*
+*(e.g., `https://hunnidofficial.com/api` or `https://hunnidofficial.com/admin/api`)*
 
 **Admin Panel URL:** `_________________________`
 *(Where you log into the admin panel)*
@@ -130,7 +130,7 @@
 
 ## 🔒 CORS Configuration
 
-**Does the API allow requests from `warehouse.extremedeptkidz.com`?**
+**Does the API allow requests from `warehouse.hunnidofficial.com`?**
 - [ ] Yes
 - [ ] No (needs to be configured)
 - [ ] Not sure

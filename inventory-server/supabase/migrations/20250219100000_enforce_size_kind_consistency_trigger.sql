@@ -37,7 +37,6 @@ begin
 end;
 $$;
 
-comment on function public.enforce_size_rules is 'Trigger: enforces size_kind vs size_code (OS only for na/one_size; no OS for sized) and validates size_code in size_codes.';
 
 drop trigger if exists trg_enforce_size_kind on public.warehouse_inventory_by_size;
 drop trigger if exists trg_enforce_size_rules on public.warehouse_inventory_by_size;

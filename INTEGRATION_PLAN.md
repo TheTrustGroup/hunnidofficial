@@ -127,7 +127,7 @@ Vite reads these at **build time**; they are baked into the client bundle. Chang
 **Testing criteria:**
 
 - [ ] With offline flag **off:** No IndexedDB writes; app behavior unchanged.
-- [ ] With offline flag **on:** After loading products from API, IndexedDB `products` table contains the same list (inspect in DevTools → Application → IndexedDB → ExtremeDeptKidzDB).
+- [ ] With offline flag **on:** After loading products from API, IndexedDB `products` table contains the same list (inspect in DevTools → Application → IndexedDB → HunnidOfficialDB).
 - [ ] Failed IndexedDB (e.g. disable IndexedDB in DevTools or use unsupported browser) does not break loading or display; API and cache still work.
 - [ ] All existing tests and manual smoke tests (login, view list, RBAC) pass.
 

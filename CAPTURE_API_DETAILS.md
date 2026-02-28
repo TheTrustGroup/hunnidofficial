@@ -6,7 +6,7 @@ Based on your screenshot, you're on the right track! Here's what to do next:
 
 ## 🎯 Current Status
 
-✅ Admin panel is loading at `extremedeptkidz.com`  
+✅ Admin panel is loading at `hunnidofficial.com`  
 ✅ Network tab is open  
 ⏳ Need to trigger API calls by interacting with the page
 
@@ -70,7 +70,7 @@ For each API call you find, note:
 
 ### Products API
 - **Endpoint:** `GET /api/products` (or whatever you see)
-- **Full URL:** `https://extremedeptkidz.com/api/products`
+- **Full URL:** `https://hunnidofficial.com/api/products`
 - **Headers:** What headers are sent? (Authorization, Cookie, etc.)
 - **Response:** What does the response look like?
 
@@ -116,7 +116,7 @@ While watching the Network tab, look for:
 
 Once you've found the API calls, share:
 
-1. **API Base URL** - Common prefix (e.g., `https://extremedeptkidz.com/api`)
+1. **API Base URL** - Common prefix (e.g., `https://hunnidofficial.com/api`)
 
 2. **Sample API Endpoints:**
    - Products: `GET /api/products`

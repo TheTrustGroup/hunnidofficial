@@ -23,6 +23,8 @@ export interface Product {
   sku: string;
   barcode?: string;
   category: string;
+  /** Product color for filter (e.g. Red, Black). Optional. */
+  color?: string | null;
   sellingPrice: number;
   costPrice: number;
   quantity: number;

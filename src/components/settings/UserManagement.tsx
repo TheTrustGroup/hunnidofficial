@@ -227,7 +227,7 @@ Create this user in your backend admin panel with these exact credentials.`;
             <h3 className="text-lg font-bold text-slate-900">Logins for other roles</h3>
           </div>
           <p className="text-sm text-slate-600 mb-4">
-            Keep admin credentials as you have them. For <strong>manager, cashier, warehouse, driver, viewer</strong> use: email <strong>role@extremedeptkidz.com</strong>, password <strong>{getDefaultUserPassword() || '(set in backend)'}</strong> (same for all).
+            Keep admin credentials as you have them. For <strong>manager, cashier, warehouse, driver, viewer</strong> use: email <strong>role@hunnidofficial.com</strong>, password <strong>{getDefaultUserPassword() || '(set in backend)'}</strong> (same for all).
           </p>
           <div className="table-scroll-wrap rounded-lg border border-slate-200">
             <table className="w-full text-sm min-w-[280px]">
@@ -299,7 +299,7 @@ Create this user in your backend admin panel with these exact credentials.`;
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <a
-              href="https://extremedeptkidz.com/admin"
+              href="https://warehouse.hunnidofficial.com"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-primary inline-flex items-center gap-2"
@@ -381,7 +381,7 @@ Create this user in your backend admin panel with these exact credentials.`;
           {!import.meta.env.PROD && (
             <p className="text-sm text-slate-600 mb-4">
               {newUser.role !== 'admin' ? (
-                <>Email: <strong>{newUser.role}@extremedeptkidz.com</strong>. Password: <strong>{getDefaultUserPassword() || '(set in backend)'}</strong> (same for all other roles).{newUser.role === 'cashier' && (<> For another POS (e.g. Main town), use <strong>cashier_maintown@…</strong> then assign that email in &quot;Store & warehouse access&quot; below.</>)}</>
+                <>Email: <strong>{newUser.role}@hunnidofficial.com</strong>. Password: <strong>{getDefaultUserPassword() || '(set in backend)'}</strong> (same for all other roles).{newUser.role === 'cashier' && (<> For another POS (e.g. Main town), use <strong>cashier_maintown@…</strong> then assign that email in &quot;Store & warehouse access&quot; below.</>)}</>
               ) : (
                 <>Admin: set email and password in your backend. Keep your existing admin credentials.</>
               )}
@@ -429,7 +429,7 @@ Create this user in your backend admin panel with these exact credentials.`;
                     setNewUser((u) => ({ ...u, email: e.target.value.trim() || emailForRole(u.role) }));
                   }
                 }}
-                placeholder={newUser.role === 'admin' || newUser.role === 'super_admin' ? 'Set in backend / VITE_SUPER_ADMIN_EMAILS' : 'e.g. maintown_cashier@extremedeptkidz.com'}
+                placeholder={newUser.role === 'admin' || newUser.role === 'super_admin' ? 'Set in backend / VITE_SUPER_ADMIN_EMAILS' : 'e.g. hcashier@hunnidofficial.com'}
                 className={`input-field w-full font-mono ${newUser.role === 'admin' || newUser.role === 'super_admin' ? 'bg-slate-100 text-slate-700' : 'text-slate-800'}`}
               />
             </div>
@@ -556,7 +556,7 @@ Create this user in your backend admin panel with these exact credentials.`;
           Assign which store(s) and warehouse(s) a user can use in POS. No assignment = access to all (legacy). Enter the user&apos;s login email below.
         </p>
         <div className="text-sm text-slate-600 mb-5 p-3 rounded-lg bg-primary-50/50 border border-primary-100">
-          <strong className="text-slate-700">How POS logins work:</strong> Role comes from the <strong>email username</strong> (before @). For cashier (POS) use: <code className="px-1 py-0.5 bg-white rounded text-xs">cashier@…</code>, <code className="px-1 py-0.5 bg-white rounded text-xs">cashier_maintown@…</code>, or <code className="px-1 py-0.5 bg-white rounded text-xs">maintown_cashier@…</code>. All get the same Cashier role; assign each email to its store below. <code className="px-1 py-0.5 bg-white rounded text-xs">maintown@…</code> alone gives View Only — add <code className="px-1 py-0.5 bg-white rounded text-xs">_cashier</code> (e.g. <code className="px-1 py-0.5 bg-white rounded text-xs">maintown_cashier@…</code>).
+          <strong className="text-slate-700">How POS logins work:</strong> Role comes from the <strong>email username</strong> (before @). For cashier (POS) use: <code className="px-1 py-0.5 bg-white rounded text-xs">jcashier@hunnidofficial.com</code> (Main Jeff) or <code className="px-1 py-0.5 bg-white rounded text-xs">hcashier@hunnidofficial.com</code> (Hunnid Main). Assign each email to its store below.
         </div>
         <div className="space-y-5">
           {/* User email: full-width editable field so any email can be entered */}
@@ -570,7 +570,7 @@ Create this user in your backend admin panel with these exact credentials.`;
               value={scopeEmail}
               onChange={(e) => setScopeEmail(e.target.value)}
               onBlur={() => scopeEmail.trim() && loadScopesForEmail(scopeEmail)}
-              placeholder="e.g. cashier@extremedeptkidz.com"
+              placeholder="e.g. jcashier@hunnidofficial.com"
               autoComplete="off"
               className="input-field w-full max-w-md"
               aria-label="User email for scope assignment"

@@ -1,4 +1,4 @@
-# Apple-Level System Audit: warehouse.extremedeptkidz.com
+# Apple-Level System Audit: warehouse.hunnidofficial.com
 
 **Source of truth:** CONTEXT.MD/POS (roles = permissions; context = scope; sessions bind the two).  
 **Constraints:** No deletion or mutation of existing inventory; no reset of roles; no table/field renames; no breaking API changes. All recommendations additive, guarded, or read-only.

@@ -8,8 +8,8 @@ Additive, backward-compatible fixes for auth, role consistency, and API behavior
 
 - **Role from server only.** No `role ?? 'viewer'` fallback. Role is parsed from API response; invalid/missing role → blocking error.
 - **Known accounts never blocked.** When the server returns 200 but role is missing/invalid, the client accepts the session for:
-  - `info@extremedeptkidz.com` → super_admin (admin login always works)
-  - `cashier@extremedeptkidz.com`, `maintown_cashier@extremedeptkidz.com` → cashier
+  - `admin@hunnidofficial.com` → super_admin (admin login always works)
+  - `jcashier@hunnidofficial.com`, `maintown_jcashier@hunnidofficial.com` → cashier
 - **Login email merged into payload.** `normalizeUserData({ ...userPayload, email: userPayload.email ?? trimmedEmail })` so fallback works when the server omits email (cross-browser, backward-compatible).
 
 ### Session verification

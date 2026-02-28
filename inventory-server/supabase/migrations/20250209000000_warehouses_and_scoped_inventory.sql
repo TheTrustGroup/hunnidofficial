@@ -29,11 +29,11 @@ create index if not exists idx_warehouse_inventory_product on warehouse_inventor
 
 comment on table warehouse_inventory is 'Quantity per warehouse per product; single source of truth for stock by location.';
 
--- 3. Insert default warehouse (matches legacy "Main Store" label)
+-- 3. Insert default warehouse (MAIN — display name comes from seed/store; id matches app constants)
 insert into warehouses (id, name, code, created_at, updated_at)
 values (
   '00000000-0000-0000-0000-000000000001'::uuid,
-  'Main Store',
+  'Main Jeff',
   'MAIN',
   now(),
   now()

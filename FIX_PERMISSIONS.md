@@ -94,8 +94,8 @@ chmod -R u+w .
 git init
 
 # Configure
-git config user.name "Extreme Dept Kidz"
-git config user.email "dev@extremedeptkidz.com"
+git config user.name "Hunnid Official"
+git config user.email "dev@hunnidofficial.com"
 
 # Add files
 git add .

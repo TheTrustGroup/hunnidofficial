@@ -92,10 +92,10 @@
   .btn-primary {
     min-height: var(--touch-min);
     @apply px-6 py-3 rounded-xl font-semibold text-white shadow-primary transition-all duration-200 active:scale-[0.98];
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, #5cacfa 0%, #4a9ae8 100%);
   }
   .btn-primary:hover {
-    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+    box-shadow: 0 6px 16px rgba(92, 172, 250, 0.35);
   }
 
   /* Secondary: de-emphasized, grouped logically */
@@ -279,7 +279,7 @@
   /* Brand Gradient Text */
   /* Gradient Text with Fallback */
   .gradient-text {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, #5cacfa 0%, #4a9ae8 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;

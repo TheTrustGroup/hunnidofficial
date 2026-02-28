@@ -51,7 +51,7 @@ export function Receipt({ transaction, onClose }: ReceiptProps) {
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0" id="receipt-content">
           {/* Store Header */}
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-extrabold gradient-text">Extreme Dept Kidz</h1>
+            <h1 className="text-2xl font-extrabold gradient-text">Hunnid Official</h1>
             <p className="text-sm text-slate-600 font-medium">Your trusted kids fashion store</p>
             <p className="text-xs text-slate-500 mt-1">Accra, Ghana</p>
             <p className="text-xs text-slate-500">Tel: +233 XX XXX XXXX</p>

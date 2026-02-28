@@ -6,7 +6,7 @@
 - **Hash**: `c4b1417ffc834b624674683f1134324231d291fa`
 - **Short Hash**: `c4b1417`
 - **Branch**: `main`
-- **Author**: Extreme Dept Kidz <dev@extremedeptkidz.com>
+- **Author**: Hunnid Official <dev@hunnidofficial.com>
 - **Date**: Sat Jan 24 09:57:14 2026
 - **Message**: "feat: Premium Figma-inspired glass morphism UI redesign"
 

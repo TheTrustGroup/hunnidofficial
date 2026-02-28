@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { Download, FileText, Table } from 'lucide-react';
 import { useInventory } from '../contexts/InventoryContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useWarehouse } from '../contexts/WarehouseContext';
 import { DateRangePicker } from '../components/reports/DateRangePicker';
 import { SalesMetrics } from '../components/reports/SalesMetrics';
 import { SalesChart } from '../components/reports/SalesChart';
 import { TopProductsTable } from '../components/reports/TopProductsTable';
 import { InventoryMetrics } from '../components/reports/InventoryMetrics';
 import { generateSalesReport, generateInventoryReport, exportToCSV, SalesReport, InventoryReport } from '../services/reportService';
+import { fetchSalesAsTransactions } from '../services/salesApi';
 import { fetchTransactionsFromApi } from '../services/transactionsApi';
 import { Transaction } from '../types';
 import { formatCurrency, getCategoryDisplay } from '../lib/utils';
@@ -16,15 +18,18 @@ import { parseDate, validateDateRange } from '../lib/dateUtils';
 import { API_BASE_URL } from '../lib/api';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
+import { PERMISSIONS } from '../types/permissions';
 
 type ReportType = 'sales' | 'inventory';
 type TransactionsSource = 'server' | 'local';
 
 export function Reports() {
   const { products } = useInventory();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const { currentWarehouseId, currentWarehouse, isWarehouseBoundToSession } = useWarehouse();
+  const canViewInventoryReport = hasPermission(PERMISSIONS.REPORTS.VIEW_INVENTORY);
   const [reportType, setReportType] = useState<ReportType>('sales');
-  
+
   const today = new Date().toISOString().split('T')[0];
   const last30Days = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const [startDate, setStartDate] = useState(last30Days);
@@ -37,9 +42,9 @@ export function Reports() {
   const [transactionsSource, setTransactionsSource] = useState<TransactionsSource>('local');
   const [transactionsLoading, setTransactionsLoading] = useState(false);
 
-  /** Any authenticated user can fetch transactions; API returns scope-filtered data for non-admin (Phase 3). */
-  const canFetchServerTransactions = !!user;
+  const canFetchServerData = !!user;
 
+  /** Load sales: prefer GET /api/sales (POS data). When at a POS location (bound), currentWarehouseId is set so results are accurate per location. */
   const loadSalesData = useCallback(async () => {
     const start = parseDate(startDate);
     const end = parseDate(endDate + 'T23:59:59');
@@ -52,34 +57,46 @@ export function Reports() {
 
     const fallbackLocal = () => {
       const stored = getStoredData<Transaction[]>('transactions', []);
-      const withDates = (Array.isArray(stored) ? stored : []).map((t: any) => ({
+      const withDates = (Array.isArray(stored) ? stored : []).map((t: Transaction & { createdAt?: unknown; completedAt?: unknown }) => ({
         ...t,
-        createdAt: parseDate(t.createdAt) || new Date(),
-        completedAt: t.completedAt ? parseDate(t.completedAt) : null,
+        createdAt: t.createdAt instanceof Date ? t.createdAt : (parseDate(t.createdAt != null ? String(t.createdAt) : '') ?? new Date()),
+        completedAt: t.completedAt instanceof Date ? t.completedAt : (t.completedAt != null ? parseDate(String(t.completedAt)) : null),
       }));
       setTransactions(withDates);
       setTransactionsSource('local');
     };
 
-    if (canFetchServerTransactions) {
+    if (canFetchServerData) {
       setTransactionsLoading(true);
       try {
-        const { data } = await fetchTransactionsFromApi(API_BASE_URL, {
+        const { data } = await fetchSalesAsTransactions(API_BASE_URL, {
           from: fromIso,
           to: toIso,
+          warehouse_id: currentWarehouseId || undefined,
           limit: 2000,
         });
         setTransactions(data);
         setTransactionsSource('server');
       } catch {
-        fallbackLocal();
+        try {
+          const { data } = await fetchTransactionsFromApi(API_BASE_URL, {
+            from: fromIso,
+            to: toIso,
+            warehouse_id: currentWarehouseId || undefined,
+            limit: 2000,
+          });
+          setTransactions(data);
+          setTransactionsSource('server');
+        } catch {
+          fallbackLocal();
+        }
       } finally {
         setTransactionsLoading(false);
       }
     } else {
       fallbackLocal();
     }
-  }, [startDate, endDate, canFetchServerTransactions]);
+  }, [startDate, endDate, canFetchServerData, currentWarehouseId]);
 
   useEffect(() => {
     loadSalesData();
@@ -132,11 +149,24 @@ export function Reports() {
     exportToCSV(exportData, 'inventory_report');
   };
 
+  const locationLabel = isWarehouseBoundToSession && currentWarehouse?.name
+    ? `Reporting for: ${currentWarehouse.name}`
+    : currentWarehouse?.name
+      ? `Warehouse: ${currentWarehouse.name}`
+      : null;
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up">
-        <PageHeader title="Reports & Analytics" description="Comprehensive business insights" />
+        <div>
+          <PageHeader title="Reports & Analytics" description="Comprehensive business insights" />
+          {locationLabel && (
+            <p className="text-sm font-medium text-slate-600 mt-1" aria-live="polite">
+              {locationLabel}
+            </p>
+          )}
+        </div>
         <Button
           type="button"
           variant="primary"
@@ -148,7 +178,7 @@ export function Reports() {
         </Button>
       </div>
 
-      {/* Report Type Selector */}
+      {/* Report Type Selector: Sales always; Inventory only when user has VIEW_INVENTORY (e.g. manager/admin) */}
       <div className="flex gap-3 animate-fade-in-up">
         <Button
           type="button"
@@ -159,15 +189,17 @@ export function Reports() {
           <FileText className="w-5 h-5" strokeWidth={2} />
           Sales Report
         </Button>
-        <Button
-          type="button"
-          variant={reportType === 'inventory' ? 'primary' : 'secondary'}
-          onClick={() => setReportType('inventory')}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold"
-        >
-          <Table className="w-5 h-5" strokeWidth={2} />
-          Inventory Report
-        </Button>
+        {canViewInventoryReport && (
+          <Button
+            type="button"
+            variant={reportType === 'inventory' ? 'primary' : 'secondary'}
+            onClick={() => setReportType('inventory')}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold"
+          >
+            <Table className="w-5 h-5" strokeWidth={2} />
+            Inventory Report
+          </Button>
+        )}
       </div>
 
       {/* Sales Report */}
@@ -184,7 +216,11 @@ export function Reports() {
           )}
           {!transactionsLoading && reportType === 'sales' && (
             <p className="text-sm text-slate-500">
-              {transactionsSource === 'server' ? 'Showing sales from server (all devices).' : 'Showing sales from this device.'}
+              {transactionsSource === 'server'
+                ? (currentWarehouseId
+                    ? `Showing POS sales for ${currentWarehouse?.name ?? 'this location'} for the selected date range.`
+                    : 'Showing POS sales from server for the selected date range and warehouse.')
+                : 'Showing sales from this device (offline/local).'}
             </p>
           )}
 

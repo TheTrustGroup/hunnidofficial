@@ -7,7 +7,7 @@
  * - What database? Supabase (SUPABASE_URL). Tables: Product, ProductVariant, Category.
  * - Same in all environments? Only if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set per env. We throw if missing (no default).
  * - Warehouse vs storefront? This inventory-server is a SEPARATE app from the warehouse React UI. The warehouse UI calls
- *   API_BASE_URL (extremedeptkidz.com) for /api/products — that backend may or may not be this app. For single source of truth,
+ *   API_BASE_URL (warehouse.hunnidofficial.com) for /api/products — that backend may or may not be this app. For single source of truth,
  *   warehouse and storefront must hit the SAME backend and same DB. If this app serves them, use same env (same DB) everywhere.
  * - Credentials identical? SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set; no fallback.
  * - Table differs by env? We use fixed table names (Product, ProductVariant). Fail if env vars missing.

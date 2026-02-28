@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from './DashboardPage';
 
 const MOCK_WAREHOUSE_ID = 'warehouse-from-context-123';
@@ -53,7 +54,11 @@ describe('DashboardPage', () => {
   });
 
   it('fetches dashboard with warehouse_id from context', async () => {
-    render(<DashboardPage />);
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
 
     await waitFor(
       () => {

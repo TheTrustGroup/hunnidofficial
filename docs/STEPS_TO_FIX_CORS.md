@@ -1,12 +1,12 @@
-# Steps to Fix CORS (warehouse.extremedeptkidz.com → extremedeptkidz.com)
+# Steps to Fix CORS (warehouse.hunnidofficial.com → hunnidofficial.com)
 
-The warehouse app at **https://warehouse.extremedeptkidz.com** calls the API at **https://extremedeptkidz.com**. The browser blocks these requests until the API **allows that origin** in CORS. Follow the steps below for your setup.
+The warehouse app at **https://warehouse.hunnidofficial.com** calls the API at **https://hunnidofficial.com**. The browser blocks these requests until the API **allows that origin** in CORS. Follow the steps below for your setup.
 
 ---
 
-## Step 1: Identify which backend serves extremedeptkidz.com
+## Step 1: Identify which backend serves hunnidofficial.com
 
-- **If the API is the Next.js app in this repo** (`inventory-server`) deployed at extremedeptkidz.com → use **Option A**.
+- **If the API is the Next.js app in this repo** (`inventory-server`) deployed at hunnidofficial.com → use **Option A**.
 - **If the API is something else** (Laravel, Express, another Next.js app, Vercel serverless, etc.) → use **Option B** and the examples in **SERVER_SIDE_FIX_GUIDE.md**.
 
 ---
@@ -17,18 +17,18 @@ The `inventory-server` middleware already handles CORS; it just needs to know th
 
 ### 1. Set environment variables
 
-On the host where **extremedeptkidz.com** runs (e.g. Vercel, your server), set **one** of:
+On the host where **hunnidofficial.com** runs (e.g. Vercel, your server), set **one** of:
 
 **Option 1 – Explicit list (recommended for production)**
 
 ```bash
-CORS_ORIGINS=https://warehouse.extremedeptkidz.com,https://extremedeptkidz.com
+CORS_ORIGINS=https://warehouse.hunnidofficial.com,https://hunnidofficial.com
 ```
 
 **Option 2 – Single frontend origin (middleware will also reflect request origin when not strict)**
 
 ```bash
-FRONTEND_ORIGIN=https://warehouse.extremedeptkidz.com
+FRONTEND_ORIGIN=https://warehouse.hunnidofficial.com
 ```
 
 Use the same variable names in your deployment (Vercel → Project Settings → Environment Variables; or `.env.production`, etc.).
@@ -47,12 +47,12 @@ Run the [Verify CORS](#verify-cors) steps below.
 
 You must add CORS headers on **every API response** (including OPTIONS) so that:
 
-1. **Origin** `https://warehouse.extremedeptkidz.com` is allowed.
+1. **Origin** `https://warehouse.hunnidofficial.com` is allowed.
 2. **Credentials** are allowed (required for cookies/auth).
 
 ### What to add
 
-- **Access-Control-Allow-Origin:** `https://warehouse.extremedeptkidz.com` (do **not** use `*` when using credentials).
+- **Access-Control-Allow-Origin:** `https://warehouse.hunnidofficial.com` (do **not** use `*` when using credentials).
 - **Access-Control-Allow-Credentials:** `true`
 - **Access-Control-Allow-Methods:** `GET, POST, PUT, PATCH, DELETE, OPTIONS`
 - **Access-Control-Allow-Headers:** `Content-Type, Accept, Authorization, Idempotency-Key`
@@ -82,8 +82,8 @@ After changing the server:
 ### 1. OPTIONS preflight
 
 ```bash
-curl -X OPTIONS "https://extremedeptkidz.com/api/products" \
-  -H "Origin: https://warehouse.extremedeptkidz.com" \
+curl -X OPTIONS "https://hunnidofficial.com/api/products" \
+  -H "Origin: https://warehouse.hunnidofficial.com" \
   -H "Access-Control-Request-Method: GET" \
   -H "Access-Control-Request-Headers: Content-Type,Authorization" \
   -i
@@ -91,18 +91,18 @@ curl -X OPTIONS "https://extremedeptkidz.com/api/products" \
 
 Check the response headers. You should see:
 
-- `Access-Control-Allow-Origin: https://warehouse.extremedeptkidz.com`
+- `Access-Control-Allow-Origin: https://warehouse.hunnidofficial.com`
 - `Access-Control-Allow-Credentials: true`
 
 ### 2. In the browser
 
-1. Open **https://warehouse.extremedeptkidz.com** and log in.
+1. Open **https://warehouse.hunnidofficial.com** and log in.
 2. Open DevTools → **Console**.
 3. Go to **Inventory** (or Dashboard).
 
 You should **not** see errors like:
 
-- “Origin https://warehouse.extremedeptkidz.com is not allowed by Access-Control-Allow-Origin”
+- “Origin https://warehouse.hunnidofficial.com is not allowed by Access-Control-Allow-Origin”
 - “Fetch API cannot load … due to access control checks”
 
 Products and warehouses should load; the yellow “Server temporarily unavailable” banner should go away once the circuit breaker sees successful responses.
@@ -113,16 +113,16 @@ Products and warehouses should load; the yellow “Server temporarily unavailabl
 
 | Item | Value |
 |------|--------|
-| Warehouse app (origin) | `https://warehouse.extremedeptkidz.com` |
-| API base | `https://extremedeptkidz.com` |
-| Origin to allow | `https://warehouse.extremedeptkidz.com` |
+| Warehouse app (origin) | `https://warehouse.hunnidofficial.com` |
+| API base | `https://hunnidofficial.com` |
+| Origin to allow | `https://warehouse.hunnidofficial.com` |
 | Credentials | `true` (required) |
-| inventory-server env (Option A) | `CORS_ORIGINS=https://warehouse.extremedeptkidz.com,https://extremedeptkidz.com` or `FRONTEND_ORIGIN=https://warehouse.extremedeptkidz.com` |
+| inventory-server env (Option A) | `CORS_ORIGINS=https://warehouse.hunnidofficial.com,https://hunnidofficial.com` or `FRONTEND_ORIGIN=https://warehouse.hunnidofficial.com` |
 
 ---
 
 ## If it still fails
 
-- Confirm the **exact** URL of the API (e.g. `https://extremedeptkidz.com` vs `https://api.extremedeptkidz.com`). The warehouse app uses `VITE_API_BASE_URL`; it must match the server you changed.
+- Confirm the **exact** URL of the API (e.g. `https://hunnidofficial.com` vs `https://api.hunnidofficial.com`). The warehouse app uses `VITE_API_BASE_URL`; it must match the server you changed.
 - In DevTools → **Network**, click the failing request and check **Response Headers** for `Access-Control-Allow-Origin`. If it’s missing or different, CORS is still wrong on that endpoint.
 - Ensure CORS is applied to **all** routes the app calls: login, products, warehouses, orders, sync-rejections, etc.

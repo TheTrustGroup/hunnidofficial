@@ -8,7 +8,7 @@ Since your warehouse POS should connect to your **existing store admin**, we nee
 
 ### Step 1: Log into Your Admin Panel
 
-1. Go to your admin panel (likely `https://extremedeptkidz.com/admin` or similar)
+1. Go to your admin panel (likely `https://hunnidofficial.com/admin` or similar)
 2. **Log in** with your admin credentials
 
 ### Step 2: Open Browser DevTools
@@ -42,9 +42,9 @@ While watching the Network tab, try these actions:
 
 Look at the API calls in the Network tab. You'll see patterns like:
 
-- `https://extremedeptkidz.com/api/products` → Base URL: `https://extremedeptkidz.com/api`
-- `https://extremedeptkidz.com/admin/api/products` → Base URL: `https://extremedeptkidz.com/admin/api`
-- `https://api.extremedeptkidz.com/products` → Base URL: `https://api.extremedeptkidz.com`
+- `https://hunnidofficial.com/api/products` → Base URL: `https://hunnidofficial.com/api`
+- `https://hunnidofficial.com/admin/api/products` → Base URL: `https://hunnidofficial.com/admin/api`
+- `https://api.hunnidofficial.com/products` → Base URL: `https://api.hunnidofficial.com`
 
 ### Step 5: Check Authentication
 
@@ -65,7 +65,7 @@ Click on one of the API requests in the Network tab and check:
 
 Once you've found the API, please share:
 
-1. **API Base URL** (e.g., `https://extremedeptkidz.com/api`)
+1. **API Base URL** (e.g., `https://hunnidofficial.com/api`)
 2. **Authentication Method** (Bearer token, cookies, API key?)
 3. **Sample API Endpoints** you found:
    - Products endpoint: `GET /api/products`

@@ -1,7 +1,7 @@
 # Backend API Requirements for Warehouse POS System
 
-**Frontend Domain:** `https://warehouse.extremedeptkidz.com`  
-**API Base URL:** `https://extremedeptkidz.com/api`  
+**Frontend Domain:** `https://warehouse.hunnidofficial.com`  
+**API Base URL:** `https://hunnidofficial.com/api`  
 **Date:** January 28, 2026
 
 ---
@@ -15,12 +15,12 @@ The frontend application requires a REST API backend with authentication and CRU
 ## 🔐 CORS Configuration (CRITICAL)
 
 **The backend MUST allow requests from:**
-- `https://warehouse.extremedeptkidz.com` (production)
+- `https://warehouse.hunnidofficial.com` (production)
 - `http://localhost:5173` (local development)
 
 **Required CORS Headers:**
 ```
-Access-Control-Allow-Origin: https://warehouse.extremedeptkidz.com
+Access-Control-Allow-Origin: https://warehouse.hunnidofficial.com
 Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
 Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-CSRF-TOKEN
 Access-Control-Allow-Credentials: true
@@ -45,7 +45,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  "email": "info@extremedeptkidz.com",
+  "email": "admin@hunnidofficial.com",
   "password": "Admin123!@#"
 }
 ```
@@ -55,7 +55,7 @@ Accept: application/json
 {
   "user": {
     "id": "1",
-    "email": "info@extremedeptkidz.com",
+    "email": "admin@hunnidofficial.com",
     "username": "admin",
     "role": "admin",
     "fullName": "Administrator",
@@ -113,7 +113,7 @@ Cookie: session=...; laravel_session=...
 ```json
 {
   "id": "1",
-  "email": "info@extremedeptkidz.com",
+  "email": "admin@hunnidofficial.com",
   "username": "admin",
   "role": "admin",
   "fullName": "Administrator",
@@ -515,7 +515,7 @@ After implementing the API, please verify:
 - [ ] `POST /api/auth/login` returns user and token/cookie
 - [ ] `GET /api/auth/user` returns current user when authenticated
 - [ ] `POST /api/auth/logout` invalidates session
-- [ ] CORS allows requests from `warehouse.extremedeptkidz.com`
+- [ ] CORS allows requests from `warehouse.hunnidofficial.com`
 - [ ] All endpoints require authentication (except login)
 - [ ] Error responses follow the format specified above
 - [ ] Dates are returned in ISO 8601 format (`2026-01-28T00:00:00Z`)
@@ -524,7 +524,7 @@ After implementing the API, please verify:
 
 ## 🧪 Test Credentials
 
-**Email:** `info@extremedeptkidz.com`  
+**Email:** `admin@hunnidofficial.com`  
 **Password:** `Admin123!@#`
 
 Please ensure this user exists in your system with `admin` role.

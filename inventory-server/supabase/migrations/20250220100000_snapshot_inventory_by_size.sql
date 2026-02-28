@@ -101,9 +101,6 @@ begin
 end;
 $$;
 
-comment on function public.snapshot_inventory_by_size(text, jsonb) is
-  'Snapshot per-size inventory for multiple products in one warehouse. Payload: array of { product_id (uuid), size_code (text), quantity (int >= 0) }. Dedupes by (product_id, size_code). Deletes sizes not in snapshot; upserts provided sizes; recomputes warehouse_inventory rollups. Idempotent and scope-limited.';
-
 -- Optional: allow authenticated role to execute (uncomment if using Supabase auth)
 -- grant execute on function public.snapshot_inventory_by_size(text, jsonb) to authenticated;
 -- grant execute on function public.snapshot_inventory_by_size(text, jsonb) to service_role;

@@ -15,7 +15,7 @@ Follow these steps in order. You’ll create a **second** Vercel project (the AP
 ## Step 2: Import your repository
 
 1. You’ll see a list of repositories connected to Vercel.
-2. Find the repo that contains your **warehouse-pos** app (the one you already use for warehouse.extremedeptkidz.com).
+2. Find the repo that contains your **warehouse-pos** app (the one you already use for warehouse.hunnidofficial.com).
 3. Click **“Import”** next to that repo.
 
 ---
@@ -62,10 +62,10 @@ Add these **three** variables. For each one, choose **Production** (and optional
 |------|--------|------------------|
 | `SUPABASE_URL` | `https://xxxxx.supabase.co` | Supabase dashboard → Project Settings → API → Project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbG...` long string | Supabase dashboard → Project Settings → API → `service_role` (secret) |
-| `CORS_ORIGINS` | `https://warehouse.extremedeptkidz.com` | Your frontend URL. Or use `*` to allow any origin. |
+| `CORS_ORIGINS` | `https://warehouse.hunnidofficial.com` | Your frontend URL. Or use `*` to allow any origin. |
 
 - For **CORS_ORIGINS**: if you have multiple frontend URLs, separate with commas, e.g.  
-  `https://warehouse.extremedeptkidz.com,https://warehouse-pos.vercel.app`
+  `https://warehouse.hunnidofficial.com,https://warehouse-pos.vercel.app`
 
 ---
 
@@ -89,7 +89,7 @@ You should see `[]` (empty array) or a JSON list, not a 404 or HTML page.
 
 ## Step 6: Point the frontend at the API
 
-1. In Vercel, open the **other** project — the one for your **warehouse frontend** (warehouse.extremedeptkidz.com).
+1. In Vercel, open the **other** project — the one for your **warehouse frontend** (warehouse.hunnidofficial.com).
 2. Go to **Settings** → **Environment Variables**.
 3. Add a new variable:
    - **Key:** `VITE_API_BASE_URL`
@@ -111,7 +111,7 @@ The frontend only picks up `VITE_API_BASE_URL` when it **builds**. So you must t
 5. Confirm **“Redeploy”** again (don’t change any settings).
 6. Wait for the new deployment to finish and become **Production**.
 
-After that, open **https://warehouse.extremedeptkidz.com** again. The app should reach the API and the “Server unreachable” message should go away (as long as the API project is still deployed and env vars are set).
+After that, open **https://warehouse.hunnidofficial.com** again. The app should reach the API and the “Server unreachable” message should go away (as long as the API project is still deployed and env vars are set).
 
 ---
 

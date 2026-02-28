@@ -89,7 +89,7 @@ export function MobileMenu() {
           <div className="px-5 py-5 border-b border-slate-200/30 flex-shrink-0">
             <div className="flex flex-col gap-0.5">
               <h1 className="text-xl font-bold leading-tight tracking-tight gradient-text">
-                Extreme Dept Kidz
+                Hunnid Official
               </h1>
               <p className="text-xs font-medium text-slate-500">Inventory & POS</p>
             </div>

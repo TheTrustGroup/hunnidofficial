@@ -7,7 +7,7 @@
  */
 
 const GHANA_TZ = 'Africa/Accra';
-const BUSINESS_NAME = 'Extreme Dept Kidz';
+const BUSINESS_NAME = 'Hunnid Official';
 
 export interface PrintReceiptPayload {
   receiptId?: string;

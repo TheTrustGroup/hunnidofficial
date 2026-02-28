@@ -84,9 +84,9 @@ import { setOfflineQuotaExceeded, isQuotaExceededError } from '../lib/offlineQuo
 // Database class
 // ---------------------------------------------------------------------------
 
-class ExtremeDeptKidzDexie extends Dexie {
+class HunnidOfficialDexie extends Dexie {
   constructor() {
-    super('ExtremeDeptKidzDB');
+    super('HunnidOfficialDB');
     this.version(1).stores({
       products: 'id, sku, syncStatus, updatedAt, lastModified',
       syncQueue: '++id, status, timestamp, attempts',
@@ -106,8 +106,8 @@ class ExtremeDeptKidzDexie extends Dexie {
   }
 }
 
-/** @type {ExtremeDeptKidzDexie} */
-const db = new ExtremeDeptKidzDexie();
+/** @type {HunnidOfficialDexie} */
+const db = new HunnidOfficialDexie();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -578,7 +578,7 @@ export async function appendConflictAuditLog(entry) {
 
 // TODO: Consider versioned schema migrations if adding new tables or indexes (Dexie version(2).stores(...)).
 
-/** Singleton Dexie instance for ExtremeDeptKidzDB. */
+/** Singleton Dexie instance for HunnidOfficialDB. */
 export { db };
 
 export default db;

@@ -1,7 +1,7 @@
 # Add Product & Database Communication Audit
 
 **Scope:** Add product logic, how saving works, how data shows across devices, and how the database is used.  
-**Environment:** Production at `warehouse.extremedeptkidz.com` (frontend) → backend at `VITE_API_BASE_URL`.  
+**Environment:** Production at `warehouse.hunnidofficial.com` (frontend) → backend at `VITE_API_BASE_URL`.  
 **Note:** This audit is based on the codebase. Live site login was not performed (credentials not required for code audit).
 
 ---
@@ -120,12 +120,12 @@ Optional `warehouseId` is sent in the body when provided; backend uses it or `ge
 ### 4.1 High-level
 
 ```
-[Browser: warehouse.extremedeptkidz.com]
+[Browser: warehouse.hunnidofficial.com]
          │
          │  HTTPS (fetch) — auth via cookie or Bearer
          │  POST/GET/PUT/DELETE /api/products, /admin/api/products
          ▼
-[Backend at VITE_API_BASE_URL (e.g. extremedeptkidz.com or separate API host)]
+[Backend at VITE_API_BASE_URL (e.g. hunnidofficial.com or separate API host)]
          │
          │  Server-side only (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
          ▼
@@ -165,7 +165,7 @@ Optional `warehouseId` is sent in the body when provided; backend uses it or `ge
 
 ## 6. Recommendations (optional)
 
-1. **Confirm production env:** Ensure `VITE_API_BASE_URL` for `warehouse.extremedeptkidz.com` points to the same backend that has the Supabase env and migrations (including `create_warehouse_product_atomic`).
+1. **Confirm production env:** Ensure `VITE_API_BASE_URL` for `warehouse.hunnidofficial.com` points to the same backend that has the Supabase env and migrations (including `create_warehouse_product_atomic`).
 2. **Cross-device latency:** If you need faster visibility on other devices, consider Supabase Realtime (or a WebSocket) for product list changes instead of (or in addition to) polling.
 3. **Idempotency:** If you rely on retries, verify the backend implements idempotency for POST create (e.g. by Idempotency-Key) so duplicate requests don’t create duplicate products.
 4. **Manual check on production:** Add a product on one browser, then on another device (or incognito) open Inventory and confirm it appears within the poll interval or after refresh.
@@ -191,7 +191,7 @@ Optional `warehouseId` is sent in the body when provided; backend uses it or `ge
 3. **`docs/TROUBLESHOOTING.md`**  
    - New subsection: **“Sync worked for first 2 items, then Load failed”** with causes (body size, CORS, network) and steps (Retry, check Network tab, backend logs).
 
-**If “Load failed” persists after deploy:** Check that the backend allows `POST` from `https://warehouse.extremedeptkidz.com` (CORS) and that the request body limit is sufficient; see `SERVER_SIDE_FIX_GUIDE.md`.
+**If “Load failed” persists after deploy:** Check that the backend allows `POST` from `https://warehouse.hunnidofficial.com` (CORS) and that the request body limit is sufficient; see `SERVER_SIDE_FIX_GUIDE.md`.
 
 ---
 

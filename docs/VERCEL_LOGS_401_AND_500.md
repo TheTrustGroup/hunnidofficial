@@ -4,7 +4,7 @@
 
 | Project | What it deploys | Typical URL | Logs show |
 |--------|-----------------|-------------|-----------|
-| **warehouse-pos** | Frontend (Vite SPA) | e.g. warehouse.extremedeptkidz.com | Requests to your app (HTML, /vite.svg, etc.) |
+| **warehouse-pos** | Frontend (Vite SPA) | e.g. warehouse.hunnidofficial.com | Requests to your app (HTML, /vite.svg, etc.) |
 | **warehouse-pos-api-v2** (or API project) | Backend (inventory-server) | e.g. warehouse-pos-api-v2.vercel.app | API requests (/api/products, /admin/api/me, etc.) |
 
 - **Product 500 / “Error loading products”** → fix env and check logs in the **API** project (see `inventory-server/SERVER_ERROR_500.md`).

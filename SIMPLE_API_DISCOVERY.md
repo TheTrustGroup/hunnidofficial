@@ -14,8 +14,8 @@ The **401 errors** confirm these endpoints exist!
 ## 🎯 One More Step: Find the Full URLs
 
 We need to know if they're:
-- `https://extremedeptkidz.com/api/me` OR
-- `https://extremedeptkidz.com/admin/api/me` OR
+- `https://hunnidofficial.com/api/me` OR
+- `https://hunnidofficial.com/admin/api/me` OR
 - Something else
 
 ---
@@ -58,8 +58,8 @@ Based on the admin panel being at `/admin`, the API is likely at:
 
 **Can you try this:**
 
-1. In your browser, go to: `https://extremedeptkidz.com/admin/api/me`
-2. Or: `https://extremedeptkidz.com/api/me`
+1. In your browser, go to: `https://hunnidofficial.com/admin/api/me`
+2. Or: `https://hunnidofficial.com/api/me`
 3. See what error you get (401 is good - means it exists!)
 
 ---

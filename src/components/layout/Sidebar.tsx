@@ -11,6 +11,7 @@ import {
   Users,
   MapPin,
   Receipt,
+  Truck,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWarehouse } from '../../contexts/WarehouseContext';
@@ -30,6 +31,7 @@ const baseNavigation: NavItem[] = [
   { name: 'Orders', to: '/orders', icon: ClipboardList, permission: PERMISSIONS.ORDERS.VIEW },
   { name: 'POS', to: '/pos', icon: ShoppingCart, permission: PERMISSIONS.POS.ACCESS },
   { name: 'Sales', to: '/sales', icon: Receipt, permission: PERMISSIONS.REPORTS.VIEW_SALES },
+  { name: 'Deliveries', to: '/deliveries', icon: Truck, permission: PERMISSIONS.REPORTS.VIEW_SALES },
   {
     name: 'Reports',
     to: '/reports',
@@ -56,15 +58,18 @@ export function Sidebar() {
   // Hardening: only admins see "Switch role" (testing). Others cannot try to switch; backend enforces 403.
   const canSeeSwitchRole = user?.role === 'admin' || user?.role === 'super_admin';
 
-  const showWarehouseSwitcher = !warehousesLoading && warehouses.length > 0;
-  const canSwitchWarehouse = showWarehouseSwitcher && warehouses.length > 1 && !isWarehouseBoundToSession;
+  const showWarehouseSwitcher = !warehousesLoading && warehouses.length > 0 && !isWarehouseBoundToSession;
+  const canSwitchWarehouse = showWarehouseSwitcher && warehouses.length > 1;
 
-  const navigation = baseNavigation.filter(
-    (item) =>
-      (item.permission == null && 'to' in item) ||
-      ('permission' in item && item.permission && hasPermission(item.permission)) ||
-      ('anyPermissions' in item && item.anyPermissions && hasAnyPermission(item.anyPermissions))
-  );
+  const navigation = baseNavigation
+    .filter(
+      (item) =>
+        (item.permission == null && 'to' in item) ||
+        ('permission' in item && item.permission && hasPermission(item.permission)) ||
+        ('anyPermissions' in item && item.anyPermissions && hasAnyPermission(item.anyPermissions))
+    )
+    // POS locations (Main Store & Main Town): hide Inventory; nav shows only Orders, POS, Reports, Sales, Deliveries.
+    .filter((item) => !(item.name === 'Inventory' && isWarehouseBoundToSession));
 
   return (
     <aside className="fixed left-0 top-0 w-[280px] min-w-[280px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] solid-panel border-r border-slate-200/80 flex flex-col shadow-lg flex-shrink-0">
@@ -72,7 +77,7 @@ export function Sidebar() {
       <div className="p-5 border-b border-slate-200/30 flex-shrink-0">
         <div className="flex flex-col gap-0.5">
           <h1 className="text-xl font-bold leading-tight tracking-tight gradient-text">
-            Extreme Dept Kidz
+            Hunnid Official
           </h1>
           <p className="text-xs font-medium text-slate-500">
             Inventory & POS

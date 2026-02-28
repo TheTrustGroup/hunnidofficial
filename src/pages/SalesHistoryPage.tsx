@@ -11,8 +11,9 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiGet } from '../lib/apiClient';
-import { printReceipt } from '../lib/printReceipt';
+import { getApiHeaders, API_BASE_URL } from '../lib/api';
+import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SalesHistoryPageProps { apiBaseUrl?: string; }
 
@@ -43,6 +44,11 @@ interface Sale {
   soldBy: string | null;
   createdAt: string;
   lines: SaleLine[];
+  // Delivery fields
+  deliveryStatus:  'delivered' | 'pending' | 'dispatched' | 'cancelled';
+  recipientName:   string | null;
+  expectedDate:    string | null;
+  deliveredAt:     string | null;
 }
 
 type DateFilter = 'today' | 'week' | 'month' | 'all';
@@ -162,7 +168,32 @@ function SummaryCard({ label, value, sub, accent }: {
 
 // ── Sale row ───────────────────────────────────────────────────────────────
 
-function SaleRow({ sale, onPrint }: { sale: Sale; onPrint: (s: Sale) => void }) {
+function DeliveryBadge({ status, expectedDate }: { status: string; expectedDate?: string | null }) {
+  if (!status || status === 'delivered') return null;
+  if (status === 'cancelled') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">Cancelled</span>;
+  const overdue = expectedDate && new Date(expectedDate) < new Date(new Date().toDateString());
+  if (overdue) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">⚠ Overdue</span>;
+  if (status === 'dispatched') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">🚚 Dispatched</span>;
+  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ Pending delivery</span>;
+}
+
+function saleWarehouseName(warehouseId: string): string {
+  return WAREHOUSES.find(w => w.id === warehouseId)?.name ?? (warehouseId || '—');
+}
+
+function SaleRow({
+  sale,
+  warehouseName,
+  onPrint,
+  onVoid,
+  isVoiding,
+}: {
+  sale: Sale;
+  warehouseName: string;
+  onPrint: (s: Sale) => void;
+  onVoid?: (s: Sale) => void;
+  isVoiding?: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -180,7 +211,11 @@ function SaleRow({ sale, onPrint }: { sale: Sale; onPrint: (s: Sale) => void }) 
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[13px] font-bold text-slate-900">{sale.receiptId}</span>
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold" title="POS / Warehouse">
+                {warehouseName}
+              </span>
               <PayBadge method={sale.paymentMethod} />
+              <DeliveryBadge status={sale.deliveryStatus ?? 'delivered'} expectedDate={sale.expectedDate} />
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
               {fmtDate(sale.createdAt)}
@@ -241,8 +276,8 @@ function SaleRow({ sale, onPrint }: { sale: Sale; onPrint: (s: Sale) => void }) 
             </div>
           </div>
 
-          {/* Print button */}
-          <div className="px-4 pb-3 flex justify-end">
+          {/* Print + Void */}
+          <div className="px-4 pb-3 flex justify-end gap-2">
             <button
               type="button"
               onClick={() => onPrint(sale)}
@@ -251,6 +286,17 @@ function SaleRow({ sale, onPrint }: { sale: Sale; onPrint: (s: Sale) => void }) 
             >
               <IconPrint /> Print receipt
             </button>
+            {onVoid && (
+              <button
+                type="button"
+                onClick={() => onVoid(sale)}
+                disabled={isVoiding}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 hover:bg-red-200
+                           text-[12px] font-semibold text-red-700 transition-colors disabled:opacity-50"
+              >
+                {isVoiding ? 'Voiding…' : 'Void sale'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -261,16 +307,22 @@ function SaleRow({ sale, onPrint }: { sale: Sale; onPrint: (s: Sale) => void }) 
 // ── Main page ──────────────────────────────────────────────────────────────
 
 const WAREHOUSES = [
-  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Store' },
-  { id: '00000000-0000-0000-0000-000000000002', name: 'Main Town'  },
+  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Jeff' },
+  { id: '00000000-0000-0000-0000-000000000002', name: 'Hunnid Main'  },
 ];
 
-export default function SalesHistoryPage({ apiBaseUrl = '' }: SalesHistoryPageProps) {
+/** Empty string = fetch sales from all warehouses (no warehouse_id filter). */
+const ALL_WAREHOUSES_ID = '';
+
+export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) {
+  const { user } = useAuth();
+  const baseUrl = apiBaseUrl ?? API_BASE_URL;
 
   const [sales, setSales]           = useState<Sale[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
-  const [warehouseId, setWarehouseId] = useState(WAREHOUSES[0].id);
+  const [voidingId, setVoidingId]   = useState<string | null>(null);
+  const [warehouseId, setWarehouseId] = useState<string>(ALL_WAREHOUSES_ID);
   const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [search, setSearch]         = useState('');
   const [whDropdown, setWhDropdown] = useState(false);
@@ -282,21 +334,23 @@ export default function SalesHistoryPage({ apiBaseUrl = '' }: SalesHistoryPagePr
     setError(null);
     try {
       const from = startOf(dateFilter);
-      const params = new URLSearchParams({ warehouse_id: warehouseId, limit: '500' });
+      const params = new URLSearchParams({ limit: '500' });
+      if (warehouseId) params.set('warehouse_id', warehouseId);
       if (from) params.set('from', from);
 
-      const data = await apiGet<{ data?: Sale[] } | Sale[]>(
-        apiBaseUrl,
-        `/api/sales?${params}`,
-        { maxRetries: 3, timeoutMs: 20_000 }
-      );
-      setSales(Array.isArray(data) ? data : (data as { data?: Sale[] }).data ?? []);
+      const res = await fetch(`${baseUrl}/api/sales?${params}`, {
+        headers: new Headers(getApiHeaders()),
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setSales(Array.isArray(data) ? data : data.data ?? []);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load sales');
     } finally {
       setLoading(false);
     }
-  }, [warehouseId, dateFilter, apiBaseUrl]);
+  }, [warehouseId, dateFilter, baseUrl]);
 
   useEffect(() => { fetchSales(); }, [fetchSales]);
 
@@ -320,12 +374,48 @@ export default function SalesHistoryPage({ apiBaseUrl = '' }: SalesHistoryPagePr
   const momoTotal       = displayed.filter(s => s.paymentMethod === 'MoMo').reduce((s, x) => s + x.total, 0);
   const cardTotal       = displayed.filter(s => s.paymentMethod === 'Card').reduce((s, x) => s + x.total, 0);
   const avgSale         = displayed.length > 0 ? totalRevenue / displayed.length : 0;
-  const currentWh       = WAREHOUSES.find(w => w.id === warehouseId) ?? WAREHOUSES[0];
+  const currentWh = warehouseId === ALL_WAREHOUSES_ID
+    ? { id: ALL_WAREHOUSES_ID, name: 'All warehouses' }
+    : WAREHOUSES.find(w => w.id === warehouseId) ?? WAREHOUSES[0];
+
+  // ── Void sale (full cancellation: restore stock) ─────────────────────────
+
+  async function handleVoid(sale: Sale) {
+    if (
+      !window.confirm(
+        `Void sale ${sale.receiptId}? Stock will be restored. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setVoidingId(sale.id);
+    try {
+      const res = await fetch(`${baseUrl}/api/sales/void`, {
+        method: 'POST',
+        headers: new Headers(getApiHeaders()),
+        credentials: 'include',
+        body: JSON.stringify({
+          saleId: sale.id,
+          voidedBy: user?.email ?? undefined,
+          warehouseId: sale.warehouseId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error ?? `HTTP ${res.status}`);
+      }
+      await fetchSales();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Void failed');
+    } finally {
+      setVoidingId(null);
+    }
+  }
 
   // ── Print ─────────────────────────────────────────────────────────────────
 
   function handlePrint(sale: Sale) {
-    printReceipt({
+    const payload: PrintReceiptPayload = {
       warehouseId: sale.warehouseId,
       customerName: sale.customerName ?? '',
       paymentMethod: sale.paymentMethod,
@@ -333,27 +423,26 @@ export default function SalesHistoryPage({ apiBaseUrl = '' }: SalesHistoryPagePr
       discountPct: sale.discountPct,
       discountAmt: sale.discountAmt,
       total: sale.total,
+      receiptId: sale.receiptId,
+      completedAt: sale.createdAt,
       lines: sale.lines.map(l => ({
-        key: l.id,
-        productId: l.productId,
         name: l.name,
-        sku: l.sku,
-        sizeCode: l.sizeCode,
         sizeLabel: l.sizeCode,
         unitPrice: l.unitPrice,
         qty: l.qty,
       })),
-      receiptId: sale.receiptId,
-    });
+    };
+    printReceipt(payload);
   }
 
   // ── CSV Export ────────────────────────────────────────────────────────────
 
   function handleExport() {
     const rows = [
-      ['Receipt ID', 'Date', 'Customer', 'Payment', 'Items', 'Subtotal', 'Discount', 'Total', 'Sold By', 'Products'],
+      ['Receipt ID', 'Warehouse', 'Date', 'Customer', 'Payment', 'Items', 'Subtotal', 'Discount', 'Total', 'Sold By', 'Products'],
       ...displayed.map(s => [
         s.receiptId,
+        saleWarehouseName(s.warehouseId),
         fmtDate(s.createdAt),
         s.customerName ?? '',
         s.paymentMethod,
@@ -405,9 +494,9 @@ export default function SalesHistoryPage({ apiBaseUrl = '' }: SalesHistoryPagePr
               {whDropdown && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setWhDropdown(false)}/>
-                  <div className="absolute left-0 top-6 z-20 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 w-40">
-                    {WAREHOUSES.map(w => (
-                      <button key={w.id} type="button"
+                  <div className="absolute left-0 top-6 z-20 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 w-44">
+                    {[{ id: ALL_WAREHOUSES_ID, name: 'All warehouses' }, ...WAREHOUSES].map(w => (
+                      <button key={w.id || 'all'} type="button"
                               onClick={() => { setWarehouseId(w.id); setWhDropdown(false); }}
                               className={`w-full px-4 py-2.5 text-left text-[13px] font-medium transition-colors
                                 ${warehouseId === w.id ? 'text-red-500 bg-red-50' : 'text-slate-700 hover:bg-slate-50'}`}>
@@ -511,7 +600,14 @@ export default function SalesHistoryPage({ apiBaseUrl = '' }: SalesHistoryPagePr
         {!loading && displayed.length > 0 && (
           <div className="space-y-3">
             {displayed.map(sale => (
-              <SaleRow key={sale.id} sale={sale} onPrint={handlePrint}/>
+              <SaleRow
+                key={sale.id}
+                sale={sale}
+                warehouseName={saleWarehouseName(sale.warehouseId)}
+                onPrint={handlePrint}
+                onVoid={handleVoid}
+                isVoiding={voidingId === sale.id}
+              />
             ))}
           </div>
         )}

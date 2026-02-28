@@ -9,7 +9,7 @@
 import { NextRequest } from 'next/server';
 
 const DEFAULT_ORIGINS = [
-  'https://warehouse.extremedeptkidz.com',
+  'https://warehouse.hunnidofficial.com',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:4173',
@@ -22,7 +22,7 @@ function getAllowedOrigins(): string[] {
 }
 
 /** Hostname suffixes to allow (e.g. "vercel.app" allows *.vercel.app). */
-const DEFAULT_ORIGIN_SUFFIXES = ['vercel.app', 'extremedeptkidz.com'];
+const DEFAULT_ORIGIN_SUFFIXES = ['vercel.app', 'hunnidofficial.com'];
 
 function getAllowedSuffixes(): string[] {
   const raw = process.env.ALLOWED_ORIGIN_SUFFIXES?.trim();
@@ -50,7 +50,7 @@ export function corsHeaders(req: NextRequest): Record<string, string> {
     isOriginAllowed(origin, allowed, suffixes) ? origin : allowed[0];
   return {
     'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers':
       'Content-Type, Authorization, x-request-id, Idempotency-Key',
     'Access-Control-Allow-Credentials': 'true',

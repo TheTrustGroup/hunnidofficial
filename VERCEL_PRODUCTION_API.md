@@ -24,10 +24,10 @@ The warehouse frontend needs a **live API** to load and save inventory. On Verce
    | `CORS_ORIGINS` | your frontend URL(s) | See below |
 
    **CORS_ORIGINS:** Comma-separated list of allowed origins, e.g.  
-   `https://warehouse-pos.vercel.app,https://warehouse.extremedeptkidz.com`  
+   `https://warehouse-pos.vercel.app,https://warehouse.hunnidofficial.com`  
    Or use `*` to allow any origin (simpler, less strict).
 
-5. **Deploy.** Note the deployment URL, e.g. `https://inventory-server-xxx.vercel.app` (or your custom domain like `https://api.extremedeptkidz.com`).
+5. **Deploy.** Note the deployment URL, e.g. `https://inventory-server-xxx.vercel.app` (or your custom domain like `https://api.hunnidofficial.com`).
 
 ---
 
@@ -44,7 +44,7 @@ In the **warehouse-pos** Vercel project (the one that builds the **Vite** app fr
 
    Examples:
    - `https://inventory-server-xxx.vercel.app`
-   - `https://api.extremedeptkidz.com` (if you attached a custom domain to the API project)
+   - `https://api.hunnidofficial.com` (if you attached a custom domain to the API project)
 
    **No trailing slash.** The app will call `{VITE_API_BASE_URL}/api/products`, etc.
 
@@ -65,4 +65,4 @@ After both are deployed and `VITE_API_BASE_URL` is set and redeployed, the produ
 
 ## Optional: Custom domain for the API
 
-In the **inventory-server** project on Vercel: **Settings** → **Domains** → add e.g. `api.extremedeptkidz.com`. Then set **Frontend** env `VITE_API_BASE_URL=https://api.extremedeptkidz.com` and redeploy the frontend.
+In the **inventory-server** project on Vercel: **Settings** → **Domains** → add e.g. `api.hunnidofficial.com`. Then set **Frontend** env `VITE_API_BASE_URL=https://api.hunnidofficial.com` and redeploy the frontend.

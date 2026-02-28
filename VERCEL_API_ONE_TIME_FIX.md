@@ -35,7 +35,7 @@ In the new project, **Settings** → **Environment Variables**:
 
 - `SUPABASE_URL` = your Supabase project URL  
 - `SUPABASE_SERVICE_ROLE_KEY` = your service role key  
-- `CORS_ORIGINS` = `https://warehouse.extremedeptkidz.com` or `*`
+- `CORS_ORIGINS` = `https://warehouse.hunnidofficial.com` or `*`
 
 Apply to **Production** (and Preview if you want).
 

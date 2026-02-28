@@ -148,7 +148,7 @@ Comprehensive list of all API calls, callers, response/error handling, and flagg
 
 - **Single base URL:** All frontend calls use `API_BASE_URL` from `src/lib/api.ts`.
 - **Definition:**  
-  `API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() || 'https://extremedeptkidz.com').replace(/\/$/, '')`
+  `API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim() || 'https://hunnidofficial.com').replace(/\/$/, '')`
 - **Usage:** Consistent: `apiGet(API_BASE_URL, path)`, `apiPost(API_BASE_URL, path, body)`, etc. Only auth uses raw `fetch(\`${API_BASE_URL}/...\`)`.
 
 ---
@@ -182,7 +182,7 @@ Comprehensive list of all API calls, callers, response/error handling, and flagg
 
 | Location | Current | Recommendation |
 |----------|--------|-----------------|
-| `src/lib/api.ts` | Default `API_BASE_URL = 'https://extremedeptkidz.com'` when `VITE_API_BASE_URL` unset | Already env-driven; default is documented for build success. **Flag:** Ensure production always sets `VITE_API_BASE_URL` so no accidental use of hardcoded default in production. |
+| `src/lib/api.ts` | Default `API_BASE_URL = 'https://hunnidofficial.com'` when `VITE_API_BASE_URL` unset | Already env-driven; default is documented for build success. **Flag:** Ensure production always sets `VITE_API_BASE_URL` so no accidental use of hardcoded default in production. |
 | `observability.healthPing(url)` | URL from `config.healthUrl` (set at app init) | If health URL is ever hardcoded elsewhere, it should be env (e.g. `VITE_HEALTH_URL` or derive from API_BASE_URL). |
 
 ### 6.2 Missing error boundaries

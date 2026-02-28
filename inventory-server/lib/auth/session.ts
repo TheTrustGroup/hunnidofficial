@@ -14,6 +14,7 @@ export interface Session {
   email: string;
   role: string;
   /** Set from login binding / session JWT when present. */
+  warehouse_id?: string;
   store_id?: string;
   device_id?: string;
 }
@@ -22,7 +23,7 @@ const ADMIN_EMAILS_KEY = 'ADMIN_EMAILS';
 const SUPER_ADMIN_EMAILS_KEY = 'SUPER_ADMIN_EMAILS';
 
 /** Emails that always get admin role at login (JWT). Set ADMIN_EMAILS or SUPER_ADMIN_EMAILS in env to override. */
-const FALLBACK_ADMIN_EMAILS = new Set(['info@extremedeptkidz.com']);
+const FALLBACK_ADMIN_EMAILS = new Set(['admin@hunnidofficial.com']);
 
 function getAdminEmails(): Set<string> {
   const fromAdmin = process.env[ADMIN_EMAILS_KEY]?.trim();
@@ -235,18 +236,45 @@ export function getEffectiveWarehouseIdSync(
   return allowedWarehouseIds[0] ?? null;
 }
 
-/** JSON payload for frontend (e.g. GET /api/auth/user). */
-export function sessionUserToJson(auth: Session): { email: string; role: string } {
-  return { email: auth.email, role: auth.role };
+/** JSON payload for frontend (e.g. GET /api/auth/user). Includes warehouseId when present so POS can skip warehouse selector. */
+export function sessionUserToJson(auth: Session): { email: string; role: string; warehouseId?: string } {
+  const out: { email: string; role: string; warehouseId?: string } = { email: auth.email, role: auth.role };
+  if (auth.warehouse_id) out.warehouseId = auth.warehouse_id;
+  return out;
 }
 
 /**
- * Get session from request (Bearer or session cookie). Tries Supabase JWT then app session JWT.
+ * Get session from request (Bearer or session cookie).
+ * Tries app session JWT first (SESSION_SECRET), then Supabase Auth JWT, so app logins work without Supabase.
  */
 export async function getSession(req: NextRequest): Promise<Session | null> {
   const token =
     getBearerToken(req) ?? req.cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
   if (!token) return null;
+
+  const secret = process.env.SESSION_SECRET ?? process.env.JWT_SECRET;
+  if (secret && secret.length >= 16) {
+    try {
+      const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), {
+        algorithms: ['HS256'],
+        clockTolerance: 60,
+      });
+      const email = (payload.email ?? payload.sub) as string;
+      const role = (payload.role as string) ?? 'cashier';
+      if (typeof email === 'string' && email) {
+        return {
+          email,
+          role,
+          warehouse_id: typeof payload.warehouse_id === 'string' ? payload.warehouse_id : undefined,
+          store_id: typeof payload.store_id === 'string' ? payload.store_id : undefined,
+          device_id: typeof payload.device_id === 'string' ? payload.device_id : undefined,
+        };
+      }
+    } catch {
+      /* not our JWT or invalid; try Supabase below */
+    }
+  }
+
   try {
     const supabase = getSupabase();
     const { data: { user }, error } = await supabase.auth.getUser(token);
@@ -254,25 +282,7 @@ export async function getSession(req: NextRequest): Promise<Session | null> {
       return { email: user.email, role: resolveRole(user.email, user.user_metadata as Record<string, unknown> | undefined) };
     }
   } catch {
-    /* try app JWT */
+    /* ignore */
   }
-  const secret = process.env.SESSION_SECRET ?? process.env.JWT_SECRET;
-  if (!secret || secret.length < 16) return null;
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), {
-      algorithms: ['HS256'],
-      clockTolerance: 60,
-    });
-    const email = (payload.email ?? payload.sub) as string;
-    const role = (payload.role as string) ?? 'cashier';
-    if (typeof email !== 'string' || !email) return null;
-    return {
-      email,
-      role,
-      store_id: typeof payload.store_id === 'string' ? payload.store_id : undefined,
-      device_id: typeof payload.device_id === 'string' ? payload.device_id : undefined,
-    };
-  } catch {
-    return null;
-  }
+  return null;
 }

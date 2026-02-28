@@ -3,7 +3,7 @@
 # API Endpoint Discovery Script
 # This script tests various API path structures to find the correct endpoints
 
-BASE_URL="https://extremedeptkidz.com"
+BASE_URL="https://hunnidofficial.com"
 
 echo "🔍 Discovering API Endpoint Structure..."
 echo "========================================"
