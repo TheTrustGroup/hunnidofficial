@@ -160,6 +160,11 @@ export async function apiRequest<T = unknown>(options: ApiRequestOptions): Promi
       // Only open circuit for server errors (5xx). 4xx (e.g. 404 wrong endpoint, 401/403) and CORS are client/config issues.
       if (res.status >= 500) circuit.recordFailure();
 
+      // Global 401: notify auth layer so session is cleared and user is sent to login (avoids stale token on subsequent requests).
+      if (res.status === 401 && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+      }
+
       const shouldRetry =
         maxRetries > 0 && attempt < maxRetries && isRetryable(method, res.status);
 

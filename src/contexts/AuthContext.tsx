@@ -244,6 +244,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuthStatus();
   }, []);
 
+  // Global 401 from any API call (e.g. expired token on dashboard): clear session so ProtectedRoutes redirects to login; show session-expired on login page.
+  useEffect(() => {
+    const onSessionExpired = () => {
+      setSessionExpired(true);
+      setAuthError(null);
+      setUser(null);
+      clearAllSessionData();
+    };
+    window.addEventListener('auth:session-expired', onSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', onSessionExpired);
+  }, []);
+
   // Track user activity for inactivity timeout (only when authenticated)
   useEffect(() => {
     if (!user) return;
@@ -296,19 +308,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const AUTH_CHECK_TIMEOUT_MS = 12_000;
 
   /**
-   * Check if user is authenticated by calling the API
+   * Check if user is authenticated by calling the API.
+   * - No token and no stored user: treat as unauthenticated without calling API (avoids 401s on first load / after logout).
+   * - Try /admin/api/me first; only fallback to /api/auth/user on 404 or 403 (endpoint missing or forbidden), not on 401 (same creds would 401 again).
    */
   const checkAuthStatus = async () => {
+    const token = getAuthToken();
+    const hasStoredUser =
+      typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('current_user'));
+    if (!token && !hasStoredUser) {
+      setUser(null);
+      setAuthError(null);
+      setIsLoading(false);
+      return;
+    }
+
     const ac = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), AUTH_CHECK_TIMEOUT_MS);
     try {
       setIsLoading(true);
       const headers: HeadersInit = { 'Accept': 'application/json' };
-      const token = getAuthToken();
       if (token) headers['Authorization'] = token;
       const opts = { method: 'GET' as const, headers, credentials: 'include' as const, signal: ac.signal };
 
-      // Always call auth/me on load: /admin/api/me first, then /api/auth/user on 404, 403, or 401 (cross-browser).
       let response: Response;
       try {
         response = await fetch(`${API_BASE_URL}/admin/api/me`, opts);
@@ -325,7 +347,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         throw fetchErr;
       }
-      if (response.status === 404 || response.status === 403 || response.status === 401) {
+
+      // 401 = invalid/expired session; fallback would also 401 with same creds — skip second request to avoid duplicate console 401.
+      if (response.status === 401) {
+        clearTimeout(timeoutId);
+        setAuthError(null);
+        setUser(null);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('current_user');
+          localStorage.removeItem('auth_token');
+        }
+        return;
+      }
+
+      // Only try fallback when endpoint is missing (404) or forbidden (403), not on 401.
+      if (response.status === 404 || response.status === 403) {
         try {
           response = await fetch(`${API_BASE_URL}/api/auth/user`, opts);
         } catch (fallbackErr) {
