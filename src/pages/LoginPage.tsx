@@ -36,6 +36,69 @@ const IconEyeOff = () => (
   </svg>
 );
 
+/** Hunnid Official full logo — icon + wordmark. One source of truth for brand on login. */
+const HunnidLogoFull = ({ width = 280 }: { width?: number }) => (
+  <svg
+    width={width}
+    height={width * (120 / 480)}
+    viewBox="0 0 480 120"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className="flex-shrink-0"
+    aria-hidden
+  >
+    <defs>
+      <linearGradient id="loginIconGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#7dd4fc" />
+        <stop offset="100%" stopColor="#2563eb" />
+      </linearGradient>
+      <linearGradient id="loginStrokeGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#5cacfa" />
+        <stop offset="100%" stopColor="#1d4ed8" />
+      </linearGradient>
+    </defs>
+    <rect x="0" y="10" width="100" height="100" rx="22" fill="#0f172a" />
+    <rect
+      x="0"
+      y="10"
+      width="100"
+      height="100"
+      rx="22"
+      fill="none"
+      stroke="url(#loginStrokeGrad)"
+      strokeWidth="1.5"
+      opacity="0.6"
+    />
+    <rect x="24" y="32" width="14" height="56" rx="3" fill="url(#loginIconGrad)" />
+    <rect x="62" y="32" width="14" height="56" rx="3" fill="url(#loginIconGrad)" />
+    <rect x="24" y="55" width="52" height="10" rx="3" fill="white" opacity="0.95" />
+    <circle cx="82" cy="94" r="4" fill="#5cacfa" opacity="0.7" />
+    <text
+      x="118"
+      y="66"
+      fontFamily="'Helvetica Neue', 'Arial Black', sans-serif"
+      fontSize="34"
+      fontWeight="900"
+      letterSpacing="-0.5"
+      fill="white"
+    >
+      Hunnid
+    </text>
+    <text
+      x="118"
+      y="100"
+      fontFamily="'Helvetica Neue', Arial, sans-serif"
+      fontSize="26"
+      fontWeight="700"
+      letterSpacing="3.5"
+      fill="#5cacfa"
+    >
+      OFFICIAL
+    </text>
+    <line x1="118" y1="73" x2="390" y2="73" stroke="#5cacfa" strokeWidth="1" opacity="0.25" />
+  </svg>
+);
+
 const SERVER_UNREACHABLE = 'Cannot reach the server. Check your connection and try again.';
 
 export default function LoginPage() {
@@ -147,40 +210,28 @@ export default function LoginPage() {
         <div className="absolute right-0 top-0 bottom-0 w-px hidden md:block"
              style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.07), transparent)' }}/>
 
-        {/* Logo mark */}
+        {/* Brand block — full logo (icon + wordmark); tagline + bullets desktop only */}
         <div className="relative z-10">
-          <div className="w-11 h-11 rounded-[14px] bg-red-500 flex items-center justify-center
-                          text-white text-[17px] font-black"
-               style={{ boxShadow: '0 4px 20px rgba(239,68,68,0.5)' }}>
-            E
+          <div className="md:hidden">
+            <HunnidLogoFull width={200} />
           </div>
-        </div>
-
-        {/* Headline — desktop only */}
-        <div className="relative z-10 hidden md:block">
-          <h1 className="text-white font-black leading-[0.92] tracking-[-0.03em]"
-              style={{ fontSize: '52px' }}>
-            Hunnid<br/>
-            <span style={{ color: '#5cacfa' }}>Official</span>
-          </h1>
-          <p className="text-slate-500 text-[14px] mt-5 leading-relaxed max-w-[230px]">
-            Warehouse & point-of-sale system for your stores.
-          </p>
-          <div className="mt-7 space-y-2.5">
-            {['Multi-warehouse inventory', 'Size-based stock tracking', 'Fast POS checkout'].map((f, i) => (
-              <div key={i} className="flex items-center gap-2.5">
-                <span className="w-1 h-1 rounded-full bg-red-500 flex-shrink-0"/>
-                <span className="text-[12px] text-slate-500">{f}</span>
-              </div>
-            ))}
+          <div className="hidden md:block">
+            <HunnidLogoFull width={280} />
+            <p className="text-slate-500 text-[14px] mt-5 leading-relaxed max-w-[260px]">
+              Warehouse & point-of-sale system for your stores.
+            </p>
+            <div className="mt-7 space-y-2.5">
+              {['Multi-warehouse inventory', 'Size-based stock tracking', 'Fast POS checkout'].map((f, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <span
+                    className="w-1 h-1 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: '#5cacfa' }}
+                  />
+                  <span className="text-[12px] text-slate-500">{f}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-
-        {/* Mobile brand */}
-        <div className="relative z-10 md:hidden">
-          <p className="text-[24px] font-black text-white tracking-tight">
-            Hunnid <span style={{ color: '#5cacfa' }}>Official</span>
-          </p>
         </div>
 
         {/* Version */}
