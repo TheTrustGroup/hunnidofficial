@@ -389,17 +389,34 @@ export async function GET(req: NextRequest) {
     const { data, error } = await q;
 
     if (error) {
-      if (error.message?.includes('delivery_status') || error.message?.includes('recipient_name')) {
+      const msg = error.message ?? '';
+      const useLegacy =
+        msg.includes('delivery_status') ||
+        msg.includes('recipient_name') ||
+        msg.includes('voided_at') ||
+        msg.includes('voided_by') ||
+        msg.includes('delivered_at') ||
+        msg.includes('delivered_by') ||
+        msg.includes('expected_date') ||
+        /column.*does not exist/i.test(msg);
+      if (useLegacy) {
+        console.warn('[GET /api/sales] DB missing columns, using legacy:', msg);
         return getSalesLegacy(db, req, h, warehouseId, from, to, limit, offset);
       }
-      return NextResponse.json({ error: error.message }, { status: 500, headers: h });
+      console.error('[GET /api/sales]', msg);
+      const errBody =
+        process.env.NODE_ENV === 'production' ? { error: 'Internal error' } : { error: msg };
+      return NextResponse.json(errBody, { status: 500, headers: h });
     }
 
     const rows = (data ?? []).filter((s: { status?: string }) => !s.status || s.status === 'completed');
     return NextResponse.json({ data: shapeSales(rows), total: rows.length }, { headers: h });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500, headers: h });
+    console.error('[GET /api/sales]', e);
+    const errBody =
+      process.env.NODE_ENV === 'production' ? { error: 'Internal error' } : { error: message };
+    return NextResponse.json(errBody, { status: 500, headers: h });
   }
 }
 
