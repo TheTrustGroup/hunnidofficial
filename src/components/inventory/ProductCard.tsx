@@ -7,7 +7,7 @@
 // Parent controls which card is in edit mode via activeEditId.
 // ============================================================
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, memo } from 'react';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -319,7 +319,7 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
 
 // ── Main Card Component ────────────────────────────────────────────────────
 
-export default function ProductCard({
+function ProductCardInner({
   product,
   isEditing = false,
   onEditOpen,
@@ -476,6 +476,10 @@ export default function ProductCard({
     </article>
   );
 }
+
+const ProductCard = memo(ProductCardInner);
+
+export default ProductCard;
 
 // ── Skeleton Card ──────────────────────────────────────────────────────────
 

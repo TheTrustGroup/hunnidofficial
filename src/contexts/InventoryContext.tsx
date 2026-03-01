@@ -1173,8 +1173,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     [offlineEnabled]
   );
 
-  return (
-    <InventoryContext.Provider value={{
+  const contextValue = useMemo(
+    () => ({
       products: productsWithLocalImages,
       isLoading,
       error,
@@ -1195,10 +1195,35 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       verifyProductSaved,
       storagePersistFailed,
       savePhase,
-    }}>
-      {children}
-    </InventoryContext.Provider>
+    }),
+    [
+      productsWithLocalImages,
+      isLoading,
+      error,
+      addProduct,
+      updateProduct,
+      deleteProduct,
+      deleteProducts,
+      offlineEnabled,
+      offline.undoAddProduct,
+      offline.isSyncing,
+      getProduct,
+      searchProducts,
+      filterProducts,
+      refreshProducts,
+      isBackgroundRefreshing,
+      syncLocalInventoryToApi,
+      unsyncedCountFromHook,
+      localOnlyIds.size,
+      lastSyncAt,
+      isUnsynced,
+      verifyProductSaved,
+      storagePersistFailed,
+      savePhase,
+    ]
   );
+
+  return <InventoryContext.Provider value={contextValue}>{children}</InventoryContext.Provider>;
 }
 
 export function useInventory() {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import POSProductCard from './POSProductCard';
 import type { POSProduct } from './SizePickerSheet';
 import { getDeduplicatedCategoryOptions, colorMatchesFilter } from '../../lib/utils';
@@ -27,7 +27,7 @@ interface ProductGridProps {
   onRetry?: () => void;
 }
 
-export default function ProductGrid({
+function ProductGridInner({
   products,
   loading,
   search,
@@ -253,3 +253,5 @@ export default function ProductGrid({
     </div>
   );
 }
+
+export default memo(ProductGridInner);

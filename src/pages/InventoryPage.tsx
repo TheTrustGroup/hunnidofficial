@@ -545,8 +545,15 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
   // ── Modal ─────────────────────────────────────────────────────────────────
 
-  function openAddModal()          { setEditingProduct(null); setModalOpen(true); }
-  function openEditModal(p: Product) { setEditingProduct(structuredClone(p)); setModalOpen(true); }
+  const openAddModal = useCallback(() => {
+    setEditingProduct(null);
+    setModalOpen(true);
+  }, []);
+  const openEditModal = useCallback((p: Product) => {
+    setEditingProduct(structuredClone(p));
+    setModalOpen(true);
+  }, []);
+  const handleDeleteProduct = useCallback((p: Product) => setConfirmDelete(p), []);
 
   function closeModal() {
     setModalOpen(false);
@@ -981,7 +988,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
                   key={product.id}
                   product={product}
                   onEditFull={openEditModal}
-                  onDelete={p => setConfirmDelete(p)}
+                  onDelete={handleDeleteProduct}
                 />
               ))}
             </div>

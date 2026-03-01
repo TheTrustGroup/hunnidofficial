@@ -1,50 +1,10 @@
 // src/components/layout/Sidebar.tsx - Premium Figma-Inspired Design
 import { NavLink } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
-import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  ClipboardList,
-  BarChart3,
-  Settings,
-  Users,
-  MapPin,
-  Receipt,
-  Truck,
-} from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWarehouse } from '../../contexts/WarehouseContext';
-import { PERMISSIONS, ROLES, type Permission } from '../../types/permissions';
-
-interface NavItem {
-  name: string;
-  to: string;
-  icon: LucideIcon;
-  permission?: Permission;
-  anyPermissions?: Permission[];
-}
-
-const baseNavigation: NavItem[] = [
-  { name: 'Dashboard', to: '/', icon: LayoutDashboard, permission: PERMISSIONS.DASHBOARD.VIEW },
-  { name: 'Inventory', to: '/inventory', icon: Package, permission: PERMISSIONS.INVENTORY.VIEW },
-  { name: 'Orders', to: '/orders', icon: ClipboardList, permission: PERMISSIONS.ORDERS.VIEW },
-  { name: 'POS', to: '/pos', icon: ShoppingCart, permission: PERMISSIONS.POS.ACCESS },
-  { name: 'Sales', to: '/sales', icon: Receipt, permission: PERMISSIONS.REPORTS.VIEW_SALES },
-  { name: 'Deliveries', to: '/deliveries', icon: Truck, permission: PERMISSIONS.REPORTS.VIEW_SALES },
-  {
-    name: 'Reports',
-    to: '/reports',
-    icon: BarChart3,
-    anyPermissions: [
-      PERMISSIONS.REPORTS.VIEW_SALES,
-      PERMISSIONS.REPORTS.VIEW_INVENTORY,
-      PERMISSIONS.REPORTS.VIEW_PROFIT,
-    ],
-  },
-  { name: 'Users', to: '/users', icon: Users, permission: PERMISSIONS.USERS.VIEW },
-  { name: 'Settings', to: '/settings', icon: Settings, permission: PERMISSIONS.SETTINGS.VIEW },
-];
+import { ROLES } from '../../types/permissions';
+import { BASE_NAVIGATION } from '../../config/navigation';
 
 function getRoleDisplayName(roleId: string | undefined): string {
   if (roleId == null || roleId === '') return '—';
@@ -61,7 +21,7 @@ export function Sidebar() {
   const showWarehouseSwitcher = !warehousesLoading && warehouses.length > 0 && !isWarehouseBoundToSession;
   const canSwitchWarehouse = showWarehouseSwitcher && warehouses.length > 1;
 
-  const navigation = baseNavigation
+  const navigation = BASE_NAVIGATION
     .filter(
       (item) =>
         (item.permission == null && 'to' in item) ||

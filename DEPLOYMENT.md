@@ -6,7 +6,7 @@ Use this checklist before and after deploying the Warehouse POS app to productio
 
 ## 1. Service Worker
 
-- [ ] **Cache version:** Bump `CACHE_VERSION` in `public/service-worker.js` on each production deploy (e.g. to 3, 4, …). Old caches are deleted on activate.
+- [ ] **Cache version:** Bump `CACHE_VERSION` in `public/service-worker.js` on each production deploy (e.g. 4 → 5). Old caches are deleted on activate. Ensures mobile and desktop get new JS/CSS after deploy.
 - [ ] **Update flow:** Verify that after deploy, opening the app shows "App updated - Refresh to see changes" (or similar) and that after refresh the new build loads. The SW uses `skipWaiting()` and `clients.claim()`; clients receive `SW_UPDATED` and can show a toast.
 - [ ] **Cache eviction:** Current strategy is version-based: new version = new cache names; previous caches are removed in the `activate` handler. No runtime size/age eviction (optional: add Workbox ExpirationPlugin if needed).
 
@@ -18,7 +18,7 @@ Use this checklist before and after deploying the Warehouse POS app to productio
 - [ ] **Minify:** JS and CSS are minified by default (Vite esbuild). No extra config required.
 - [ ] **Images:** Prefer WebP for images. Convert assets to WebP at build or upload time; the service worker caches `.webp`. For dynamic images from CMS/API, ensure the server can serve WebP when supported.
 - [ ] **Tree-shaking:** Unused code is tree-shaken by Rollup. Avoid side-effectful imports that pull in large libraries.
-- [ ] **Code splitting:** Routes are lazy-loaded (`lazyWithRetry`). Manual chunks: `react-vendor`, `chart-vendor`, `ui-vendor`, `db-vendor`, `motion-vendor`, and per-page chunks (dashboard, inventory-reports, pos, orders, settings).
+- [ ] **Code splitting:** Routes are lazy-loaded (`lazyWithRetry`). Manual chunks (see `vite.config.ts`): react, router, recharts, framer, lucide, idb; remaining code in default chunk(s). Keeps initial load small and repeat visits fast via cache.
 - [ ] **Lazy load:** Non-critical components are loaded on demand via React.lazy + retry. Confirm chunk names in build output and that no single chunk is excessively large (adjust `chunkSizeWarningLimit` or split further if needed).
 
 ---
