@@ -192,8 +192,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       showToast('success', `Order ${savedOrder.orderNumber} created successfully`);
       return savedOrder;
     } catch (error) {
-      const is404 = (e: unknown) => (e as { status?: number })?.status === 404;
-      if (is404(error)) {
+      if (isOrdersApiUnavailable(error)) {
         const localOrder: Order = normalizeOrder({
           id: crypto.randomUUID(),
           ...orderPayload,
@@ -209,7 +208,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const is404 = (e: unknown) => (e as { status?: number })?.status === 404;
+  /** 404 or 501: orders API not implemented; fall back to local-only. */
+  const isOrdersApiUnavailable = (e: unknown) => {
+    const s = (e as { status?: number })?.status;
+    return s === 404 || s === 501;
+  };
 
   // Update order status
   const updateOrderStatus = async (
@@ -253,7 +256,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         setOrders(prev => prev.map(o => (o.id === orderId ? updatedOrder : o)));
         showToast('success', `Order status updated to ${status}`);
       } catch (error) {
-        if (is404(error)) {
+        if (isOrdersApiUnavailable(error)) {
           const updatedOrder: Order = {
             ...order,
             status,
@@ -303,7 +306,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         };
         setOrders(prev => prev.map(o => (o.id === orderId ? updatedOrder : o)));
       } catch (error) {
-        if (is404(error)) {
+        if (isOrdersApiUnavailable(error)) {
           const updatedOrder: Order = {
             ...order,
             delivery: {
@@ -362,7 +365,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         setOrders(prev => prev.map(o => (o.id === orderId ? updatedOrder : o)));
         showToast('success', 'Order marked as delivered');
       } catch (error) {
-        if (is404(error)) {
+        if (isOrdersApiUnavailable(error)) {
           const updatedOrder: Order = {
             ...order,
             status: 'delivered',
@@ -400,7 +403,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           updatedBy: user?.id || user?.email || 'system',
         });
       } catch (error) {
-        if (!is404(error)) throw error;
+        if (!isOrdersApiUnavailable(error)) throw error;
         showToast('success', 'Updated locally. Server order sync not available.');
       }
       await updateOrderStatus(orderId, 'failed', `Delivery failed: ${reason}`);
@@ -430,7 +433,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           updatedBy: user?.id || user?.email || 'system',
         });
       } catch (error) {
-        if (!is404(error)) throw error;
+        if (!isOrdersApiUnavailable(error)) throw error;
         showToast('success', 'Cancelled locally. Server order sync not available.');
       }
       await updateOrderStatus(orderId, 'cancelled', `Order cancelled: ${reason}`);
