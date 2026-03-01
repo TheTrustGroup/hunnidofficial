@@ -141,8 +141,8 @@
   }
   .input-field:focus {
     @apply outline-none;
-    border-color: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+    border-color: #5cacfa;
+    box-shadow: 0 0 0 3px rgba(92, 172, 250, 0.12);
   }
   .input-field[aria-invalid="true"],
   .input-field.border-red-500 {
@@ -370,17 +370,17 @@
   }
 }
 
-/* Focus Visible for Accessibility */
+/* Focus Visible for Accessibility — brand primary */
 *:focus-visible {
-  outline: 2px solid #ef4444;
+  outline: 2px solid #5cacfa;
   outline-offset: 2px;
   border-radius: 8px;
 }
 
-/* Selection color (standard + Firefox legacy) */
+/* Selection color — brand primary (standard + Firefox legacy) */
 ::selection {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: #991b1b;
+  background-color: rgba(92, 172, 250, 0.2);
+  color: #1e3a5f;
 }
 
 /* Smooth Transitions for All Interactive Elements; touch targets and tap highlight */

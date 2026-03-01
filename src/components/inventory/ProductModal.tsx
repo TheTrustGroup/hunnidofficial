@@ -254,7 +254,7 @@ const inputCls = (error?: string) => `
   font-sans text-[14px] text-slate-900
   bg-slate-50 outline-none
   placeholder:text-slate-300
-  focus:border-red-400 focus:bg-white focus:ring-[3px] focus:ring-red-100
+  focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
   disabled:opacity-50 disabled:cursor-not-allowed
   transition-all duration-150
   ${error ? 'border-red-400 bg-red-50' : 'border-slate-200'}
@@ -265,7 +265,7 @@ const priceCls = `
   font-sans text-[14px] font-semibold text-slate-900
   bg-slate-50 outline-none
   placeholder:text-slate-300 placeholder:font-normal
-  focus:border-red-400 focus:bg-white focus:ring-[3px] focus:ring-red-100
+  focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
   transition-all duration-150
   [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
   [&::-webkit-inner-spin-button]:appearance-none
@@ -498,12 +498,12 @@ function ImageUpload({ images, onChange, disabled }: ImageUploadProps) {
                 placeholder="https://example.com/image.jpg"
                 className={`flex-1 h-10 px-3 rounded-xl border-[1.5px] text-[13px] bg-slate-50 outline-none transition-all
                   ${urlError ? 'border-red-400' : 'border-slate-200'}
-                  focus:border-red-400 focus:bg-white focus:ring-[3px] focus:ring-red-100`}
+                  focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100`}
               />
               <button
                 type="button"
                 onClick={handleAddUrl}
-                className="h-10 px-4 rounded-xl bg-red-500 text-white text-[13px] font-bold hover:bg-red-600 transition-colors whitespace-nowrap"
+                className="h-10 px-4 rounded-xl bg-primary-500 text-white text-[13px] font-bold hover:bg-primary-600 transition-colors whitespace-nowrap"
               >
                 Add
               </button>
@@ -852,7 +852,7 @@ export default function ProductModal({
                     w-full px-3.5 py-3 rounded-xl border-[1.5px] border-slate-200
                     font-sans text-[14px] text-slate-900 bg-slate-50
                     placeholder:text-slate-300 outline-none resize-none
-                    focus:border-red-400 focus:bg-white focus:ring-[3px] focus:ring-red-100
+                    focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
                     transition-all duration-150
                   "
                 />
@@ -1045,7 +1045,7 @@ export default function ProductModal({
             disabled={isSubmitting}
             className="
               flex-[2] h-12 rounded-xl border-none
-              bg-red-500 hover:bg-red-600
+              bg-primary-500 hover:bg-primary-600
               font-sans text-[14px] font-semibold text-white
               flex items-center justify-center gap-2
               disabled:opacity-60 disabled:cursor-not-allowed

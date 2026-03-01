@@ -201,11 +201,11 @@ export default function LoginPage() {
           <rect width="100%" height="100%" fill="url(#g)"/>
         </svg>
 
-        {/* Red atmospheric glows */}
+        {/* Primary (brand) atmospheric glows */}
         <div className="absolute -top-20 -left-10 w-72 h-72 rounded-full pointer-events-none"
-             style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.18) 0%, transparent 70%)' }}/>
+             style={{ background: 'radial-gradient(circle, rgba(92,172,250,0.18) 0%, transparent 70%)' }}/>
         <div className="absolute bottom-0 right-0 w-48 h-48 rounded-full pointer-events-none"
-             style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.1) 0%, transparent 70%)' }}/>
+             style={{ background: 'radial-gradient(circle, rgba(92,172,250,0.1) 0%, transparent 70%)' }}/>
         {/* Vertical separator line */}
         <div className="absolute right-0 top-0 bottom-0 w-px hidden md:block"
              style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.07), transparent)' }}/>
@@ -294,7 +294,7 @@ export default function LoginPage() {
                   disabled={loading}
                   className="w-full pl-11 pr-4 rounded-2xl border-[1.5px] border-slate-200 bg-white
                              text-[15px] text-slate-900 placeholder:text-slate-300
-                             focus:outline-none focus:border-red-400 focus:ring-[3px] focus:ring-red-100
+                             focus:outline-none focus:border-primary-400 focus:ring-[3px] focus:ring-primary-100
                              disabled:opacity-50 transition-all duration-150"
                   style={{ height: '52px' }}
                 />
@@ -322,7 +322,7 @@ export default function LoginPage() {
                   disabled={loading}
                   className="w-full pl-11 pr-12 rounded-2xl border-[1.5px] border-slate-200 bg-white
                              text-[15px] text-slate-900 placeholder:text-slate-300
-                             focus:outline-none focus:border-red-400 focus:ring-[3px] focus:ring-red-100
+                             focus:outline-none focus:border-primary-400 focus:ring-[3px] focus:ring-primary-100
                              disabled:opacity-50 transition-all duration-150"
                   style={{ height: '52px' }}
                 />
@@ -340,14 +340,14 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-2xl border-none bg-red-500 hover:bg-red-600
+                className="w-full rounded-2xl border-none bg-primary-500 hover:bg-primary-600
                            text-white text-[16px] font-extrabold tracking-wide
                            flex items-center justify-center gap-3
                            disabled:bg-slate-200 disabled:text-slate-400
                            active:scale-[0.98] transition-all duration-150"
                 style={{
                   height: '56px',
-                  boxShadow: loading ? 'none' : '0 4px 20px rgba(239,68,68,0.35)',
+                  boxShadow: loading ? 'none' : '0 4px 20px rgba(92,172,250,0.35)',
                 }}
               >
                 {loading ? (

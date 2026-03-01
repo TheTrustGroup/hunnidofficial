@@ -812,10 +812,10 @@ export default function SaleSuccessScreen({
           onClick={onNewSale}
           className="
             w-full h-14 rounded-2xl
-            bg-red-500 hover:bg-red-600
+            bg-primary-500 hover:bg-primary-600
             text-white text-[16px] font-extrabold
             flex items-center justify-center gap-2.5
-            shadow-[0_4px_20px_rgba(239,68,68,0.35)]
+            shadow-[0_4px_20px_rgba(92,172,250,0.35)]
             active:scale-[0.98]
             transition-all duration-150
           "

@@ -25,6 +25,8 @@ Confirm at https://github.com/TheTrustGroup/hunnidofficial that the code is ther
 
 ## A2. Vercel — API project (inventory-server)
 
+**Important:** POS passwords and Supabase keys must live on the **API** project only — the project whose URL you put in `VITE_API_BASE_URL` (e.g. `https://hunnidofficial.vercel.app`). Setting them on the frontend project does nothing for login.
+
 1. Go to https://vercel.com → **Add New** → **Project**.
 2. **Import** repository: **TheTrustGroup/hunnidofficial**.
 3. **Root Directory:** Click **Edit** → set to **`World-Class Warehouse Inventory & Smart POS System/warehouse-pos/inventory-server`** (or **`warehouse-pos/inventory-server`** if your repo has that structure). Confirm.

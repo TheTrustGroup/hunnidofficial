@@ -262,7 +262,7 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
                 h-11 w-full rounded-xl border-[1.5px] border-slate-200
                 bg-slate-50 text-center
                 text-[18px] font-bold text-slate-900
-                focus:outline-none focus:border-red-400 focus:bg-white focus:ring-[3px] focus:ring-red-100
+                focus:outline-none focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
                 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
                 [&::-webkit-inner-spin-button]:appearance-none
                 transition-all duration-150
@@ -307,7 +307,7 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
             flex items-center justify-center gap-2
             disabled:opacity-60
             transition-all duration-200
-            ${saved ? 'bg-emerald-500' : 'bg-red-500 hover:bg-red-600 active:scale-[0.98]'}
+            ${saved ? 'bg-emerald-500' : 'bg-primary-500 hover:bg-primary-600 active:scale-[0.98]'}
           `}
         >
           {saving ? <><IconSpinner /> Saving…</> : saved ? '✓ Saved' : 'Save stock'}
@@ -342,7 +342,7 @@ export default function ProductCard({
         shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.06)]
         transition-all duration-200
         ${editing
-          ? 'ring-2 ring-red-400 shadow-[0_4px_8px_rgba(0,0,0,0.08),0_12px_32px_rgba(0,0,0,0.10)]'
+          ? 'ring-2 ring-primary-400 shadow-[0_4px_8px_rgba(0,0,0,0.08),0_12px_32px_rgba(0,0,0,0.10)]'
           : 'hover:shadow-[0_4px_8px_rgba(0,0,0,0.08),0_12px_32px_rgba(0,0,0,0.10)] hover:-translate-y-0.5'
         }
       `}
@@ -393,7 +393,7 @@ export default function ProductCard({
 
           {/* Price row */}
           <div className="flex items-baseline gap-2 mb-2.5">
-            <span className="text-[17px] font-bold text-red-500">
+            <span className="text-[17px] font-bold text-primary-500">
               {formatPrice(product.sellingPrice)}
             </span>
             {product.costPrice > 0 && (
@@ -439,7 +439,7 @@ export default function ProductCard({
               onClick={() => onEditOpen?.(product.id)}
               className="
                 h-12 flex items-center justify-center gap-1
-                text-[13px] font-semibold text-red-500
+                text-[13px] font-semibold text-primary-500
                 border-r border-slate-100
                 hover:bg-red-50
                 transition-colors duration-150
@@ -454,7 +454,7 @@ export default function ProductCard({
             className="
               h-12 flex items-center justify-center
               text-slate-400
-              hover:bg-red-50 hover:text-red-500
+              hover:bg-primary-50 hover:text-primary-500
               transition-colors duration-150
             "
             aria-label="Delete product"

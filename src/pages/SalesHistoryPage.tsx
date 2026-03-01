@@ -499,7 +499,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
                       <button key={w.id || 'all'} type="button"
                               onClick={() => { setWarehouseId(w.id); setWhDropdown(false); }}
                               className={`w-full px-4 py-2.5 text-left text-[13px] font-medium transition-colors
-                                ${warehouseId === w.id ? 'text-red-500 bg-red-50' : 'text-slate-700 hover:bg-slate-50'}`}>
+                                ${warehouseId === w.id ? 'text-primary-500 bg-primary-50' : 'text-slate-700 hover:bg-slate-50'}`}>
                         {warehouseId === w.id && '✓ '}{w.name}
                       </button>
                     ))}
@@ -526,7 +526,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
             <button key={t.key} type="button" onClick={() => setDateFilter(t.key)}
                     className={`flex-1 h-8 rounded-xl text-[12px] font-bold transition-all duration-150
                       ${dateFilter === t.key
-                        ? 'bg-red-500 text-white shadow-[0_2px_8px_rgba(239,68,68,0.3)]'
+                        ? 'bg-primary-500 text-white shadow-[0_2px_8px_rgba(92,172,250,0.3)]'
                         : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
               {t.label}
             </button>
@@ -538,7 +538,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
 
         {/* ── Summary cards ── */}
         <div className="grid grid-cols-2 gap-3">
-          <SummaryCard label="Revenue" value={fmt(totalRevenue)} sub={`${displayed.length} transactions`} accent="text-red-500" />
+          <SummaryCard label="Revenue" value={fmt(totalRevenue)} sub={`${displayed.length} transactions`} accent="text-primary-500" />
           <SummaryCard label="Items sold" value={totalItems.toLocaleString()} sub={`Avg ${fmt(avgSale)}/sale`} />
           <SummaryCard label="Cash" value={fmt(cashTotal)} />
           <SummaryCard label="MoMo" value={fmt(momoTotal)} />
@@ -557,7 +557,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
                  placeholder="Search receipt, customer, product…"
                  className="w-full h-11 pl-10 pr-4 rounded-xl border-[1.5px] border-slate-200 bg-white
                             text-[14px] text-slate-900 placeholder:text-slate-300
-                            focus:outline-none focus:border-red-400 focus:ring-[3px] focus:ring-red-100
+                            focus:outline-none focus:border-primary-400 focus:ring-[3px] focus:ring-primary-100
                             transition-all duration-150"/>
         </div>
 

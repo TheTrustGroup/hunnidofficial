@@ -33,7 +33,7 @@ export default function SessionScreen({
               onClick={() => onSelect(w)}
               className={`w-full py-4 px-4 rounded-2xl text-left font-semibold text-[15px] transition-all duration-150 active:scale-[0.98]
                 ${activeWarehouseId === w.id
-                  ? 'bg-red-500 text-white shadow-[0_4px_16px_rgba(239,68,68,0.35)]'
+                  ? 'bg-primary-500 text-white shadow-[0_4px_16px_rgba(92,172,250,0.35)]'
                   : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'}`}
             >
               {w.name}

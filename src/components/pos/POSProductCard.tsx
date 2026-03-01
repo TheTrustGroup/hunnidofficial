@@ -98,7 +98,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
         hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:-translate-y-0.5
         disabled:opacity-40 disabled:cursor-not-allowed
         disabled:hover:transform-none disabled:hover:shadow-none
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400
       `}
     >
       {/* Image: only show img when URL is allowed (same-origin Storage or data:); else placeholder */}
@@ -140,7 +140,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
 
         {/* Price + stock row */}
         <div className="flex items-end justify-between gap-1">
-          <span className="text-[15px] font-extrabold text-red-500 leading-none">
+          <span className="text-[15px] font-extrabold text-primary-500 leading-none">
             {formatPrice(product.sellingPrice)}
           </span>
 

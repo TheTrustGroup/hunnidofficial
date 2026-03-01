@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (isPosRestrictedEmail(email)) {
+      const mainStoreSet = Boolean(process.env.POS_PASSWORD_CASHIER_MAIN_STORE);
+      const mainTownSet = Boolean(process.env.POS_PASSWORD_MAIN_TOWN);
+      console.log('[auth] POS login attempt', { email, envSet: { mainStore: mainStoreSet, mainTown: mainTownSet } });
       if (!verifyPosPassword(email, password)) {
         return addCors(
           NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })

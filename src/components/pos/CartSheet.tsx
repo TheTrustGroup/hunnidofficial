@@ -194,7 +194,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
                 {disc > 0 && <p className="text-[12px] text-emerald-600 font-medium mt-0.5">Saving {fmt(discountAmt)}</p>}
               </div>
               <div className="flex items-center gap-2">
-                <input type="number" min={0} max={100} value={discountPct} onChange={e => { const v = e.target.value; setDiscountPct(v === '' ? '' : Math.min(100, Math.max(0, Number(v)))); }} className="w-16 h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 text-center font-sans text-[16px] font-bold text-slate-900 focus:outline-none focus:border-red-400 focus:bg-white focus:ring-[3px] focus:ring-red-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all duration-150" />
+                <input type="number" min={0} max={100} value={discountPct} onChange={e => { const v = e.target.value; setDiscountPct(v === '' ? '' : Math.min(100, Math.max(0, Number(v)))); }} className="w-16 h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 text-center font-sans text-[16px] font-bold text-slate-900 focus:outline-none focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all duration-150" />
                 <span className="text-[14px] font-semibold text-slate-400">%</span>
               </div>
             </div>

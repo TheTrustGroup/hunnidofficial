@@ -64,7 +64,7 @@ export default function POSHeader({
         >
           <IconCart />
           {cartCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center px-1">
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-primary-500 text-white text-[11px] font-bold flex items-center justify-center px-1">
               {cartCount > 99 ? '99+' : cartCount}
             </span>
           )}
@@ -79,7 +79,7 @@ export default function POSHeader({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search products…"
-          className="w-full h-11 pl-10 pr-4 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 text-[14px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-red-400 focus:bg-white focus:ring-[2px] focus:ring-red-100 transition-all"
+          className="w-full h-11 pl-10 pr-4 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 text-[14px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-primary-400 focus:bg-white focus:ring-[2px] focus:ring-primary-100 transition-all"
         />
       </div>
     </header>

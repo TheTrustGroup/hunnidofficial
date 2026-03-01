@@ -129,8 +129,8 @@ function QtyInput({ value, onChange, disabled, label, hint }: QtyInputProps) {
           className="
             w-[120px] h-[52px] rounded-xl border-[1.5px] border-slate-200
             bg-slate-50 text-center text-[22px] font-bold text-slate-900
-            focus:outline-none focus:border-red-400 focus:bg-white
-            focus:ring-[3px] focus:ring-red-100
+            focus:outline-none focus:border-primary-400 focus:bg-white
+            focus:ring-[3px] focus:ring-primary-100
             disabled:opacity-50 disabled:cursor-not-allowed
             [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
             [&::-webkit-inner-spin-button]:appearance-none
@@ -380,7 +380,7 @@ export default function SizesSection({
                       font-mono text-[14px] font-medium text-slate-900
                       bg-slate-50 outline-none
                       placeholder:font-sans placeholder:text-slate-300 placeholder:font-normal
-                      focus:border-red-400 focus:bg-white focus:ring-[3px] focus:ring-red-100
+                      focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
                       disabled:opacity-50 disabled:cursor-not-allowed
                       transition-all duration-150
                       ${hasError
@@ -401,7 +401,7 @@ export default function SizesSection({
                       h-11 w-full rounded-lg border-[1.5px] px-2 text-center
                       font-sans text-[16px] font-bold text-slate-900
                       bg-slate-50 outline-none
-                      focus:border-red-400 focus:bg-white focus:ring-[3px] focus:ring-red-100
+                      focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
                       disabled:opacity-50 disabled:cursor-not-allowed
                       [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
                       [&::-webkit-inner-spin-button]:appearance-none

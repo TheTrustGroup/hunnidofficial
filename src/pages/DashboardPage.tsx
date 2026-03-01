@@ -307,9 +307,9 @@ export default function DashboardPage() {
           </div>
 
           <a href="/pos"
-             className="flex items-center gap-2 h-10 px-5 rounded-xl bg-red-500 hover:bg-red-600
+             className="flex items-center gap-2 h-10 px-5 rounded-xl bg-primary-500 hover:bg-primary-600
                         text-white text-[14px] font-bold transition-colors
-                        shadow-[0_4px_12px_rgba(239,68,68,0.3)]">
+                        shadow-[0_4px_12px_rgba(92,172,250,0.3)]">
             <ShoppingCart className="w-5 h-5" aria-hidden />
             New sale
           </a>
@@ -357,7 +357,7 @@ export default function DashboardPage() {
               <p className="text-[12px] text-red-500 mt-0.5">{error}</p>
             </div>
             <button onClick={() => loadData(warehouseId)}
-                    className="ml-auto px-4 py-2 rounded-xl bg-red-500 text-white text-[12px] font-bold hover:bg-red-600">
+                    className="ml-auto px-4 py-2 rounded-xl bg-primary-500 text-white text-[12px] font-bold hover:bg-primary-600">
               Retry
             </button>
           </div>

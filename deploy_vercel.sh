@@ -1,26 +1,30 @@
 #!/bin/bash
-# Deploy to Vercel Script
+# Deploy to Vercel: frontend (warehouse-pos) and optionally API (inventory-server).
+# Usage:
+#   ./deploy_vercel.sh           # frontend only
+#   ./deploy_vercel.sh --both    # frontend then API
 
-cd "/Users/raregem.zillion/Desktop/World-Class Warehouse Inventory & Smart POS System/warehouse-pos"
+set -e
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$REPO_ROOT"
 
-echo "🚀 Deploying to Vercel..."
-echo ""
-
-# Check if logged in
 if ! vercel whoami &>/dev/null; then
-    echo "⚠️  Not logged in to Vercel"
-    echo "Please run: vercel login"
-    exit 1
+  echo "⚠️  Not logged in to Vercel. Run: vercel login"
+  exit 1
 fi
 
-# Build first
-echo "📦 Building project..."
+echo "📦 Building frontend..."
 npm run build
 
-# Deploy
 echo ""
-echo "🚀 Deploying to production..."
+echo "🚀 Deploying frontend to production..."
 vercel --prod --yes
 
+if [ "$1" = "--both" ]; then
+  echo ""
+  echo "🚀 Deploying API (inventory-server) to production..."
+  (cd inventory-server && vercel --prod --yes)
+fi
+
 echo ""
-echo "✅ Deployment complete!"
+echo "✅ Deployment complete."

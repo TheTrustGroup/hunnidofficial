@@ -236,16 +236,16 @@ function StatCard({
 }) {
   return (
     <div className={`flex-1 min-w-0 px-4 py-3 rounded-2xl border
-      ${accent  ? 'bg-red-500 border-red-400 text-white' :
+      ${accent  ? 'bg-primary-500 border-primary-400 text-white' :
         warning ? 'bg-amber-50 border-amber-100 text-amber-900' :
                   'bg-white   border-slate-100 text-slate-900'}`}>
       <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5
-                     ${accent ? 'text-red-100' : warning ? 'text-amber-500' : 'text-slate-400'}`}>
+                     ${accent ? 'text-primary-100' : warning ? 'text-amber-500' : 'text-slate-400'}`}>
         {label}
       </p>
       <p className="text-[20px] font-black tabular-nums leading-tight truncate">{value}</p>
       {sub && (
-        <p className={`text-[10px] mt-0.5 font-medium ${accent ? 'text-red-100' : 'text-slate-400'}`}>
+        <p className={`text-[10px] mt-0.5 font-medium ${accent ? 'text-primary-100' : 'text-slate-400'}`}>
           {sub}
         </p>
       )}
@@ -716,7 +716,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
                                   onClick={() => { setCurrentWarehouseId(w.id); setWhDropdown(false); }}
                                   className={`w-full px-4 py-2.5 text-left text-[13px] font-semibold transition-colors
                                     ${warehouseId === w.id
-                                      ? 'text-red-500 bg-red-50'
+                                      ? 'text-primary-500 bg-primary-50'
                                       : 'text-slate-700 hover:bg-slate-50'}`}>
                             {warehouseId === w.id && '✓ '}{w.name}
                           </button>
@@ -735,9 +735,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
           {/* Actions — ONE add button, refresh is implicit via poll */}
           <button type="button" onClick={openAddModal}
-                  className="h-9 px-4 rounded-xl bg-red-500 hover:bg-red-600
+                  className="h-9 px-4 rounded-xl bg-primary-500 hover:bg-primary-600
                              text-white text-[13px] font-bold flex items-center gap-1.5
-                             transition-colors active:scale-[0.97] shadow-[0_2px_8px_rgba(239,68,68,0.3)]
+                             transition-colors active:scale-[0.97] shadow-[0_2px_8px_rgba(92,172,250,0.3)]
                              flex-shrink-0">
             <PlusIcon/> Add product
           </button>
@@ -754,8 +754,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
               placeholder="Search by name, SKU, or barcode…"
               className="w-full h-10 pl-10 pr-9 rounded-xl border border-slate-200 bg-slate-50
                          text-[13px] text-slate-900 placeholder:text-slate-400
-                         focus:outline-none focus:border-red-400 focus:bg-white
-                         focus:ring-[3px] focus:ring-red-50 transition-all duration-150"
+                         focus:outline-none focus:border-primary-400 focus:bg-white
+                         focus:ring-[3px] focus:ring-primary-50 transition-all duration-150"
             />
             {search && (
               <button onClick={() => setSearch('')}
@@ -821,7 +821,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
                   <button key={opt.key} type="button"
                           onClick={() => { setSort(opt.key); setSortOpen(false); }}
                           className={`w-full px-4 py-2.5 text-left text-[13px] font-semibold transition-colors
-                            ${sort === opt.key ? 'text-red-500 bg-red-50' : 'text-slate-700 hover:bg-slate-50'}`}>
+                            ${sort === opt.key ? 'text-primary-500 bg-primary-50' : 'text-slate-700 hover:bg-slate-50'}`}>
                     {opt.label}
                   </button>
                 ))}
@@ -842,7 +842,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
                 id="inv-size-filter"
                 value={sizeFilter}
                 onChange={(e) => setSizeFilter(e.target.value)}
-                className="h-8 min-w-[100px] rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-800 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
+                className="h-8 min-w-[100px] rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-800 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
               >
                 <option value="all">All</option>
                 {sizeCodes.map(s => (
@@ -885,7 +885,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </div>
           {(sizeFilter !== 'all' || colorFilter !== 'all') && (
             <button type="button" onClick={() => { setSizeFilter('all'); setColorFilter('all'); }}
-                    className="text-[12px] font-semibold text-red-500 hover:text-red-600 hover:underline">
+                    className="text-[12px] font-semibold text-primary-500 hover:text-primary-600 hover:underline">
               Clear filters
             </button>
           )}
@@ -917,8 +917,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
               <p className="text-[13px] text-slate-400 mt-1 max-w-[260px] leading-relaxed">{error}</p>
             </div>
             <button type="button" onClick={() => loadProducts(0, false)}
-                    className="h-10 px-6 rounded-xl bg-red-500 text-white text-[13px] font-bold
-                               hover:bg-red-600 transition-colors shadow-[0_4px_12px_rgba(239,68,68,0.25)]">
+                    className="h-10 px-6 rounded-xl bg-primary-500 text-white text-[13px] font-bold
+                               hover:bg-primary-600 transition-colors shadow-[0_4px_12px_rgba(92,172,250,0.25)]">
               Retry
             </button>
           </div>
@@ -947,7 +947,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
               </p>
             )}
             <button type="button" onClick={() => { setSearch(''); setCategory('all'); setSizeFilter('all'); setColorFilter('all'); }}
-                    className="text-[13px] font-bold text-red-500 hover:text-red-700">
+                    className="text-[13px] font-bold text-primary-500 hover:text-primary-700">
               Clear filters
             </button>
           </div>
@@ -964,9 +964,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
               <p className="text-[14px] text-slate-400 mt-1">Add your first product to get started.</p>
             </div>
             <button type="button" onClick={openAddModal}
-                    className="h-12 px-7 rounded-2xl bg-red-500 text-white text-[14px] font-bold
-                               flex items-center gap-2 hover:bg-red-600 transition-colors
-                               shadow-[0_6px_20px_rgba(239,68,68,0.35)]">
+                    className="h-12 px-7 rounded-2xl bg-primary-500 text-white text-[14px] font-bold
+                               flex items-center gap-2 hover:bg-primary-600 transition-colors
+                               shadow-[0_6px_20px_rgba(92,172,250,0.35)]">
               <PlusIcon/> Add first product
             </button>
           </div>
