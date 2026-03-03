@@ -1,29 +1,30 @@
 # Dependencies
-node_modules
+node_modules/
 
-# Build
-dist
-
-# Env (keep .env.example committed)
+# Env and secrets (never commit)
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
+
+# Build and deploy
+dist/
+.vercel/
+.next/
 
 # IDE / OS
-.idea
-.vscode
-.cursor
+.idea/
+.vscode/
+.cursor/
 .DS_Store
 *.log
 npm-debug.log*
 
 # Test / E2E
-playwright-report
-test-results
-coverage
+playwright-report/
+test-results/
+coverage/
 
-# Deploy
-.vercel
-
-# CI workflow (optional: add via GitHub UI or token with workflow scope)
-.github/workflows/ci.yml
+# Supabase
+.supabase/
