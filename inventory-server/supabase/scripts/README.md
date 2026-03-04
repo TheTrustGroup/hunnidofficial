@@ -5,7 +5,7 @@ Run in Supabase SQL Editor unless noted.
 ## Model: one warehouse per location
 
 - **Main Jeff location:** one warehouse only — name **Main Jeff**, code **MAIN** (DC removed).
-- **Hunnid Main:** one store + one warehouse, code **MAINTOWN**.
+- **Hunnid Main:** one store + one warehouse, code **MAINTOWN**. **Clothing only** — nothing from Main Jeff should appear here. Sales, deliveries, and inventory are strictly scoped by warehouse; users scoped to Hunnid Main cannot see Main Jeff data (enforced in GET /api/sales and user_scopes).
 
 - **Seed:** `seed_stores_warehouses_dc_maintown.sql` — idempotent; creates Main Jeff (store + MAIN warehouse) and Hunnid Main (store + MAINTOWN warehouse).
 - **Consolidation:** Migration `20250222110000_consolidate_main_store_remove_dc.sql` merges DC inventory into MAIN and removes DC. Run once if you had DC.

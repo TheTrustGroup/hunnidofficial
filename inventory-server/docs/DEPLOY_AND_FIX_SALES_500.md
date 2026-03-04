@@ -2,6 +2,8 @@
 
 Execute these steps **in this order** as a senior engineer.
 
+**Root cause (fixed in code):** The API was selecting `sale_lines.product_name` and `sale_lines.product_sku`, but the table has columns `name` and `sku`. The route now uses `name` and `sku` and maps them in the response. Manual fallback insert also uses `name`/`sku`.
+
 ---
 
 ## Step 1: Deploy the change

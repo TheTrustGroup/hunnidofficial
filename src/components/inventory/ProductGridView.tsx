@@ -28,7 +28,7 @@ interface ProductGridViewProps {
   onRetrySync?: () => void;
   /** When true, disable delete (e.g. server unavailable). */
   disableDestructiveActions?: boolean;
-  /** When provided, grid uses Extreme Dept–style cards with inline quick stock editor. */
+  /** When provided, grid uses cards with inline quick stock editor. */
   onSaveStock?: (productId: string, payload: SaveStockPayload) => Promise<void>;
   /** When provided, selling price is editable inline on the card. */
   onSavePrice?: (productId: string, sellingPrice: number) => Promise<void>;

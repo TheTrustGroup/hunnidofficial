@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { corsHeaders } from '@/lib/cors';
 import { requireAuth, getEffectiveWarehouseId } from '@/lib/auth/session';
+import { getScopeForUser } from '@/lib/data/userScopes';
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
@@ -279,13 +280,12 @@ async function manualSaleFallback(args: {
       sale_id: saleId,
       product_id: line.productId,
       size_code: line.sizeCode,
-      product_name: line.name,
-      product_sku: line.sku,
+      name: line.name,
+      sku: line.sku,
       unit_price: line.unitPrice,
       qty: line.qty,
       line_total: line.lineTotal,
-      product_image_url: line.imageUrl,
-      created_at: now,
+      ...(line.imageUrl != null && { product_image_url: line.imageUrl }),
     });
 
     // Stock deduction
@@ -368,7 +368,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return withCors(auth, req);
 
   const sp = req.nextUrl.searchParams;
-  const warehouseId = sp.get('warehouse_id') ?? '';
+  const requestedWarehouseId = sp.get('warehouse_id') ?? '';
   const date = sp.get('date');
   const from = sp.get('from') ?? (date ? `${date}T00:00:00.000Z` : undefined);
   const to = sp.get('to') ?? (date ? `${date}T23:59:59.999Z` : undefined);
@@ -376,21 +376,37 @@ export async function GET(req: NextRequest) {
   const offset = Number(sp.get('offset') ?? 0);
   const pending = sp.get('pending') === 'true';
 
+  // Enforce warehouse scope: Hunnid Main users must not see Main Jeff data and vice versa.
+  const scope = await getScopeForUser(auth.email);
+  const isUnrestricted = /^(admin|super_admin|administrator)$/i.test(auth.role ?? '');
+  const allowedIds = scope.allowedWarehouseIds ?? [];
+  const hasScope = allowedIds.length > 0;
+  const warehouseId = requestedWarehouseId;
+  if (hasScope && !isUnrestricted) {
+    if (requestedWarehouseId && !allowedIds.includes(requestedWarehouseId)) {
+      return NextResponse.json(
+        { error: 'Forbidden', message: 'You do not have access to this warehouse' },
+        { status: 403, headers: h }
+      );
+    }
+  }
+
   try {
     const db = getDb();
+    // sale_lines table uses columns name, sku (not product_name, product_sku)
     let q = db
       .from('sales')
       .select(
         `
       id, receipt_id, warehouse_id, customer_name,
       payment_method, subtotal, discount_pct, discount_amt,
-      total, item_count, sold_by, status, created_at,
+      total, item_count, sold_by, sold_by_email, status, created_at,
       voided_at, voided_by,
       delivery_status, recipient_name, recipient_phone,
       delivery_address, delivery_notes, expected_date,
       delivered_at, delivered_by,
       sale_lines (
-        id, product_id, size_code, product_name, product_sku,
+        id, product_id, size_code, name, sku,
         unit_price, qty, line_total, product_image_url
       )
     `
@@ -400,6 +416,9 @@ export async function GET(req: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (warehouseId) q = q.eq('warehouse_id', warehouseId);
+    else if (hasScope && !isUnrestricted && allowedIds.length > 0) {
+      q = q.in('warehouse_id', allowedIds);
+    }
     if (from) q = q.gte('created_at', from);
     if (to) q = q.lte('created_at', to);
     if (pending) q = q.in('delivery_status', ['pending', 'dispatched', 'cancelled']);
@@ -416,10 +435,15 @@ export async function GET(req: NextRequest) {
         msg.includes('delivered_at') ||
         msg.includes('delivered_by') ||
         msg.includes('expected_date') ||
+        msg.includes('sold_by_email') ||
         /column.*does not exist/i.test(msg);
       if (useLegacy) {
         console.warn('[GET /api/sales] DB missing columns, using legacy:', msg);
-        return getSalesLegacy(db, req, h, warehouseId, from, to, limit, offset);
+        return getSalesLegacy(db, req, h, warehouseId, from, to, limit, offset, {
+          allowedIds,
+          hasScope,
+          isUnrestricted,
+        });
       }
       console.error('[GET /api/sales]', msg);
       const errBody =
@@ -494,24 +518,29 @@ export async function PATCH(req: NextRequest) {
 
 async function getSalesLegacy(
   db: ReturnType<typeof getDb>,
-  req: NextRequest,
+  _req: NextRequest,
   h: Record<string, string>,
   warehouseId: string,
   from?: string,
   to?: string,
   limit = 100,
-  offset = 0
+  offset = 0,
+  scope?: { allowedIds: string[]; hasScope: boolean; isUnrestricted: boolean }
 ): Promise<NextResponse> {
+  // sale_lines uses name, sku (not product_name, product_sku)
   let q = db
     .from('sales')
     .select(
       `id, receipt_id, warehouse_id, customer_name, payment_method,
              subtotal, discount_pct, discount_amt, total, item_count, sold_by, created_at,
-             sale_lines(id, product_id, size_code, product_name, product_sku, unit_price, qty, line_total)`
+             sale_lines(id, product_id, size_code, name, sku, unit_price, qty, line_total)`
     )
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
   if (warehouseId) q = q.eq('warehouse_id', warehouseId);
+  else if (scope?.hasScope && !scope?.isUnrestricted && (scope.allowedIds?.length ?? 0) > 0) {
+    q = q.in('warehouse_id', scope.allowedIds);
+  }
   if (from) q = q.gte('created_at', from);
   if (to) q = q.lte('created_at', to);
   const { data, error } = await q;
@@ -545,14 +574,15 @@ function shapeSales(rows: Array<Record<string, unknown>>) {
     expectedDate: s.expected_date ?? null,
     deliveredAt: s.delivered_at ?? null,
     deliveredBy: s.delivered_by ?? null,
-    soldBy: s.sold_by,
+    soldBy: s.sold_by ?? null,
+    soldByEmail: s.sold_by_email ?? null,
     createdAt: s.created_at,
     lines: ((s.sale_lines as Array<Record<string, unknown>>) ?? []).map((l: Record<string, unknown>) => ({
       id: l.id,
       productId: l.product_id,
       sizeCode: l.size_code,
-      name: l.product_name,
-      sku: l.product_sku,
+      name: (l.name ?? l.product_name) ?? '',
+      sku: (l.sku ?? l.product_sku) ?? '',
       unitPrice: Number(l.unit_price ?? 0),
       qty: l.qty,
       lineTotal: Number(l.line_total ?? 0),

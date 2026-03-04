@@ -4,6 +4,7 @@ This folder contains guides for developers and support. Start here and follow li
 
 | Document | Description |
 |----------|-------------|
+| **[HunnidOfficial_Login_Credentials.html](HunnidOfficial_Login_Credentials.html)** | Client handover: admin and POS login credentials with links. Open in a browser and use File → Print → Save as PDF to create a PDF. |
 | **[OFFLINE_ARCHITECTURE.md](OFFLINE_ARCHITECTURE.md)** | Offline-first design: data flow, IndexedDB schema, sync queue, conflict resolution, best practices. |
 | **[API_INTEGRATION.md](API_INTEGRATION.md)** | Backend API: required endpoints, request/response formats, auth, errors, rate limiting. |
 | **[UI_GUIDELINES.md](UI_GUIDELINES.md)** | Design system: glassmorphism, components, animations, accessibility, dark mode. |

@@ -111,10 +111,11 @@ export default function LoginPage() {
   const [showOfflineOption, setShowOfflineOption] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
 
-  const { login, loginOffline, sessionExpired, clearSessionExpired, authError, clearAuthError } = useAuth();
+  const { user, isAuthenticated, login, logout, loginOffline, sessionExpired, clearSessionExpired, authError, clearAuthError } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     clearSessionExpired();
@@ -256,6 +257,43 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Already signed in: offer "Sign in as different user" so shared links can show login */}
+          {isAuthenticated && user && (
+            <div className="mb-6 p-5 rounded-2xl bg-slate-100 border border-slate-200">
+              <p className="text-[14px] font-medium text-slate-700">
+                You are signed in as <strong className="text-slate-900">{user.email}</strong>.
+              </p>
+              <p className="text-[13px] text-slate-500 mt-1 mb-4">
+                To use another account, sign out and sign in again.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  setSigningOut(true);
+                  try {
+                    await logout();
+                    clearAuthError();
+                    setError('');
+                  } finally {
+                    setSigningOut(false);
+                  }
+                }}
+                disabled={signingOut}
+                className="w-full py-2.5 px-4 rounded-xl text-[14px] font-semibold
+                           bg-slate-200 text-slate-800 hover:bg-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-60"
+              >
+                {signingOut ? 'Signing out…' : 'Sign in as different user'}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/', { replace: true })}
+                className="w-full mt-3 py-2 text-[13px] font-medium text-slate-600 hover:text-slate-900"
+              >
+                Continue to dashboard
+              </button>
+            </div>
+          )}
+
           {/* Error banner */}
           {bannerError && (
             <div className="mb-5 px-4 py-3.5 rounded-2xl bg-red-50 border border-red-200
@@ -270,7 +308,8 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Form */}
+          {/* Form (hidden when already signed in so "different user" flow is clear) */}
+          {!isAuthenticated && (
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
             {/* Email */}
@@ -387,6 +426,7 @@ export default function LoginPage() {
               </div>
             )}
           </form>
+          )}
 
           {/* Footer */}
           <div className="mt-8 pt-6 border-t border-slate-200 text-center space-y-1">
