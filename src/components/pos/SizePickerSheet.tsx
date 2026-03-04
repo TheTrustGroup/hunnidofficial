@@ -51,10 +51,8 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
   const [qty, setQty] = useState(1);
   const [pending, setPending] = useState<PendingLine[]>([]);
 
-  if (!product) return null;
-
-  const isSized = product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0;
-  const sizes = product.quantityBySize ?? [];
+  const isSized = product?.sizeKind === 'sized' && (product?.quantityBySize?.length ?? 0) > 0;
+  const sizes = product?.quantityBySize ?? [];
 
   const addToPending = useCallback((sizeCode: string | null, sizeLabel: string | null) => {
     const key = sizeCode ?? 'NA';
@@ -84,6 +82,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
   }, []);
 
   const handleAddToCart = useCallback(() => {
+    if (!product) return;
     const base = {
       productId: product.id,
       name: product.name,
@@ -111,6 +110,8 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       onClose();
     }
   }, [product, isSized, pending, onAdd, onAddBatch, onClose]);
+
+  if (!product) return null;
 
   return (
     <>
