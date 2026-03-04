@@ -203,7 +203,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
 
   // ── Cart ──────────────────────────────────────────────────────────────────
 
-  function handleAddToCart(input: CartLineInput) {
+  function addLineToCart(input: CartLineInput) {
     const key = buildCartKey(input.productId, input.sizeCode ?? null);
     setCart(prev => {
       const exists = prev.find(l => l.key === key);
@@ -220,7 +220,17 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         imageUrl: input.imageUrl ?? null,
       }];
     });
+  }
+
+  function handleAddToCart(input: CartLineInput) {
+    addLineToCart(input);
     showToast(`${input.name}${input.sizeLabel ? ` · ${input.sizeLabel}` : ''} added`);
+  }
+
+  function handleAddBatch(inputs: CartLineInput[]) {
+    inputs.forEach(addLineToCart);
+    const n = inputs.reduce((s, i) => s + i.qty, 0);
+    showToast(n === 1 ? '1 item added' : `${n} items added`);
   }
 
   function handleUpdateQty(key: string, delta: number) {
@@ -479,6 +489,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       <SizePickerSheet
         product={activeProduct}
         onAdd={handleAddToCart}
+        onAddBatch={handleAddBatch}
         onClose={() => setActiveProduct(null)}
       />
 
