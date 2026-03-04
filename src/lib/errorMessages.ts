@@ -34,6 +34,9 @@ export function getUserFriendlyMessage(error: unknown): string {
   if (str.includes('404') || str.includes('not found')) {
     return 'The requested item was not found.';
   }
+  if (str.includes('insufficient_stock') || str.includes('insufficient stock')) {
+    return 'Insufficient stock for one or more items. Reduce quantity or remove items and try again.';
+  }
   if (str.includes('409') || str.includes('conflict')) {
     return 'This was changed elsewhere. Please refresh and try again.';
   }

@@ -1,6 +1,7 @@
-// src/components/layout/Sidebar.tsx - Premium Figma-Inspired Design
-import { NavLink } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+// src/components/layout/Sidebar.tsx — Hunnid Official sidebar (CHANGE 2)
+// Background #0D1117, width 244px, H monogram logo, warehouse pill, nav with divider, user card.
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWarehouse } from '../../contexts/WarehouseContext';
 import { ROLES } from '../../types/permissions';
@@ -12,94 +13,273 @@ function getRoleDisplayName(roleId: string | undefined): string {
   return ROLES[key]?.name ?? roleId;
 }
 
-export function Sidebar() {
-  const { user, hasPermission, hasAnyPermission, switchRole } = useAuth();
-  const { warehouses, currentWarehouseId, setCurrentWarehouseId, currentWarehouse, isWarehouseBoundToSession, isLoading: warehousesLoading } = useWarehouse();
-  // Hardening: only admins see "Switch role" (testing). Others cannot try to switch; backend enforces 403.
-  const canSeeSwitchRole = user?.role === 'admin' || user?.role === 'super_admin';
+/** H monogram: two vertical bars + crossbar. White on blue container. */
+function LogoMark() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 100 100" fill="none" className="flex-shrink-0" aria-hidden>
+      <rect x="14" y="18" width="14" height="64" rx="3" fill="white" opacity="0.95" />
+      <rect x="72" y="18" width="14" height="64" rx="3" fill="white" opacity="0.95" />
+      <rect x="14" y="44" width="72" height="12" rx="3" fill="white" />
+    </svg>
+  );
+}
 
+export function Sidebar() {
+  const location = useLocation();
+  const { user, hasPermission, hasAnyPermission, switchRole } = useAuth();
+  const {
+    warehouses,
+    currentWarehouseId,
+    setCurrentWarehouseId,
+    currentWarehouse,
+    isWarehouseBoundToSession,
+    isLoading: warehousesLoading,
+  } = useWarehouse();
+
+  const isPosPage = location.pathname === '/pos';
   const showWarehouseSwitcher = !warehousesLoading && warehouses.length > 0 && !isWarehouseBoundToSession;
   const canSwitchWarehouse = showWarehouseSwitcher && warehouses.length > 1;
+  const [warehouseDropdownOpen, setWarehouseDropdownOpen] = useState(false);
 
-  const navigation = BASE_NAVIGATION
-    .filter(
-      (item) =>
-        (item.permission == null && 'to' in item) ||
-        ('permission' in item && item.permission && hasPermission(item.permission)) ||
-        ('anyPermissions' in item && item.anyPermissions && hasAnyPermission(item.anyPermissions))
-    )
-    // POS locations (Main Store & Main Town): hide Inventory; nav shows only Orders, POS, Reports, Sales, Deliveries.
-    .filter((item) => !(item.name === 'Inventory' && isWarehouseBoundToSession));
+  const isAdminRole =
+    user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'manager';
+  const canSeeSwitchRole = user?.role === 'admin' || user?.role === 'super_admin';
+
+  const navigation = BASE_NAVIGATION.filter(
+    (item) =>
+      (item.permission == null && 'to' in item) ||
+      ('permission' in item && item.permission && hasPermission(item.permission)) ||
+      ('anyPermissions' in item && item.anyPermissions && hasAnyPermission(item.anyPermissions))
+  ).filter((item) => !(item.name === 'Inventory' && isWarehouseBoundToSession));
+
+  const adminStartIndex = navigation.findIndex((item) => item.name === 'Users');
+  const mainNav = adminStartIndex >= 0 ? navigation.slice(0, adminStartIndex) : navigation;
+  const adminNav = adminStartIndex >= 0 ? navigation.slice(adminStartIndex) : [];
+
+  const warehouse = currentWarehouse ?? warehouses[0];
+  const warehouseName = warehouse?.name ?? '—';
 
   return (
-    <aside className="fixed left-0 top-0 w-[280px] min-w-[280px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] solid-panel border-r border-slate-200/80 flex flex-col shadow-lg flex-shrink-0">
-      {/* Logo: hierarchy via size, not weight overload */}
-      <div className="p-5 border-b border-slate-200/30 flex-shrink-0">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-xl font-bold leading-tight tracking-tight gradient-text">
-            Hunnid Official
-          </h1>
-          <p className="text-xs font-medium text-slate-500">
-            Inventory & POS
-          </p>
+    <aside
+      className="fixed left-0 top-0 w-[244px] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20"
+      style={{ background: 'var(--sidebar-bg)' }}
+    >
+      {/* Logo: H monogram + wordmark */}
+      <div className="flex items-center gap-[11px] px-4 pt-[17px] pb-[15px] border-b border-white/[0.06] flex-shrink-0">
+        <div
+          className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0"
+          style={{
+            background: 'var(--blue)',
+            boxShadow: '0 2px 8px rgba(92,172,250,0.35)',
+          }}
+        >
+          <LogoMark />
+        </div>
+        <div className="flex flex-col leading-none gap-0.5 min-w-0">
+          <span
+            className="font-extrabold text-white truncate"
+            style={{
+              fontFamily: 'Syne, sans-serif',
+              fontSize: '14px',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Hunnid
+          </span>
+          <span
+            className="font-semibold uppercase truncate"
+            style={{
+              fontFamily: 'Syne, sans-serif',
+              fontSize: '10px',
+              letterSpacing: '0.12em',
+              color: 'var(--blue)',
+            }}
+          >
+            {isPosPage ? 'POS Terminal' : 'OFFICIAL'}
+          </span>
         </div>
       </div>
 
-      {/* Warehouse switcher: global scope for Dashboard + Inventory. Hidden when user is bound to one warehouse (e.g. POS cashier). */}
+      {/* Warehouse / Location selector */}
       {showWarehouseSwitcher && (
-        <div className="px-3 py-2 border-b border-slate-200/30 flex-shrink-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            <MapPin className="w-4 h-4 text-slate-500 flex-shrink-0" aria-hidden />
-            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Warehouse</span>
-          </div>
-          {canSwitchWarehouse ? (
-            <label className="block">
-              <span className="sr-only">Select warehouse (dashboard and inventory use this)</span>
-              <select
-                value={currentWarehouseId}
-                onChange={(e) => setCurrentWarehouseId(e.target.value)}
-                className="input-field w-full text-sm font-medium text-slate-800 py-2 pr-8"
-                aria-label="Select warehouse"
+        <div className="px-3 pt-[14px] pb-1.5 flex-shrink-0">
+          <span
+            className="block pl-0.5 mb-1.5 text-[9px] font-semibold uppercase"
+            style={{ letterSpacing: '0.18em', color: 'rgba(255,255,255,0.20)' }}
+          >
+            {isPosPage ? 'Location' : 'Warehouse'}
+          </span>
+          <div className="relative">
+            {canSwitchWarehouse ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setWarehouseDropdownOpen((o) => !o)}
+                  className="w-full flex items-center gap-2 py-2 px-2.5 rounded-[7px] transition-colors hover:bg-white/[0.06]"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                  aria-expanded={warehouseDropdownOpen}
+                  aria-haspopup="listbox"
+                  aria-label="Select warehouse"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] flex-shrink-0" aria-hidden />
+                  <span className="flex-1 text-left text-[12px] font-medium text-white/80 truncate">
+                    {warehouseName}
+                  </span>
+                  <span className="text-white/[0.28] text-[10px]" aria-hidden>▾</span>
+                </button>
+                {warehouseDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      aria-hidden
+                      onClick={() => setWarehouseDropdownOpen(false)}
+                    />
+                    <ul
+                      role="listbox"
+                      className="absolute left-0 top-full mt-1 z-20 min-w-[180px] py-1.5 rounded-[7px] border border-white/[0.08] shadow-lg"
+                      style={{ background: '#0D1117' }}
+                    >
+                      {warehouses.map((w) => (
+                        <li key={w.id} role="option" aria-selected={currentWarehouseId === w.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentWarehouseId(w.id);
+                              setWarehouseDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-[12px] font-medium transition-colors ${
+                              currentWarehouseId === w.id
+                                ? 'bg-white/[0.08] text-white'
+                                : 'text-white/80 hover:bg-white/[0.05]'
+                            }`}
+                          >
+                            {w.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </>
+            ) : (
+              <div
+                className="flex items-center gap-2 py-2 px-2.5 rounded-[7px]"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
               >
-                {warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <p className="text-sm font-medium text-slate-700 truncate" title={currentWarehouse?.name ?? ''}>
-              {currentWarehouse?.name ?? '—'}
-            </p>
-          )}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] flex-shrink-0" aria-hidden />
+                <span className="flex-1 text-[12px] font-medium text-white/80 truncate">
+                  {warehouseName}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Nav: vertical rhythm space-y-1, touch targets via .nav-item; fixed item height to avoid resize on role change */}
-      <nav className="flex-1 min-h-0 py-5 px-2 space-y-1 overflow-y-auto">
-        {navigation.map((item) => (
-          <NavLink
-            key={item.name}
-            to={item.to}
-            className={({ isActive }) =>
-              `nav-item ${isActive ? 'nav-item-active' : ''}`
-            }
-          >
-            <item.icon className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
-            <span className="text-sm">{item.name}</span>
-          </NavLink>
-        ))}
+      {/* Nav: main items */}
+      <nav className="flex-1 min-h-0 py-2.5 overflow-y-auto" aria-label="Main navigation">
+        <div className="px-0">
+          {mainNav.map((item) => (
+            <NavLink
+              key={item.name}
+              to={item.to}
+              className={({ isActive }) =>
+                `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[7px] text-[13px] transition-colors duration-[120ms] ${
+                  isActive
+                    ? 'text-white'
+                    : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'
+                }`
+              }
+              style={({ isActive }) => ({
+                fontFamily: "'DM Sans', sans-serif",
+                ...(isActive ? { background: 'var(--sidebar-active-bg)', fontWeight: 500 } : {}),
+              })}
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    className="w-4 h-4 flex-shrink-0 flex items-center justify-center opacity-60"
+                    style={isActive ? { color: 'var(--sidebar-active-icon)', opacity: 1 } : undefined}
+                  >
+                    <item.icon className="w-4 h-4" strokeWidth={2} />
+                  </span>
+                  <span className="flex-1 truncate">{item.name}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+
+        {adminNav.length > 0 && (
+          <>
+            <div
+              className="my-2 mx-3 h-px flex-shrink-0"
+              style={{ background: 'rgba(255,255,255,0.06)' }}
+            />
+            <div className="px-0">
+              {adminNav.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[7px] text-[13px] transition-colors duration-[120ms] ${
+                      isActive
+                        ? 'text-white'
+                        : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'
+                    }`
+                  }
+                  style={({ isActive }) => ({
+                    fontFamily: "'DM Sans', sans-serif",
+                    ...(isActive ? { background: 'var(--sidebar-active-bg)', fontWeight: 500 } : {}),
+                  })}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className="w-4 h-4 flex-shrink-0 flex items-center justify-center opacity-60"
+                        style={
+                          isActive ? { color: 'var(--sidebar-active-icon)', opacity: 1 } : undefined
+                        }
+                      >
+                        <item.icon className="w-4 h-4" strokeWidth={2} />
+                      </span>
+                      <span className="flex-1 truncate">{item.name}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </>
+        )}
       </nav>
 
-      <div className="p-4 border-t border-slate-200/30 space-y-3 flex-shrink-0 min-h-[5.5rem]">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors min-h-[3.5rem]">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-            {user?.fullName?.charAt(0) || 'U'}
+      {/* User card footer */}
+      <div className="p-3 border-t border-white/[0.06] flex-shrink-0 min-h-[5rem]">
+        <div
+          className="flex items-center gap-2 p-2 rounded-[7px] cursor-default transition-colors hover:bg-white/[0.04]"
+          role="presentation"
+        >
+          <div
+            className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-white font-bold text-[11px] flex-shrink-0"
+            style={{
+              background: isAdminRole ? 'var(--blue)' : '#424958',
+            }}
+          >
+            {user?.fullName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900 truncate">
-              {user?.fullName}
+            <p
+              className="text-[11px] font-medium truncate"
+              style={{ color: 'rgba(255,255,255,0.72)' }}
+              title={user?.email}
+            >
+              {user?.email ?? '—'}
             </p>
             {canSeeSwitchRole && user ? (
               <label className="block mt-0.5">
@@ -107,18 +287,24 @@ export function Sidebar() {
                 <select
                   value={user.role}
                   onChange={(e) => switchRole(e.target.value)}
-                  className="input-field w-full text-xs font-medium text-slate-600 py-1 pr-6"
-                  aria-label="Switch role to see different features"
+                  className="w-full text-[10px] font-medium py-0.5 pr-5 rounded bg-transparent border-0 cursor-pointer focus:ring-0 focus:outline-none"
+                  style={{ color: 'rgba(255,255,255,0.28)' }}
+                  aria-label="Switch role"
                 >
                   {Object.values(ROLES).map((role) => (
-                    <option key={role.id} value={role.id}>
+                    <option key={role.id} value={role.id} className="bg-[#0D1117] text-white">
                       {role.name}
                     </option>
                   ))}
                 </select>
               </label>
             ) : (
-              <p className="text-xs text-slate-600 font-medium">{getRoleDisplayName(user?.role)}</p>
+              <p
+                className="text-[10px] mt-0.5"
+                style={{ color: 'rgba(255,255,255,0.28)' }}
+              >
+                {getRoleDisplayName(user?.role)}
+              </p>
             )}
           </div>
         </div>

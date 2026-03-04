@@ -39,22 +39,13 @@ function formatPrice(n: number): string {
 // ── Stock Badge ────────────────────────────────────────────────────────────
 
 function StockBadge({ status, qty }: { status: StockStatus; qty: number }) {
-  if (status === 'in') return null; // no badge when in stock — clean card
-
-  const config = {
-    low: { label: `${qty} left`, cls: 'bg-amber-400/90 text-white' },
-    out: { label: 'Out',         cls: 'bg-red-500/90 text-white' },
-  }[status];
-
+  if (status === 'in') return null;
+  const label = status === 'low' ? `${qty} left` : 'Out';
   return (
-    <span className={`
-      absolute top-2 right-2
-      h-5 px-2 rounded-full
-      text-[10px] font-bold tracking-wide
-      backdrop-blur-sm
-      ${config.cls}
-    `}>
-      {config.label}
+    <span
+      className={`absolute top-2 right-2 text-[10px] font-semibold ${status === 'low' ? 'text-[#D97706]' : 'text-[#DC2626]'}`}
+    >
+      {label}
     </span>
   );
 }
@@ -63,10 +54,12 @@ function StockBadge({ status, qty }: { status: StockStatus; qty: number }) {
 
 function ImagePlaceholder() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center text-slate-300">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="3"/>
+    <div
+      className="absolute inset-0 flex items-center justify-center text-[#A8B4C4]"
+      style={{ background: 'linear-gradient(135deg, #EEF1F6 0%, #E0E6F0 100%)' }}
+    >
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
         <circle cx="8.5" cy="8.5" r="1.5"/>
         <polyline points="21 15 16 10 5 21"/>
       </svg>
@@ -83,88 +76,60 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
   const safeSrc = firstImage ? safeProductImageUrl(firstImage) : '';
   const hasImage = safeSrc && safeSrc !== EMPTY_IMAGE_DATA_URL;
 
+  const stockLabel =
+    status === 'out'
+      ? 'Out'
+      : status === 'low'
+        ? `${product.quantity} left`
+        : `${product.quantity} in stock`;
+
   return (
     <button
       type="button"
       disabled={isOut}
       onClick={() => onSelect(product)}
-      className={`
-        group w-full text-left
-        bg-white rounded-2xl overflow-hidden
-        border border-slate-100
-        shadow-[0_1px_3px_rgba(0,0,0,0.05),0_2px_8px_rgba(0,0,0,0.04)]
+      className="group w-full text-left bg-white rounded-[10px] overflow-hidden border border-[rgba(0,0,0,0.07)]
+        shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]
         transition-all duration-150
-        active:scale-[0.96] active:shadow-none
-        hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] hover:-translate-y-0.5
-        disabled:opacity-40 disabled:cursor-not-allowed
-        disabled:hover:transform-none disabled:hover:shadow-none
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400
-      `}
+        hover:shadow-[0_4px_16px_rgba(13,17,23,0.09)] hover:-translate-y-0.5
+        active:scale-[0.97]
+        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5CACFA]"
     >
-      {/* Image: only show img when URL is allowed (same-origin Storage or data:); else placeholder */}
-      <div className="relative w-full pt-[100%] bg-slate-50 overflow-hidden">
+      {/* Image: 1:1 square, gradient placeholder (CHANGE 5) */}
+      <div className="relative w-full aspect-square overflow-hidden bg-[#EEF1F6]">
         {hasImage ? (
           <img
             src={safeSrc}
             alt={product.name}
             loading="lazy"
-            className="
-              absolute inset-0 w-full h-full object-cover
-              transition-transform duration-300
-              group-hover:scale-105
-            "
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
           />
         ) : (
           <ImagePlaceholder />
         )}
-
-        {/* Stock badge — only low/out */}
         <StockBadge status={status} qty={product.quantity} />
       </div>
 
-      {/* Body */}
-      <div className="px-3 pt-2.5 pb-3">
-        {/* Name */}
-        <p className="
-          text-[13px] font-bold text-slate-900
-          leading-snug mb-1
-          line-clamp-2 min-h-[2.5em]
-        ">
+      <div className="px-2.5 pt-2 pb-2.5">
+        <p
+          className="text-[12px] font-semibold text-[#0D1117] truncate leading-snug mb-1"
+          style={{ fontFamily: "'DM Sans', sans-serif" }}
+        >
           {product.name}
         </p>
-
-        {/* Category */}
-        <p className="text-[11px] text-slate-400 font-medium mb-2">
-          {product.category ?? ''}
-        </p>
-
-        {/* Price + stock row */}
         <div className="flex items-end justify-between gap-1">
-          <span className="text-[15px] font-extrabold text-primary-500 leading-none">
+          <span
+            className="text-[14px] font-extrabold leading-none"
+            style={{ fontFamily: 'Syne, sans-serif', color: '#5CACFA' }}
+          >
             {formatPrice(product.sellingPrice)}
           </span>
-
-          {/* Size indicator for sized products */}
-          {product.sizeKind === 'sized' && !isOut && (
-            <span className="
-              text-[10px] font-semibold text-slate-400
-              bg-slate-100 px-1.5 py-0.5 rounded-md
-              leading-none flex-shrink-0
-            ">
-              {(product.quantityBySize ?? []).filter(r => r.quantity > 0).length} sizes
-            </span>
-          )}
-
-          {/* Qty badge for non-sized products */}
-          {product.sizeKind !== 'sized' && !isOut && (
-            <span className="
-              text-[10px] font-semibold text-slate-400
-              bg-slate-100 px-1.5 py-0.5 rounded-md
-              leading-none flex-shrink-0
-            ">
-              {product.quantity} left
-            </span>
-          )}
+          <span
+            className={`text-[10px] flex-shrink-0 ${status === 'low' ? 'text-[#D97706]' : 'text-[#8892A0]'}`}
+          >
+            {stockLabel}
+          </span>
         </div>
       </div>
     </button>
@@ -177,12 +142,11 @@ export default memo(POSProductCard);
 
 export function POSProductCardSkeleton() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-      <div className="w-full pt-[100%] bg-slate-100 animate-pulse" />
-      <div className="px-3 pt-2.5 pb-3 flex flex-col gap-2">
-        <div className="h-3.5 w-4/5 bg-slate-100 rounded-lg animate-pulse" />
-        <div className="h-3 w-1/2 bg-slate-100 rounded-lg animate-pulse" />
-        <div className="h-4 w-2/3 bg-slate-100 rounded-lg animate-pulse" />
+    <div className="bg-white rounded-[10px] overflow-hidden border border-[rgba(0,0,0,0.07)] shadow-[0_1px_3px_rgba(13,17,23,0.06)]">
+      <div className="w-full aspect-square bg-[#EEF1F6] animate-pulse" />
+      <div className="px-2.5 pt-2 pb-2.5 flex flex-col gap-2">
+        <div className="h-3 w-4/5 bg-[#E3E8F0] rounded animate-pulse" />
+        <div className="h-3.5 w-1/2 bg-[#E3E8F0] rounded animate-pulse" />
       </div>
     </div>
   );

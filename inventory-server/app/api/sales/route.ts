@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { corsHeaders } from '@/lib/cors';
-import { requireAuth } from '@/lib/auth/session';
+import { requireAuth, getEffectiveWarehouseId } from '@/lib/auth/session';
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400, headers: h });
   }
 
-  const warehouseId = String(body.warehouseId ?? '').trim();
+  const bodyWarehouseId = String(body.warehouseId ?? '').trim();
   const paymentMethod = String(body.paymentMethod ?? '').trim();
   const lines = body.lines as Array<Record<string, unknown>> | undefined;
   const subtotal = Number(body.subtotal ?? 0);
@@ -62,8 +62,15 @@ export async function POST(req: NextRequest) {
   const validStatuses = ['delivered', 'pending', 'dispatched'];
   const effectiveDeliveryStatus = validStatuses.includes(deliveryStatus) ? deliveryStatus : 'delivered';
 
+  const warehouseId = await getEffectiveWarehouseId(auth, bodyWarehouseId || undefined, {
+    path: req.nextUrl.pathname,
+    method: req.method,
+  });
   if (!warehouseId)
-    return NextResponse.json({ error: 'warehouseId is required' }, { status: 400, headers: h });
+    return NextResponse.json(
+      { error: 'warehouseId is required and must be a warehouse you are allowed to use' },
+      { status: 400, headers: h }
+    );
   if (!['Cash', 'MoMo', 'Card'].includes(paymentMethod))
     return NextResponse.json({ error: 'paymentMethod must be Cash, MoMo, or Card' }, { status: 400, headers: h });
   if (!Array.isArray(lines) || lines.length === 0)
@@ -116,12 +123,17 @@ export async function POST(req: NextRequest) {
       p_payment_method: paymentMethod,
       p_customer_name: customerName,
       p_sold_by: null,
+      p_sold_by_email: auth?.email ?? null,
     });
 
     if (error) {
+      if (error.message?.includes('INSUFFICIENT_STOCK')) {
+        return NextResponse.json({ error: error.message }, { status: 409, headers: h });
+      }
       if (error.code === '42883' || error.message?.includes('does not exist')) {
         return manualSaleFallback({
           db,
+          auth,
           warehouseId,
           normalizedLines,
           subtotal,
@@ -179,10 +191,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ── Manual fallback ───────────────────────────────────────────────────────
+// ── Manual fallback (use only when record_sale RPC is missing) ─────────────
+// WARNING: Not atomic. If a deduction fails mid-loop, sale + some lines may be
+// inserted without corresponding stock deduction. Prefer fixing the RPC and using it.
+// For production, ensure record_sale is deployed so this path is never used.
 
 async function manualSaleFallback(args: {
   db: ReturnType<typeof getDb>;
+  auth?: { email: string };
   warehouseId: string;
   normalizedLines: Array<{
     productId: string;
@@ -210,6 +226,7 @@ async function manualSaleFallback(args: {
 }): Promise<NextResponse> {
   const {
     db,
+    auth,
     warehouseId,
     normalizedLines,
     subtotal,
@@ -245,6 +262,7 @@ async function manualSaleFallback(args: {
     item_count: itemCount,
     receipt_id: receiptId,
     status: 'completed',
+    sold_by_email: auth?.email?.trim() || null,
     delivery_status: deliveryStatus,
     recipient_name: recipientName,
     recipient_phone: recipientPhone,
@@ -410,7 +428,9 @@ export async function GET(req: NextRequest) {
     }
 
     const rows = (data ?? []).filter((s: { status?: string }) => !s.status || s.status === 'completed');
-    return NextResponse.json({ data: shapeSales(rows), total: rows.length }, { headers: h });
+    const res = NextResponse.json({ data: shapeSales(rows), total: rows.length }, { headers: h });
+    res.headers.set('Cache-Control', 'private, max-age=60');
+    return res;
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Internal error';
     console.error('[GET /api/sales]', e);

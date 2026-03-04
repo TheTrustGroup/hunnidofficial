@@ -1,5 +1,6 @@
 /**
- * POS cart bar: sticky bar showing cart summary, opens cart sheet on tap.
+ * POS cart bar (CHANGE 7): "[N] items · GH₵XXX · View Cart →", 44px min tap target, font ≥11px.
+ * Opens full-screen cart drawer on tap.
  */
 import type { CartLine } from './CartSheet';
 
@@ -19,16 +20,19 @@ export default function CartBar({ lines, onOpen }: CartBarProps) {
   if (itemCount === 0) return null;
 
   return (
-    <div className="flex-shrink-0 p-4 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+    <div className="flex-shrink-0 p-3 bg-white border-t border-[rgba(0,0,0,0.08)] shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
       <button
         type="button"
         onClick={onOpen}
-        className="w-full flex items-center justify-between gap-3 py-3 px-4 rounded-2xl bg-slate-900 text-white hover:bg-slate-800 active:scale-[0.99] transition-all duration-150"
+        className="w-full min-h-[44px] flex items-center justify-between gap-2 py-2.5 px-4 rounded-xl bg-[#0D1117] text-white hover:bg-[#161B22] active:scale-[0.99] transition-all duration-150 text-left"
       >
-        <span className="text-[14px] font-bold">
-          {itemCount} item{itemCount !== 1 ? 's' : ''}
+        <span className="text-[12px] font-semibold" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          {itemCount} item{itemCount !== 1 ? 's' : ''} · {fmt(total)}
         </span>
-        <span className="text-[16px] font-extrabold tabular-nums">{fmt(total)}</span>
+        <span className="text-[11px] font-medium text-[#5CACFA] flex items-center gap-0.5 shrink-0">
+          View Cart
+          <span aria-hidden>→</span>
+        </span>
       </button>
     </div>
   );

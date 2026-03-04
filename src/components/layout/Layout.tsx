@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileMenu } from './MobileMenu';
+import { BottomNav } from './BottomNav';
 import { SyncStatusBar } from '../SyncStatusBar';
 import { ConflictModalContainer } from '../ConflictModalContainer';
 import { ApiStatusProvider, useApiStatus } from '../../contexts/ApiStatusContext';
@@ -82,7 +83,7 @@ function LayoutContent() {
       {/* Slim hint while phase 2 (inventory, orders) syncs in background after login */}
       {isSyncingCriticalData && (
         <div
-          className="lg:ml-[280px] mt-[calc(72px+var(--safe-top))] bg-primary-50/90 text-primary-900 text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 border-b border-primary-200/50"
+          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-primary-50/90 text-primary-900 text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 border-b border-primary-200/50"
           role="status"
           aria-live="polite"
         >
@@ -93,7 +94,7 @@ function LayoutContent() {
       {/* In-flow banner: reserves layout space so content is never overlapped. Pushes main content down. */}
       {criticalDataError && (
         <div
-          className="lg:ml-[280px] mt-[calc(72px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
+          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
           role="alert"
         >
           <span>Initial load had issues: {criticalDataError}</span>
@@ -104,7 +105,7 @@ function LayoutContent() {
       )}
       {showDegradedBanner && (
         <div
-          className="lg:ml-[280px] mt-[calc(72px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
+          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
           role="status"
         >
           <span>Server temporarily unavailable. Last saved data — read-only. Add, edit, and sales disabled until server is back.</span>
@@ -128,13 +129,14 @@ function LayoutContent() {
       )}
       {/* Phase 6: main padding ≥16px (max(1rem, safe-area)); no edge-touch; reserves space for SyncStatusBar */}
       <main
-        className={`lg:ml-[280px] pt-20 lg:pt-8 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))] min-h-[calc(var(--min-h-viewport)-72px)] max-w-[1600px] overflow-x-hidden ${
-          showDegradedBanner || showSyncingBar ? 'mt-0' : 'mt-[calc(72px+var(--safe-top))]'
+        className={`lg:ml-[244px] pt-20 lg:pt-8 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 pb-[max(4rem,calc(var(--safe-bottom)+4rem))] lg:pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))] min-h-[calc(var(--min-h-viewport)-56px)] max-w-[1600px] overflow-x-hidden ${
+          showDegradedBanner || showSyncingBar ? 'mt-0' : 'mt-[calc(56px+var(--safe-top))]'
         }`}
       >
         <Outlet />
       </main>
       <SyncStatusBar />
+      <BottomNav />
       <ConflictModalContainer />
     </div>
   );

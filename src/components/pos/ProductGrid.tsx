@@ -5,12 +5,6 @@ import { getDeduplicatedCategoryOptions, colorMatchesFilter } from '../../lib/ut
 
 export type { POSProduct };
 
-/** Common colors for filter chips. Keep in sync with ProductModal and InventoryPage. Uncategorized = products with no color (after backfill). */
-const COLOR_OPTIONS = ['Black', 'White', 'Red', 'Blue', 'Brown', 'Green', 'Grey', 'Navy', 'Beige', 'Multi', 'Uncategorized'];
-
-/** When size options exceed this, show a dropdown instead of chips. */
-const SIZE_CHIP_THRESHOLD = 12;
-
 interface ProductGridProps {
   products: POSProduct[];
   loading: boolean;
@@ -45,16 +39,6 @@ function ProductGridInner({
     const raw = Array.from(new Set(products.map((p) => (p.category ?? '').trim() || 'Uncategorized')));
     const opts = getDeduplicatedCategoryOptions(raw);
     return [{ value: 'all', label: 'All' }, ...opts];
-  }, [products]);
-
-  const sizeOptions = useMemo(() => {
-    const set = new Set<string>();
-    products.forEach((p) => {
-      (p.quantityBySize ?? []).forEach((s) => {
-        if (s.sizeCode && (s.quantity ?? 0) > 0) set.add(s.sizeCode);
-      });
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [products]);
 
   const filtered = useMemo(() => {
@@ -141,22 +125,21 @@ function ProductGridInner({
     );
   }
 
-  const hasActiveFilters = category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all';
-  const useSizeDropdown = sizeOptions.length > SIZE_CHIP_THRESHOLD;
-
   return (
-    <div className="p-4">
-      {/* Row 1: Category — horizontal scroll, consistent chips */}
+    <div className="flex flex-col h-full">
+      {/* Category tabs: 30px height, 6px radius, active #0D1117 white, scrollable (CHANGE 5) */}
       {categoryOptions.length > 1 && (
-        <div className="mb-4 flex gap-2 overflow-x-auto scrollbar-none pb-1">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-2 px-4 pt-2 flex-shrink-0" style={{ scrollbarWidth: 'none' }}>
           {categoryOptions.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => onCategoryChange(opt.value)}
-              className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                category === opt.value ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
+              className={`flex-shrink-0 h-[30px] px-3 rounded-md border text-[12px] font-medium whitespace-nowrap transition-colors
+                ${category === opt.value
+                  ? 'bg-[#0D1117] border-[#0D1117] text-white'
+                  : 'bg-white border-[rgba(0,0,0,0.11)] text-[#424958] hover:bg-[#F4F6F9]'}`}
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
               {opt.label}
             </button>
@@ -164,88 +147,7 @@ function ProductGridInner({
         </div>
       )}
 
-      {/* Row 2: Size (dropdown or chips) · Color chips · Clear filters */}
-      <div className="mb-4 flex flex-wrap items-center gap-4">
-        {/* Size */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="pos-size-filter" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Size
-          </label>
-          {useSizeDropdown ? (
-            <select
-              id="pos-size-filter"
-              value={sizeFilter}
-              onChange={(e) => onSizeFilterChange(e.target.value)}
-              className="h-9 min-w-[100px] rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="all">All</option>
-              {sizeOptions.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => onSizeFilterChange('all')}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ${sizeFilter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-              >
-                All
-              </button>
-              {sizeOptions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => onSizeFilterChange(s)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium ${sizeFilter === s ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Color */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Color</span>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => onColorFilterChange('all')}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${colorFilter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-            >
-              All
-            </button>
-            {COLOR_OPTIONS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => onColorFilterChange(c)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ${colorFilter === c ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={() => {
-              onCategoryChange('all');
-              onSizeFilterChange('all');
-              onColorFilterChange('all');
-            }}
-            className="text-xs font-semibold text-primary-600 hover:text-primary-700 hover:underline"
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-4 flex-1 content-start">
         {filtered.map((p) => (
           <POSProductCard key={p.id} product={p} onSelect={onSelect} />
         ))}

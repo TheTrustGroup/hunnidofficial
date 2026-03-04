@@ -12,6 +12,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ProductCard, { ProductCardSkeleton, type Product } from '../components/inventory/ProductCard';
 import ProductModal from '../components/inventory/ProductModal';
 import { type SizeCode } from '../components/inventory/SizesSection';
@@ -34,9 +35,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 const CATEGORIES  = ['Sneakers', 'Slippers', 'Boots', 'Sandals', 'Accessories'];
 /** Common colors for filter chips (admin + POS). Uncategorized = products with no color (after backfill). */
 const COLOR_OPTIONS = ['Black', 'White', 'Red', 'Blue', 'Brown', 'Green', 'Grey', 'Navy', 'Beige', 'Multi', 'Uncategorized'];
-/** When size options exceed this, show a dropdown instead of chips. */
-const SIZE_CHIP_THRESHOLD = 12;
-
 /** Fallback list when WarehouseContext has not yet loaded. IDs must match backend. */
 const FALLBACK_WAREHOUSES: Pick<Warehouse, 'id' | 'name'>[] = [
   { id: '00000000-0000-0000-0000-000000000001', name: 'Main Jeff' },
@@ -235,17 +233,44 @@ function StatCard({
   warning?: boolean;
 }) {
   return (
-    <div className={`flex-1 min-w-0 px-4 py-3 rounded-2xl border
-      ${accent  ? 'bg-primary-500 border-primary-400 text-white' :
-        warning ? 'bg-amber-50 border-amber-100 text-amber-900' :
-                  'bg-white   border-slate-100 text-slate-900'}`}>
-      <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5
-                     ${accent ? 'text-primary-100' : warning ? 'text-amber-500' : 'text-slate-400'}`}>
+    <div
+      className={`flex-1 min-w-0 px-4 py-4 rounded-[10px] border flex flex-col gap-0.5 shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]
+        ${accent
+          ? 'border-transparent text-white'
+          : warning
+            ? 'bg-[#FFFBEB] border-[rgba(217,119,6,0.15)]'
+            : 'bg-white border-[rgba(0,0,0,0.07)] text-[#0D1117]'}`}
+      style={
+        accent
+          ? {
+              background: 'linear-gradient(135deg, #5CACFA 0%, #1A7DD4 100%)',
+              boxShadow: '0 4px 20px rgba(92,172,250,0.35)',
+            }
+          : undefined
+      }
+    >
+      <p
+        className={`text-[10px] font-semibold uppercase tracking-[0.16em]
+          ${accent ? 'text-white/70' : warning ? 'text-[#D97706]' : 'text-[#8892A0]'}`}
+      >
         {label}
       </p>
-      <p className="text-[20px] font-black tabular-nums leading-tight truncate">{value}</p>
+      <p
+        className="tabular-nums leading-tight truncate"
+        style={{
+          fontFamily: 'Syne, sans-serif',
+          fontSize: '28px',
+          fontWeight: 800,
+          letterSpacing: '-0.5px',
+          ...(accent ? { color: 'white' } : warning ? { color: '#D97706' } : {}),
+        }}
+      >
+        {value}
+      </p>
       {sub && (
-        <p className={`text-[10px] mt-0.5 font-medium ${accent ? 'text-primary-100' : 'text-slate-400'}`}>
+        <p
+          className={`text-[11px] mt-1 ${accent ? 'text-white/65' : warning ? 'text-[#D97706]/70' : 'text-[#8892A0]'}`}
+        >
           {sub}
         </p>
       )}
@@ -255,28 +280,10 @@ function StatCard({
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 
-const SearchIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2" strokeLinecap="round">
-    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-  </svg>
-);
-const XIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2.5" strokeLinecap="round">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-);
 const PlusIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
        strokeWidth="2.5" strokeLinecap="round">
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>
-);
-const ChevronDown = ({ size = 10 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2.5" strokeLinecap="round">
-    <polyline points="6 9 12 15 18 9"/>
   </svg>
 );
 const BoxIcon = () => (
@@ -297,8 +304,6 @@ export default function InventoryPage(_props: InventoryPageProps) {
     currentWarehouseId: warehouseId,
     currentWarehouse,
     warehouses: contextWarehouses,
-    setCurrentWarehouseId,
-    isWarehouseBoundToSession,
   } = useWarehouse();
   const warehouseList = contextWarehouses?.length ? contextWarehouses : FALLBACK_WAREHOUSES;
   const warehouse = currentWarehouse ?? warehouseList.find(w => w.id === warehouseId) ?? warehouseList[0];
@@ -310,8 +315,16 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const [loading,        setLoading]        = useState(true);
   const [loadingMore,    setLoadingMore]    = useState(false);
   const [error,          setError]          = useState<string | null>(null);
-  const [whDropdown,     setWhDropdown]     = useState(false);
-  const [search,         setSearch]         = useState('');
+  const [searchParams,   setSearchParams]   = useSearchParams();
+  const search = searchParams.get('q') ?? '';
+  const setSearch = useCallback((value: string) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (value.trim()) p.set('q', value.trim());
+      else p.delete('q');
+      return p;
+    }, { replace: true });
+  }, [setSearchParams]);
   const [category,       setCategory]       = useState<FilterKey>('all');
   const [sizeFilter,     setSizeFilter]     = useState<string>('all');
   const [colorFilter,    setColorFilter]    = useState<string>('all');
@@ -680,238 +693,178 @@ export default function InventoryPage(_props: InventoryPageProps) {
   ];
 
   const alertCount = stats.outCount + stats.lowCount;
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
+  const currentPage = totalCount === 0 ? 1 : Math.min(Math.ceil(products.length / PAGE_SIZE), totalPages);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] pb-28">
+    <div className="min-h-screen bg-[#F4F6F9] pb-28">
 
-      {/* ══ Sticky header ══ */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md
-                          border-b border-slate-100 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-
-        {/* Top bar: title + warehouse + actions */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-3 gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Warehouse: static when session-bound (e.g. Main Town POS); dropdown only for super admin. */}
-            <div className="relative">
-              {isWarehouseBoundToSession ? (
-                <div className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-slate-100">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"/>
-                  <span className="text-[13px] font-bold text-slate-800 whitespace-nowrap">
-                    {warehouse?.name ?? 'Warehouse'}
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <button type="button" onClick={() => setWhDropdown(o => !o)}
-                          className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl
-                                     bg-slate-100 hover:bg-slate-200 transition-colors">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0"/>
-                    <span className="text-[13px] font-bold text-slate-800 whitespace-nowrap">
-                      {warehouse?.name ?? 'Warehouse'}
-                    </span>
-                    <ChevronDown/>
-                  </button>
-                  {whDropdown && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setWhDropdown(false)}/>
-                      <div className="absolute left-0 top-11 z-20 bg-white rounded-2xl
-                                      shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-slate-100 py-1.5 w-44">
-                        {warehouseList.map(w => (
-                          <button key={w.id} type="button"
-                                  onClick={() => { setCurrentWarehouseId(w.id); setWhDropdown(false); }}
-                                  className={`w-full px-4 py-2.5 text-left text-[13px] font-semibold transition-colors
-                                    ${warehouseId === w.id
-                                      ? 'text-primary-500 bg-primary-50'
-                                      : 'text-slate-700 hover:bg-slate-50'}`}>
-                            {warehouseId === w.id && '✓ '}{w.name}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-
-            <h1 className="text-[18px] font-black text-slate-900 tracking-tight">
+      {/* ══ Page header: breadcrumb, title, subtitle, Add product (CHANGE 4) ══ */}
+      <div className="px-4 pt-6 pb-4 lg:px-0">
+        <div
+          className="flex items-center gap-1.5 text-[12px] mb-3.5"
+          style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
+        >
+          <span>{warehouse?.name ?? 'Warehouse'}</span>
+          <span className="opacity-40" aria-hidden>›</span>
+          <span className="font-medium" style={{ color: '#424958' }}>Inventory</span>
+        </div>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1
+              className="text-[21px] font-extrabold tracking-tight"
+              style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}
+            >
               Inventory
             </h1>
+            <p
+              className="text-[12px] mt-0.5"
+              style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
+            >
+              {totalCount === 0 && !loading && !error
+                ? 'No products yet'
+                : `${totalCount} product${totalCount !== 1 ? 's' : ''} · Page ${currentPage} of ${totalPages}`}
+            </p>
           </div>
-
-          {/* Actions — ONE add button, refresh is implicit via poll */}
-          <button type="button" onClick={openAddModal}
-                  className="h-9 px-4 rounded-xl bg-primary-500 hover:bg-primary-600
-                             text-white text-[13px] font-bold flex items-center gap-1.5
-                             transition-colors active:scale-[0.97] shadow-[0_2px_8px_rgba(92,172,250,0.3)]
-                             flex-shrink-0">
-            <PlusIcon/> Add product
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="h-[35px] px-3.5 rounded-[7px] text-white text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px hover:bg-[#3D96F5]"
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              background: '#5CACFA',
+              boxShadow: '0 2px 8px rgba(92,172,250,0.25)',
+            }}
+          >
+            <PlusIcon /> Add product
           </button>
-        </div>
-
-        {/* Search bar */}
-        <div className="px-4 pb-3">
-          <div className="relative">
-            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-              <SearchIcon/>
-            </span>
-            <input
-              type="search" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, SKU, or barcode…"
-              className="w-full h-10 pl-10 pr-9 rounded-xl border border-slate-200 bg-slate-50
-                         text-[13px] text-slate-900 placeholder:text-slate-400
-                         focus:outline-none focus:border-primary-400 focus:bg-white
-                         focus:ring-[3px] focus:ring-primary-50 transition-all duration-150"
-            />
-            {search && (
-              <button onClick={() => setSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                <XIcon/>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* ══ Stat bar ══ */}
-      {!loading && !error && products.length > 0 && (
-        <div className="px-4 pt-4 pb-1 flex gap-2.5 overflow-x-auto scrollbar-none">
-          <StatCard
-            label="SKUs"
-            value={totalCount > 0 ? `${products.length} of ${totalCount}` : products.length}
-            sub={totalCount > 0 && hasMore ? 'Load more for full stats' : `${displayed.length} shown`}
-          />
-          <StatCard
-            label="Stock value"
-            value={formatGHC(stats.totalValue)}
-            sub={`${stats.totalUnits.toLocaleString()} units`}
-            accent
-          />
-          {alertCount > 0 && (
-            <StatCard
-              label="Alerts"
-              value={alertCount}
-              sub={`${stats.outCount} out · ${stats.lowCount} low`}
-              warning
-            />
-          )}
-        </div>
-      )}
-
-      {/* ══ Filter strip ══ */}
-      <div className="px-4 pt-3 pb-2 space-y-3">
-        {/* Row 1: Category chips + Sort */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex gap-2 flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            {(['all', ...CATEGORIES] as string[]).map(cat => (
-              <button key={cat} type="button" onClick={() => setCategory(cat)}
-                      className={`flex-shrink-0 h-8 px-3.5 rounded-full text-[12px] font-bold border transition-colors whitespace-nowrap
-                        ${category === cat ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                {cat === 'all' ? 'All' : cat}
-              </button>
-            ))}
-          </div>
-          <div className="relative flex-shrink-0">
-          <button type="button" onClick={() => setSortOpen(o => !o)}
-                  className="flex items-center gap-1 h-8 px-3 rounded-full border border-slate-200
-                             bg-white text-[12px] font-bold text-slate-600 hover:border-slate-400
-                             transition-colors whitespace-nowrap">
-            {SORT_OPTIONS.find(o => o.key === sort)?.label}
-            <ChevronDown/>
-          </button>
-          {sortOpen && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
-              <div className="absolute right-0 top-10 z-20 bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-slate-100 py-1.5 w-44">
-                {SORT_OPTIONS.map(opt => (
-                  <button key={opt.key} type="button"
-                          onClick={() => { setSort(opt.key); setSortOpen(false); }}
-                          className={`w-full px-4 py-2.5 text-left text-[13px] font-semibold transition-colors
-                            ${sort === opt.key ? 'text-primary-500 bg-primary-50' : 'text-slate-700 hover:bg-slate-50'}`}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          </div>
-        </div>
-
-        {/* Row 2: Size (dropdown or chips) · Color chips · Clear filters */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label htmlFor="inv-size-filter" className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Size
-            </label>
-            {sizeCodes.length > SIZE_CHIP_THRESHOLD ? (
-              <select
-                id="inv-size-filter"
-                value={sizeFilter}
-                onChange={(e) => setSizeFilter(e.target.value)}
-                className="h-8 min-w-[100px] rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-800 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
-              >
-                <option value="all">All</option>
-                {sizeCodes.map(s => (
-                  <option key={s.size_code} value={s.size_code}>{s.size_label ?? s.size_code}</option>
-                ))}
-              </select>
-            ) : (
-              <div className="flex gap-1.5 flex-wrap">
-                <button type="button" onClick={() => setSizeFilter('all')}
-                        className={`flex-shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors
-                          ${sizeFilter === 'all' ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                  All
-                </button>
-                {sizeCodes.map(s => (
-                  <button key={s.size_code} type="button" onClick={() => setSizeFilter(s.size_code)}
-                          className={`flex-shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors
-                            ${sizeFilter === s.size_code ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                    {s.size_label ?? s.size_code}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Color</span>
-            <div className="flex gap-1.5 flex-wrap">
-              <button type="button" onClick={() => setColorFilter('all')}
-                      className={`flex-shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors
-                        ${colorFilter === 'all' ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                All
-              </button>
-              {COLOR_OPTIONS.map(c => (
-                <button key={c} type="button" onClick={() => setColorFilter(c)}
-                        className={`flex-shrink-0 h-7 px-2.5 rounded-full text-[11px] font-semibold border transition-colors
-                          ${colorFilter === c ? 'bg-slate-800 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-          {(sizeFilter !== 'all' || colorFilter !== 'all') && (
-            <button type="button" onClick={() => { setSizeFilter('all'); setColorFilter('all'); }}
-                    className="text-[12px] font-semibold text-primary-500 hover:text-primary-600 hover:underline">
-              Clear filters
-            </button>
-          )}
         </div>
       </div>
 
-      {/* ══ Count row ══ */}
+      {/* ══ Stats: mobile 2-col + Stock Value full width; desktop 3-col (CHANGE 7) ══ */}
       {!loading && !error && (
-        <div className="px-4 pb-3">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            {totalCount > 0
-              ? `${displayed.length} of ${totalCount} product${totalCount !== 1 ? 's' : ''}`
-              : `${displayed.length} product${displayed.length !== 1 ? 's' : ''}`}
-          </p>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5 px-4 lg:px-0">
+          <StatCard
+            label="SKUs"
+            value={totalCount > 0 ? totalCount : 0}
+            sub={totalCount > 0 && hasMore ? 'Load more for full stats' : `${stats.totalUnits.toLocaleString()} total units`}
+          />
+          <StatCard
+            label="Alerts"
+            value={alertCount}
+            sub={alertCount > 0 ? `${stats.outCount} out · ${stats.lowCount} low` : 'None'}
+            warning
+          />
+          <div className="col-span-2 lg:col-span-1">
+            <StatCard
+              label="Stock value"
+              value={formatGHC(stats.totalValue)}
+              sub={`${stats.totalUnits.toLocaleString()} units`}
+              accent
+            />
+          </div>
         </div>
       )}
 
+      {/* ══ Filter toolbar: single row — category pills, Size/Color dropdowns, Sort, count (CHANGE 4) ══ */}
+      <div className="px-4 pb-4 flex flex-wrap items-center gap-2 lg:px-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+          {(['all', ...CATEGORIES] as string[]).map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategory(cat)}
+              className={`flex-shrink-0 h-[30px] px-3 rounded-[20px] border text-[12px] font-medium whitespace-nowrap transition-colors
+                ${category === cat
+                  ? 'bg-[#0D1117] border-[#0D1117] text-white'
+                  : 'bg-white border-[rgba(0,0,0,0.11)] text-[#424958] hover:bg-[#EEF1F6]'}`}
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+            >
+              {cat === 'all' ? 'All' : cat}
+            </button>
+          ))}
+          <select
+            id="inv-size-filter"
+            value={sizeFilter}
+            onChange={(e) => setSizeFilter(e.target.value)}
+            className="h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none focus:border-[#5CACFA]"
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              backgroundPosition: 'right 10px center',
+            }}
+          >
+            <option value="all">Size: All</option>
+            {sizeCodes.map((s) => (
+              <option key={s.size_code} value={s.size_code}>
+                {s.size_label ?? s.size_code}
+              </option>
+            ))}
+          </select>
+          <select
+            id="inv-color-filter"
+            value={colorFilter}
+            onChange={(e) => setColorFilter(e.target.value)}
+            className="h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none focus:border-[#5CACFA]"
+            style={{
+              fontFamily: "'DM Sans', sans-serif",
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              backgroundPosition: 'right 10px center',
+            }}
+          >
+            <option value="all">Color: All</option>
+            {COLOR_OPTIONS.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <div className="relative flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setSortOpen((o) => !o)}
+              className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] hover:bg-[#EEF1F6] transition-colors"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+              </svg>
+              {SORT_OPTIONS.find((o) => o.key === sort)?.label}
+            </button>
+            {sortOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
+                <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-[rgba(0,0,0,0.07)] py-1.5 w-44">
+                  {SORT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => {
+                        setSort(opt.key);
+                        setSortOpen(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-[13px] font-medium transition-colors
+                        ${sort === opt.key ? 'text-[#5CACFA] bg-[#F4F6F9]' : 'text-[#424958] hover:bg-[#EEF1F6]'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        <span className="text-[11px] text-[#8892A0] whitespace-nowrap" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          Showing <strong className="font-semibold text-[#424958]">
+            {displayed.length === 0 ? 0 : 1}–{displayed.length}
+          </strong> of {totalCount}
+        </span>
+      </div>
+
       {/* ══ Main content ══ */}
-      <main className="px-4">
+      <main className="px-4 lg:px-0">
 
         {/* Error */}
         {error && (
@@ -960,29 +913,46 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </div>
         )}
 
-        {/* Empty warehouse (no filter, no products) */}
+        {/* Empty warehouse (CHANGE 4: 64px icon container, Syne title, DM Sans subtitle) */}
         {!loading && !error && products.length === 0 && !search.trim() && category === 'all' && sizeFilter === 'all' && colorFilter === 'all' && (
-          <div className="flex flex-col items-center gap-5 py-24 text-center">
-            <div className="w-20 h-20 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-300">
-              <BoxIcon/>
+          <div className="flex flex-col items-center gap-3 py-20 text-center">
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-[#8892A0]"
+              style={{ background: '#EEF1F6', border: '1px solid rgba(0,0,0,0.11)' }}
+            >
+              <BoxIcon />
             </div>
-            <div>
-              <p className="text-[18px] font-black text-slate-800">No products yet</p>
-              <p className="text-[14px] text-slate-400 mt-1">Add your first product to get started.</p>
-            </div>
-            <button type="button" onClick={openAddModal}
-                    className="h-12 px-7 rounded-2xl bg-primary-500 text-white text-[14px] font-bold
-                               flex items-center gap-2 hover:bg-primary-600 transition-colors
-                               shadow-[0_6px_20px_rgba(92,172,250,0.35)]">
-              <PlusIcon/> Add first product
+            <p
+              className="text-[17px] font-bold"
+              style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}
+            >
+              No products yet
+            </p>
+            <p
+              className="text-[13px] max-w-[280px]"
+              style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
+            >
+              Add your first product to get started.
+            </p>
+            <button
+              type="button"
+              onClick={openAddModal}
+              className="h-[38px] px-5 rounded-[7px] text-white text-[13px] font-semibold flex items-center gap-1.5 mt-1 transition-all duration-150 hover:-translate-y-px"
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                background: '#5CACFA',
+                boxShadow: '0 2px 8px rgba(92,172,250,0.25)',
+              }}
+            >
+              <PlusIcon /> Add first product
             </button>
           </div>
         )}
 
-        {/* Product grid — view-only cards (no inline stock edit) */}
+        {/* Product grid — view-only cards (CHANGE 4: 14px gap, 10px radius cards) */}
         {!loading && !error && displayed.length > 0 && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
               {displayed.map(product => (
                 <ProductCard
                   key={product.id}

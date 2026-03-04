@@ -73,11 +73,6 @@ function formatPrice(n: number): string {
   return `GH₵${Number(n).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function getLocationString(location?: Product['location']): string {
-  if (!location) return '';
-  return [location.aisle, location.rack, location.bin].filter(Boolean).join(' · ');
-}
-
 // ── Icons ──────────────────────────────────────────────────────────────────
 
 const IconEdit = () => (
@@ -90,12 +85,6 @@ const IconEdit = () => (
 const IconPlus = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-  </svg>
-);
-
-const IconPin = () => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
   </svg>
 );
 
@@ -118,20 +107,17 @@ const IconSpinner = () => (
 
 function StockBadge({ status }: { status: StockStatus }) {
   const config = {
-    in:  { label: 'In stock',     cls: 'bg-emerald-500/15 text-emerald-800', dot: 'bg-emerald-500' },
-    low: { label: 'Low stock',    cls: 'bg-amber-500/15 text-amber-800',     dot: 'bg-amber-500' },
-    out: { label: 'Out of stock', cls: 'bg-red-500/15 text-red-700',         dot: 'bg-red-500' },
+    in:  { label: 'In stock',     dot: '#16A34A', border: 'rgba(22,163,74,0.2)' },
+    low: { label: 'Low stock',    dot: '#D97706', border: 'rgba(217,119,6,0.3)' },
+    out: { label: 'Out of stock', dot: '#DC2626', border: 'rgba(220,38,38,0.2)' },
   }[status];
 
   return (
-    <span className={`
-      absolute top-2.5 right-2.5
-      flex items-center gap-1.5 h-6 px-2.5 rounded-full
-      text-[11px] font-semibold backdrop-blur-sm
-      bg-white/80 border border-white/60
-      ${config.cls}
-    `}>
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+    <span
+      className="absolute top-2 right-2 flex items-center gap-1.5 h-6 px-2 rounded-md text-[10px] font-semibold bg-white border"
+      style={{ color: status === 'in' ? '#16A34A' : status === 'low' ? '#D97706' : '#DC2626', borderColor: config.border }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: config.dot }} />
       {config.label}
     </span>
   );
@@ -168,26 +154,24 @@ function SizePills({ product }: { product: Product }) {
     );
   }
 
+  const reorder = product.reorderLevel ?? 3;
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-none">
-      {product.quantityBySize.map(row => (
-        <span
-          key={row.sizeCode}
-          className={`
-            flex-shrink-0 h-7 px-2.5 rounded-lg
-            text-[12px] font-semibold flex items-center gap-1
-            ${row.quantity > 0
-              ? 'bg-slate-100 text-slate-700'
-              : 'bg-slate-50 text-slate-300 border border-slate-200'
-            }
-          `}
-        >
-          {row.sizeCode}
-          <span className={`font-medium ${row.quantity > 0 ? 'text-slate-400' : 'text-slate-300'}`}>
-            · {row.quantity}
+    <div className="flex flex-wrap gap-1 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
+      {product.quantityBySize.map((row) => {
+        const isLow = row.quantity > 0 && row.quantity <= reorder;
+        return (
+          <span
+            key={row.sizeCode}
+            className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-0.5
+              ${isLow ? 'bg-[#FFFBEB] border border-[rgba(217,119,6,0.25)] text-[#D97706]' : 'bg-[#F4F6F9] border border-[rgba(0,0,0,0.11)] text-[#424958]'}`}
+          >
+            {row.sizeCode}
+            <span className={isLow ? 'text-[#D97706]/80' : 'text-[#8892A0]'} style={{ fontWeight: 400 }}>
+              ·{row.quantity}
+            </span>
           </span>
-        </span>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -332,83 +316,79 @@ function ProductCardInner({
   const editing = supportsInlineStock && isEditing;
 
   const status = getStockStatus(product);
-  const locationStr = getLocationString(product.location);
   const hasImage = Array.isArray(product.images) && product.images.length > 0;
 
   return (
     <article
       className={`
-        bg-white rounded-2xl overflow-hidden
-        shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.06)]
-        transition-all duration-200
+        bg-white rounded-[10px] overflow-hidden border
+        shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]
+        transition-[box-shadow,transform,border-color] duration-[180ms] cursor-pointer
+        ${status === 'low' ? 'border-[rgba(217,119,6,0.25)]' : 'border-[rgba(0,0,0,0.07)]'}
         ${editing
-          ? 'ring-2 ring-primary-400 shadow-[0_4px_8px_rgba(0,0,0,0.08),0_12px_32px_rgba(0,0,0,0.10)]'
-          : 'hover:shadow-[0_4px_8px_rgba(0,0,0,0.08),0_12px_32px_rgba(0,0,0,0.10)] hover:-translate-y-0.5'
+          ? 'ring-2 ring-[#5CACFA] shadow-[0_4px_16px_rgba(13,17,23,0.09)]'
+          : 'hover:shadow-[0_4px_16px_rgba(13,17,23,0.09)] hover:-translate-y-0.5 hover:border-black/10'
         }
       `}
     >
-      {/* ── Image area ── */}
-      <div className="relative w-full pt-[56.25%] bg-slate-100 overflow-hidden">
+      {/* ── Image area 4:3, gradient placeholder (CHANGE 4) ── */}
+      <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#EEF1F6]">
         {hasImage ? (
           <img
             src={product.images![0]}
             alt={product.name}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-[1.03]"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
             loading="lazy"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-300">
+          <div
+            className="absolute inset-0 flex items-center justify-center text-[#A8B4C4]"
+            style={{ background: 'linear-gradient(135deg, #EEF1F6 0%, #E3E8F0 100%)' }}
+          >
             <IconImage />
           </div>
         )}
 
-        {/* Category badge */}
-        <span className="absolute top-2.5 left-2.5 h-6 px-2.5 rounded-full bg-white/85 backdrop-blur-sm border border-white/60 text-[11px] font-semibold text-slate-700">
+        {/* Category tag: dark semi-transparent on image */}
+        <span
+          className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-semibold backdrop-blur-[8px]"
+          style={{ background: 'rgba(13,17,23,0.7)', color: 'rgba(255,255,255,0.92)' }}
+        >
           {product.category}
         </span>
 
-        {/* Stock badge */}
         <StockBadge status={status} />
       </div>
 
       {/* ── Card body (hidden when editing) ── */}
       {!editing && (
-        <div className="px-4 pt-3.5">
-          {/* Name */}
-          <h3 className="text-[15px] font-bold text-slate-900 truncate leading-snug mb-1">
+        <div className="px-3.5 pt-3 pb-2">
+          <h3
+            className="text-[13px] font-semibold truncate mb-0.5"
+            style={{ fontFamily: "'DM Sans', sans-serif", color: '#0D1117' }}
+          >
             {product.name}
           </h3>
-
-          {/* SKU + location */}
-          <div className="flex items-center gap-2 mb-2.5 flex-wrap">
-            <span className="font-mono text-[11px] text-slate-400 truncate">
-              {product.sku}
-            </span>
-            {locationStr && (
-              <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                <IconPin /> {locationStr}
-              </span>
-            )}
-          </div>
-
-          {/* Price row */}
-          <div className="flex items-baseline gap-2 mb-2.5">
-            <span className="text-[17px] font-bold text-primary-500">
+          <p className="font-mono text-[10px] text-[#8892A0] truncate mb-2">
+            {product.sku}
+          </p>
+          <div className="flex items-baseline gap-1.5 mb-2">
+            <span
+              className="text-[16px] font-extrabold"
+              style={{ fontFamily: 'Syne, sans-serif', color: '#5CACFA' }}
+            >
               {formatPrice(product.sellingPrice)}
             </span>
             {product.costPrice > 0 && (
-              <span className="text-[12px] text-slate-400">
+              <span className="text-[11px] text-[#8892A0]">
                 Cost: {formatPrice(product.costPrice)}
               </span>
             )}
           </div>
-
-          {/* Size pills */}
           <SizePills product={product} />
         </div>
       )}
 
-      {/* ── Inline stock editor ── */}
       {editing && onSaveStock && onEditClose && (
         <StockEditor
           product={product}
@@ -417,19 +397,14 @@ function ProductCardInner({
         />
       )}
 
-      {/* ── Footer (hidden when editing) ── */}
+      {/* ── Footer: Edit / Delete outlined 30px (CHANGE 4) ── */}
       {!editing && (
-        <div className={`grid border-t border-slate-100 ${supportsInlineStock ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <div className={`grid border-t border-[rgba(0,0,0,0.07)] ${supportsInlineStock ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <button
             type="button"
             onClick={() => onEditFull(product)}
-            className="
-              h-12 flex items-center justify-center gap-1
-              text-[13px] font-semibold text-slate-500
-              border-r border-slate-100
-              hover:bg-slate-50 hover:text-slate-700
-              transition-colors duration-150
-            "
+            className="h-[30px] flex items-center justify-center gap-1 text-[12px] font-medium text-[#424958] border-r border-[rgba(0,0,0,0.07)] hover:bg-[#F4F6F9] transition-colors"
+            style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
             <IconEdit /> Edit
           </button>
@@ -437,13 +412,8 @@ function ProductCardInner({
             <button
               type="button"
               onClick={() => onEditOpen?.(product.id)}
-              className="
-                h-12 flex items-center justify-center gap-1
-                text-[13px] font-semibold text-primary-500
-                border-r border-slate-100
-                hover:bg-red-50
-                transition-colors duration-150
-              "
+              className="h-[30px] flex items-center justify-center gap-1 text-[12px] font-medium text-[#5CACFA] border-r border-[rgba(0,0,0,0.07)] hover:bg-[#F4F6F9] transition-colors"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
               <IconPlus /> Stock
             </button>
@@ -451,20 +421,14 @@ function ProductCardInner({
           <button
             type="button"
             onClick={() => onDelete?.(product)}
-            className="
-              h-12 flex items-center justify-center
-              text-slate-400
-              hover:bg-primary-50 hover:text-primary-500
-              transition-colors duration-150
-            "
+            className="h-[30px] flex items-center justify-center text-[#424958] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors"
             aria-label="Delete product"
             title="Delete product"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/>
-              <path d="M9 6V4h6v2"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
             </svg>
           </button>
         </div>
@@ -485,8 +449,8 @@ export default ProductCard;
 
 export function ProductCardSkeleton() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.06)]">
-      <div className="w-full pt-[56.25%] bg-slate-100 animate-pulse" />
+    <div className="bg-white rounded-[10px] overflow-hidden border border-[rgba(0,0,0,0.07)] shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]">
+      <div className="w-full aspect-[4/3] bg-[#EEF1F6] animate-pulse" />
       <div className="px-4 pt-3.5 pb-4 flex flex-col gap-2.5">
         <div className="h-4 w-3/4 bg-slate-100 rounded-lg animate-pulse" />
         <div className="h-3 w-1/2 bg-slate-100 rounded-lg animate-pulse" />

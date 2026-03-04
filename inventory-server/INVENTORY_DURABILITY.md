@@ -12,15 +12,17 @@
 |------|-----------|------------|------------|
 | **Products** (master) | `warehouse_products` | Backend POST/PUT/DELETE | Persisted in Supabase. Create is all-or-nothing: if setting initial quantity fails, the product row is deleted and the error is thrown. |
 | **Quantities** (per warehouse) | `warehouse_inventory` | Backend (on product create/update and on POS sale) | Persisted. POS deductions use an atomic RPC (`process_sale_deductions` / `process_sale`) so stock never goes negative and is never lost mid-sale. |
-| **Sales** | `transactions` + `transaction_items` | Backend `process_sale` RPC | One atomic transaction: transaction + items + inventory deduction + stock_movements. Either all persist or none. |
-| **Audit trail** | `stock_movements` | Backend (inside `process_sale`) | Written in the same transaction as the sale. |
+| **Sales** (primary) | `sales` + `sale_lines` | Backend `record_sale` RPC (POST /api/sales) | One atomic transaction: deduct stock (with sufficient-stock check), then insert sale + lines. Raises INSUFFICIENT_STOCK if any line would go negative. |
+| **Sales** (legacy) | `transactions` + `transaction_items` | Backend `process_sale` RPC | One atomic transaction: transaction + items + deduction + stock_movements. |
+| **Audit trail** | `stock_movements` | Backend (inside `process_sale`) | Written in the same transaction as the sale. `record_sale` does not write stock_movements; sales are the record. |
 
 ---
 
 ## What is atomic (all-or-nothing)
 
-- **POS sale:** One RPC (`process_sale`) inserts the transaction, items, deducts inventory, and writes stock_movements in a single DB transaction. If anything fails, nothing is committed.
-- **POS deduct only:** `process_sale_deductions` deducts all lines in one transaction; insufficient stock aborts the whole batch.
+- **POS sale (record_sale):** One RPC deducts stock only where `quantity >= qty` (per line); raises INSUFFICIENT_STOCK and rolls back if any line would go negative. Then inserts sale + sale_lines. Two-phase in one transaction: no oversell, no partial sale.
+- **POS sale (process_sale):** One RPC inserts transaction, items, deducts inventory, and writes stock_movements. If anything fails, nothing is committed.
+- **POS deduct only:** `process_sale_deductions` uses `deduct_warehouse_inventory` (WHERE quantity >= amount); insufficient stock aborts the whole batch.
 - **Product create:** If inserting the product succeeds but setting initial quantity in `warehouse_inventory` fails, the backend deletes the new product row and rethrows, so you never get a product with no inventory row.
 
 ---

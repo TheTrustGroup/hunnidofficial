@@ -1,15 +1,19 @@
 // src/components/layout/Header.tsx - Premium Glass Header
-// Role switcher lives ONLY in Sidebar + MobileMenu (bottom/nav). Removed from header to avoid duplicate global-state controls and reduce cognitive load (HIG: clarity > density).
+// Single topbar search only (no duplicate on Inventory). Search syncs with URL ?q= on /inventory.
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Search, Bell, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Button } from '../ui/Button';
 
 export function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { logout } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
+  const isInventory = location.pathname === '/inventory';
+  const searchFromUrl = isInventory ? (searchParams.get('q') ?? '') : '';
+  const [localQuery, setLocalQuery] = useState('');
+  const searchValue = isInventory ? searchFromUrl : localQuery;
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -23,64 +27,80 @@ export function Header() {
     }
   };
 
-  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
+  const updateSearchUrl = (value: string) => {
+    const trimmed = value.trim();
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (trimmed) p.set('q', trimmed);
+        else p.delete('q');
+        return p;
+      },
+      { replace: true }
+    );
+  };
+
+  const handleSearchInput = (value: string) => {
+    if (isInventory) {
+      updateSearchUrl(value);
+    } else {
+      setLocalQuery(value);
+    }
+  };
+
+  const handleSearchSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/inventory?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
+    const q = (isInventory ? searchFromUrl : localQuery).trim();
+    if (q) {
+      navigate(`/inventory?q=${encodeURIComponent(q)}`);
+      setLocalQuery('');
+    } else if (!isInventory) {
+      navigate('/inventory');
     }
   };
 
   return (
-    <header className="fixed top-0 left-0 lg:left-[280px] right-0 min-h-[72px] solid-panel border-b border-slate-200/80 flex items-center justify-between pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 pt-[var(--safe-top)] z-10">
-      {/* Search Bar */}
-      {/* Search: adequate hit area; label-style placeholder, not loud */}
-      <div className="flex-1 max-w-2xl">
-        <form onSubmit={handleSearch} className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-primary-500 transition-colors pointer-events-none" strokeWidth={2} />
+    <header className="fixed top-0 left-0 lg:left-[244px] right-0 h-14 border-b border-[rgba(0,0,0,0.07)] flex items-center gap-3 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-5 pt-[var(--safe-top)] z-10 bg-white">
+      {/* Single topbar search: flex-1 max-w-[540px], placeholder per spec, ⌘K badge, blue focus ring */}
+      <div className="flex-1 max-w-[540px] min-w-0">
+        <form onSubmit={handleSearchSubmit} className="relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[14px] h-[14px] text-[#8892A0] pointer-events-none" strokeWidth={2} strokeLinecap="round" />
           <input
             type="search"
             inputMode="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search products, SKU, or barcode..."
-            className="w-full pl-12 pr-4 min-h-touch py-3 rounded-xl bg-slate-50/80 border border-slate-200/60 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/10 outline-none transition-all duration-200 text-sm font-medium placeholder:text-slate-400"
+            value={searchValue}
+            onChange={(e) => handleSearchInput(e.target.value)}
+            placeholder="Search products, SKU, or barcode…"
+            className="w-full h-9 pl-9 pr-14 rounded-lg bg-[#F4F6F9] border border-[rgba(0,0,0,0.11)] text-[13px] text-[#0D1117] placeholder:text-[#8892A0] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[rgba(92,172,250,0.35)] focus:shadow-[0_0_0_3px_rgba(92,172,250,0.10)]"
             aria-label="Search products, SKU, or barcode"
           />
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] text-[#8892A0] font-medium tracking-wide">⌘K</span>
         </form>
       </div>
 
-      {/* Right Section: logout, alerts. Warehouse/location lives only on Inventory and POS pages. */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Log out - visible on all screens including mobile; min touch target 44px */}
-        <Button
+      {/* Right: notification bell (icon-only 35×35), log out outlined */}
+      <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+        <button
           type="button"
-          variant="secondary"
+          className="relative w-9 h-9 rounded-lg border border-[rgba(0,0,0,0.11)] bg-white flex items-center justify-center text-[#424958] hover:bg-[#F4F6F9] transition-colors min-w-[35px] min-h-[35px]"
+          aria-label="View notifications"
+          title="Notifications"
+          disabled
+        >
+          <Bell className="w-[15px] h-[15px]" strokeWidth={2} />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#5CACFA] rounded-full border-[1.5px] border-white" aria-hidden />
+        </button>
+        <button
+          type="button"
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-slate-200/60 bg-white hover:bg-red-50 hover:border-red-200 text-slate-700 hover:text-red-600 text-sm font-medium min-h-[44px] min-w-[44px] touch-manipulation disabled:opacity-60 disabled:pointer-events-none"
+          className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] hover:bg-[#F4F6F9] transition-colors min-h-[35px]"
           title="Log out"
           aria-label="Log out"
         >
-          {isLoggingOut ? (
-            <span className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" aria-hidden />
-          ) : (
-            <LogOut className="w-5 h-5" />
-          )}
+          <LogOut className="w-[13px] h-[13px]" strokeWidth={2} />
           <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
-        </Button>
-        {/* Notifications - Coming soon; 44px touch target */}
-        <Button
-          type="button"
-          variant="action"
-          className="relative p-2.5 hover:bg-slate-50/80 rounded-xl group min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-          aria-label="View notifications"
-          title="Notifications coming soon"
-          disabled
-        >
-          <Bell className="w-5 h-5 text-slate-600 group-hover:text-slate-900 transition-colors" strokeWidth={2} />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-primary-500 rounded-full ring-2 ring-white shadow-lg" aria-hidden="true"></span>
-        </Button>
+        </button>
       </div>
     </header>
   );

@@ -30,14 +30,17 @@
 // ============================================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
 import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from '../contexts/WarehouseContext';
+import { useAuth } from '../contexts/AuthContext';
 import type { Warehouse } from '../types';
 
 import SessionScreen                            from '../components/pos/SessionScreen';
 import POSHeader                                  from '../components/pos/POSHeader';
 import ProductGrid                                from '../components/pos/ProductGrid';
+import CartPanel                                  from '../components/pos/CartPanel';
 import CartBar                                    from '../components/pos/CartBar';
 import SizePickerSheet, {
   type POSProduct,
@@ -91,6 +94,8 @@ function useToast() {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   // ── Warehouse from context (SINGLE SOURCE OF TRUTH) ──────────────────────
   const { currentWarehouse, setCurrentWarehouseId, warehouses, isWarehouseBoundToSession } = useWarehouse();
@@ -241,6 +246,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     let serverReceiptId: string | undefined;
     let completedAt:     string | undefined;
     let syncOk = true;
+    let insufficientStockShown = false;
 
     // Step 1: POST /api/sales → record_sale() RPC atomically deducts stock in DB
     try {
@@ -283,13 +289,16 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       completedAt     = result.createdAt ?? new Date().toISOString();
 
     } catch (apiErr: unknown) {
-      // API failed — sale happened in real world, don't block cashier.
-      // Show a visible warning so they know stock wasn't deducted in DB.
       const msg = apiErr instanceof Error ? apiErr.message : 'API error';
+      const isInsufficientStock = msg.includes('INSUFFICIENT_STOCK') || msg.includes('insufficient stock');
       console.error('[POS] /api/sales failed — stock NOT deducted in DB:', msg);
       syncOk = false;
       serverReceiptId = 'LOCAL-' + Date.now().toString(36).toUpperCase();
       completedAt = new Date().toISOString();
+      if (isInsufficientStock) {
+        insufficientStockShown = true;
+        showToast('Insufficient stock for one or more items. Reduce quantity or remove items and try again.', 'err');
+      }
     }
 
     // Step 2: Deduct stock locally only when sync succeeded (so UI matches server)
@@ -326,7 +335,9 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     setCharging(false);
 
     if (!syncOk) {
-      showToast('Sale failed to sync — check connection and try again. Cart preserved.', 'err');
+      if (!insufficientStockShown) {
+        showToast('Sale failed to sync — check connection and try again. Cart preserved.', 'err');
+      }
       return;
     }
 
@@ -401,9 +412,8 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-[#F4F6F9] flex flex-col lg:flex-row overflow-hidden">
 
-      {/* Warehouse selector only for super admin; bound POS never see or open it. */}
       {!isWarehouseBoundToSession && (
         <SessionScreen
           isOpen={sessionOpen}
@@ -413,37 +423,58 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         />
       )}
 
-      <POSHeader
-        warehouseName={warehouse.name}
-        search={search}
-        cartCount={cartCount}
-        onSearchChange={setSearch}
-        onWarehouseTap={() => !isWarehouseBoundToSession && setSessionOpen(true)}
-        onCartTap={() => cartCount > 0 && setCartOpen(true)}
-        canChangeWarehouse={!isWarehouseBoundToSession}
-      />
-
-      <div className="flex-1 overflow-y-auto">
-        <ProductGrid
-          products={products}
-          loading={loading}
+      {/* Left column: header + products (flex:1). Desktop two-column; mobile single column. */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <POSHeader
+          warehouseName={warehouse.name}
           search={search}
-          category={category}
-          sizeFilter={sizeFilter}
-          colorFilter={colorFilter}
-          onSelect={product => setActiveProduct(structuredClone(product))}
-          onClearSearch={() => setSearch('')}
-          onCategoryChange={setCategory}
-          onSizeFilterChange={setSizeFilter}
-          onColorFilterChange={setColorFilter}
-          onRetry={() => warehouse?.id && loadProducts(warehouse.id)}
+          cartCount={cartCount}
+          onSearchChange={setSearch}
+          onWarehouseTap={() => !isWarehouseBoundToSession && setSessionOpen(true)}
+          onCartTap={() => cartCount > 0 && setCartOpen(true)}
+          canChangeWarehouse={!isWarehouseBoundToSession}
+          onLogout={async () => {
+            await logout();
+            navigate('/login', { replace: true });
+          }}
         />
+
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <ProductGrid
+            products={products}
+            loading={loading}
+            search={search}
+            category={category}
+            sizeFilter={sizeFilter}
+            colorFilter={colorFilter}
+            onSelect={product => setActiveProduct(structuredClone(product))}
+            onClearSearch={() => setSearch('')}
+            onCategoryChange={setCategory}
+            onSizeFilterChange={setSizeFilter}
+            onColorFilterChange={setColorFilter}
+            onRetry={() => warehouse?.id && loadProducts(warehouse.id)}
+          />
+        </div>
+
+        {/* Mobile: sticky cart bar; desktop cart is right panel */}
+        <div className="lg:hidden flex-shrink-0">
+          <CartBar
+            lines={cart}
+            onOpen={() => cartCount > 0 && setCartOpen(true)}
+          />
+        </div>
       </div>
 
-      <CartBar
-        lines={cart}
-        onOpen={() => cartCount > 0 && setCartOpen(true)}
-      />
+      {/* Desktop: fixed 344px cart panel (CHANGE 5) */}
+      <div className="hidden lg:block flex-shrink-0">
+        <CartPanel
+          lines={cart}
+          onUpdateQty={handleUpdateQty}
+          onRemoveLine={handleRemoveLine}
+          onClearCart={handleClearCart}
+          onOpenCharge={() => cartCount > 0 && setCartOpen(true)}
+        />
+      </div>
 
       <SizePickerSheet
         product={activeProduct}

@@ -14,7 +14,7 @@ import {
   Copy,
   Bug,
 } from 'lucide-react';
-import { subscribeToLogs, getRecentLogBuffer, clearLogs } from '../../utils/logger';
+import { subscribeToLogs, getRecentLogBuffer, clearLogs, logDb } from '../../utils/logger';
 import { syncService } from '../../services/syncService';
 import { db } from '../../db/inventoryDB';
 
@@ -63,7 +63,7 @@ export function DebugPanel() {
       const [products, syncQueue, logsCount] = await Promise.all([
         db.products.count(),
         db.syncQueue.count(),
-        (await import('../../utils/logger')).logDb.logs.count(),
+        logDb.logs.count(),
       ]);
       setIdbSummary({ products, syncQueue, logs: logsCount });
     } catch {

@@ -169,10 +169,14 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
 
         <div className="flex-1 overflow-y-auto overscroll-contain">
           {lines.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center px-8">
-              <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4 text-slate-300"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></div>
-              <p className="text-[15px] font-bold text-slate-700 mb-1">Cart is empty</p>
-              <p className="text-[13px] text-slate-400">Tap a product to add it</p>
+            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 text-[#8892A0]" style={{ background: '#F4F6F9', border: '1px solid rgba(0,0,0,0.11)' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
+              </div>
+              <p className="text-[13px] font-semibold text-[#424958] mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>Cart is empty</p>
+              <p className="text-[12px]" style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}>Tap a product to add it</p>
             </div>
           )}
 
@@ -201,9 +205,9 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
 
             {/* Totals */}
             <div className="px-5 py-4 border-t border-slate-100 space-y-2">
-              <div className="flex justify-between items-center"><span className="text-[13px] text-slate-500">Subtotal</span><span className="text-[13px] font-semibold text-slate-700 tabular-nums">{fmt(subtotal)}</span></div>
-              {disc > 0 && <div className="flex justify-between items-center"><span className="text-[13px] text-slate-500">Discount ({disc}%)</span><span className="text-[13px] font-semibold text-emerald-600 tabular-nums">−{fmt(discountAmt)}</span></div>}
-              <div className="flex justify-between items-center pt-2 border-t border-slate-200"><span className="text-[16px] font-bold text-slate-900">Total</span><span className="text-[20px] font-extrabold text-red-500 tabular-nums">{fmt(total)}</span></div>
+              <div className="flex justify-between items-center"><span className="text-[12px] text-[#8892A0]">Subtotal</span><span className="text-[12px] font-medium text-[#424958] tabular-nums">{fmt(subtotal)}</span></div>
+              {disc > 0 && <div className="flex justify-between items-center"><span className="text-[12px] text-[#8892A0]">Discount ({disc}%)</span><span className="text-[12px] font-medium text-[#16A34A] tabular-nums">−{fmt(discountAmt)}</span></div>}
+              <div className="flex justify-between items-center pt-2 border-t border-[rgba(0,0,0,0.07)]"><span className="text-[13px] font-semibold text-[#0D1117]">Total</span><span className="text-[20px] font-extrabold tabular-nums" style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}>{fmt(total)}</span></div>
             </div>
 
             {/* Payment */}
@@ -258,8 +262,16 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
         {/* Charge button */}
         {lines.length > 0 && (
           <div className="px-5 py-4 border-t border-slate-100 flex-shrink-0 bg-white">
-            <button type="button" onClick={handleCharge} disabled={isCharging || lines.length === 0 || !deliveryReady}
-              className={`w-full h-14 rounded-2xl border-none text-white text-[16px] font-extrabold flex items-center justify-center gap-2.5 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150 ${scheduleDelivery ? 'bg-amber-500 hover:bg-amber-600 shadow-[0_4px_16px_rgba(245,158,11,0.35)]' : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_4px_16px_rgba(16,185,129,0.3)]'}`}>
+            <button
+              type="button"
+              onClick={handleCharge}
+              disabled={isCharging || lines.length === 0 || !deliveryReady}
+              className="w-full h-11 rounded-[7px] border-none text-white text-[14px] font-bold flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150 hover:-translate-y-px"
+              style={{
+                background: scheduleDelivery ? '#D97706' : '#5CACFA',
+                boxShadow: scheduleDelivery ? '0 2px 8px rgba(217,119,6,0.25)' : '0 2px 8px rgba(92,172,250,0.25)',
+              }}
+            >
               {isCharging ? (<><IconSpinner /> Processing…</>) : scheduleDelivery ? (<><IconTruck /> Charge & Schedule — {fmt(total)}</>) : (`Charge ${fmt(total)}`)}
             </button>
           </div>

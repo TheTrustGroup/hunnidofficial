@@ -57,6 +57,16 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
+  /* Hunnid brand (sidebar, CTAs, accents) */
+  --blue: #5CACFA;
+  --blue-hover: #3D96F5;
+  --blue-deep: #1A7DD4;
+  --blue-soft: rgba(92, 172, 250, 0.1);
+  --blue-border: rgba(92, 172, 250, 0.35);
+  --sidebar-bg: #0D1117;
+  --sidebar-active-bg: rgba(92, 172, 250, 0.12);
+  --sidebar-active-icon: #5CACFA;
+  --sidebar-w: 244px;
   /* Z-index scale: 10=header, 40=mobile menu overlay, 50=modals, 60=toasts (transient only). Errors use in-flow layout, not stacking. */
   --z-header: 10;
   --z-banner: 9;

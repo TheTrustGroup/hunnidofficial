@@ -69,7 +69,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       lowStock,
       outOfStock,
     });
-    return withCors(NextResponse.json({ data: result.data, total: result.total }), request);
+    const res = NextResponse.json({ data: result.data, total: result.total });
+    res.headers.set('Cache-Control', 'private, max-age=60');
+    return withCors(res, request);
   } catch (e) {
     console.error('[api/products GET]', e);
     return withCors(

@@ -190,7 +190,7 @@ export async function requireAdmin(request: NextRequest): Promise<Session | Next
 export async function requirePosRole(request: NextRequest): Promise<Session | NextResponse> {
   const auth = await requireAuthAsync(request);
   if (auth instanceof NextResponse) return auth;
-  const allowed = ['admin', 'cashier'];
+  const allowed = ['admin', 'manager', 'cashier'];
   if (!allowed.includes(auth.role.toLowerCase())) {
     return NextResponse.json({ error: 'Forbidden', message: 'POS access required' }, { status: 403 });
   }

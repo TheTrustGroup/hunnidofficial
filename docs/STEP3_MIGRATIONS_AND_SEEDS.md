@@ -96,6 +96,14 @@ If you prefer not to use the CLI, run each migration file in **Supabase Dashboar
 27. `20250222140000_drop_record_sale_v1_overload.sql`
 28. `20250222150000_record_sale_single_overload.sql`
 29. `20250222160000_product_images_5mb_limit.sql`
+30. `20250228100000_add_warehouse_products_color.sql`
+31. `20250228110000_sales_delivery_columns.sql`
+32. `20250228120000_sales_void_columns.sql`
+33. `20250228130000_sales_delivery_cancelled.sql`
+34. `20250228140000_revoke_record_sale_anon.sql`
+35. `20250228150000_record_sale_atomic_stock.sql`
+36. `20250228160000_warehouse_products_name_index.sql`
+37. `20250228170000_sales_sold_by_email.sql`
 
 Path from repo root: `warehouse-pos/inventory-server/supabase/migrations/<filename>`.
 

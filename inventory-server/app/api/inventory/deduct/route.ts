@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processSaleDeductions } from '@/lib/data/warehouseInventory';
-import { requirePosRole } from '@/lib/auth/session';
+import { requirePosRole, getEffectiveWarehouseId } from '@/lib/auth/session';
 
 export const dynamic = 'force-dynamic';
 
-/** POST /api/inventory/deduct — atomic batch deduction for POS sale. Cashier+ only. */
+/** POST /api/inventory/deduct — atomic batch deduction for POS sale. Cashier+ only. Warehouse must be in user scope. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const auth = await requirePosRole(request);
   if (auth instanceof NextResponse) return auth as NextResponse;
   try {
     const body = await request.json();
-    const warehouseId = body.warehouseId as string;
+    const bodyWarehouseId = typeof body.warehouseId === 'string' ? body.warehouseId.trim() : '';
     const items = body.items as Array<{ productId: string; quantity: number }>;
 
-    if (!warehouseId || !Array.isArray(items) || items.length === 0) {
+    if (!bodyWarehouseId || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { message: 'warehouseId and non-empty items array required' },
         { status: 400 }
+      );
+    }
+
+    const warehouseId = await getEffectiveWarehouseId(auth, bodyWarehouseId || undefined);
+    if (!warehouseId) {
+      return NextResponse.json(
+        { message: 'warehouseId must be a warehouse you are allowed to use' },
+        { status: 403 }
       );
     }
 
