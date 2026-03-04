@@ -94,7 +94,8 @@ function normalizeDbConstraintError(dbMessage: string, action: 'create' | 'updat
 const WAREHOUSE_PRODUCTS_SELECT =
   'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
 
-/** List products for a warehouse. Works when warehouse_products has no warehouse_id (one row per product). */
+/** List products for a warehouse. Works when warehouse_products has no warehouse_id (one row per product).
+ * When warehouseId is set, only returns products that have inventory at that warehouse (so Hunnid Main never shows Main Jeff products and vice versa). */
 export async function getWarehouseProducts(
   warehouseId: string | undefined,
   options: ListOptions = {}
@@ -104,11 +105,34 @@ export async function getWarehouseProducts(
   const offset = Math.max(options.offset ?? 0, 0);
   const effectiveWarehouseId = warehouseId ?? '';
 
+  // Restrict to products that exist at this warehouse (warehouse_inventory or warehouse_inventory_by_size).
+  let warehouseProductIds: string[] | null = null;
+  if (effectiveWarehouseId) {
+    const { data: invRows } = await db
+      .from('warehouse_inventory')
+      .select('product_id')
+      .eq('warehouse_id', effectiveWarehouseId);
+    const { data: sizeRows } = await db
+      .from('warehouse_inventory_by_size')
+      .select('product_id')
+      .eq('warehouse_id', effectiveWarehouseId);
+    const fromInv = new Set((invRows ?? []).map((r: { product_id: string }) => r.product_id));
+    const fromSize = new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id));
+    warehouseProductIds = [...new Set([...fromInv, ...fromSize])];
+    if (warehouseProductIds.length === 0) {
+      return { data: [], total: 0 };
+    }
+  }
+
   let query = db
     .from('warehouse_products')
     .select(WAREHOUSE_PRODUCTS_SELECT, { count: 'exact' })
     .order('name')
     .range(offset, offset + limit - 1);
+
+  if (warehouseProductIds !== null) {
+    query = query.in('id', warehouseProductIds);
+  }
 
   if (options.q?.trim()) {
     const raw = options.q.trim();
