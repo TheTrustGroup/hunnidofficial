@@ -1,0 +1,26 @@
+{
+  "name": "hunnid-official-server",
+  "version": "0.1.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "next lint",
+    "test:health": "node scripts/health-check.mjs",
+    "test:smoke": "node scripts/smoke-api.mjs"
+  },
+  "dependencies": {
+    "next": "14.2.18",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@supabase/supabase-js": "^2.47.10",
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5"
+  }
+}

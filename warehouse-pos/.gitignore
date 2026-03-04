@@ -1,0 +1,29 @@
+# Dependencies
+node_modules
+
+# Build
+dist
+
+# Env (keep .env.example committed)
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.idea
+.vscode
+.cursor
+.DS_Store
+*.log
+npm-debug.log*
+
+# Test / E2E
+playwright-report
+test-results
+coverage
+
+# Deploy
+.vercel
+
+# CI workflow (optional: add via GitHub UI or token with workflow scope)
+.github/workflows/ci.yml

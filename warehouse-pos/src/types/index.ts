@@ -1,0 +1,175 @@
+export interface Store {
+  id: string;
+  name: string;
+  status: 'active' | 'inactive';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  code: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Optional (Phase 3). Warehouse belongs to this store when set. */
+  storeId?: string | null;
+}
+
+/** One size line: system code (e.g. US9, M) and quantity. sizeLabel is human-readable (e.g. "US 9", "Medium"). */
+export interface QuantityBySizeItem {
+  sizeCode: string;
+  sizeLabel?: string;
+  quantity: number;
+}
+
+/** Row from warehouse_inventory_by_size (or snapshot) for sizes column: product/warehouse/size + quantity and order. */
+export interface SizeInventoryItem {
+  product_id: string;
+  warehouse_id: string;
+  size_code: string;
+  quantity: number;
+  size_codes: { size_order: number };
+}
+
+export interface Product {
+  id: string;
+  sku: string;
+  barcode: string;
+  name: string;
+  description: string;
+  category: string;
+  tags: string[];
+  quantity: number;
+  costPrice: number;
+  sellingPrice: number;
+  reorderLevel: number;
+  location: {
+    warehouse: string;
+    aisle: string;
+    rack: string;
+    bin: string;
+  };
+  supplier: {
+    name: string;
+    contact: string;
+    email: string;
+  };
+  images: string[];
+  /** Product color for filter (e.g. Red, Black). Optional. */
+  color?: string | null;
+  expiryDate: Date | null;
+  variants?: {
+    size?: string;
+    color?: string;
+    unit?: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+  /** Optional version for optimistic locking; backend may return and require on update. */
+  version?: number;
+  /** Additive: na | one_size | sized. Non-sized products use NA or OS. */
+  sizeKind?: 'na' | 'one_size' | 'sized';
+  /** When sizeKind === 'sized', per-size quantities. Enables fast size lookup and POS size selector. */
+  quantityBySize?: QuantityBySizeItem[];
+  /** True while product is optimistically shown before server confirm (Phase 4). Do not persist. */
+  _pending?: boolean;
+}
+
+export interface Transaction {
+  id: string;
+  transactionNumber: string;
+  type: 'sale' | 'return' | 'transfer';
+  items: TransactionItem[];
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  paymentMethod: 'cash' | 'card' | 'mobile_money' | 'mixed';
+  payments: Payment[];
+  cashier: string;
+  customer?: Customer;
+  status: 'pending' | 'completed' | 'cancelled';
+  syncStatus: 'synced' | 'pending' | 'offline';
+  createdAt: Date;
+  completedAt: Date | null;
+  /** Warehouse (location) where the sale occurred; used for inventory deduction and reporting. */
+  warehouseId?: string;
+  /** Optional (Phase 3). Store where the sale occurred. */
+  storeId?: string | null;
+  /** Optional (Phase 3). POS device id. */
+  posId?: string | null;
+}
+
+export interface TransactionItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
+export interface Payment {
+  method: 'cash' | 'card' | 'mobile_money' | 'mixed';
+  amount: number;
+}
+
+export interface Customer {
+  name: string;
+  phone: string;
+  email: string;
+}
+
+export interface InventoryActivity {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  action: 'add' | 'update' | 'sale' | 'return' | 'adjustment' | 'transfer';
+  quantityBefore: number;
+  quantityAfter: number;
+  quantityChanged: number;
+  reason: string;
+  performedBy: string;
+  relatedTransactionId?: string;
+  timestamp: Date;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: 'super_admin' | 'admin' | 'manager' | 'cashier' | 'warehouse' | 'driver' | 'viewer';
+  fullName: string;
+  avatar?: string;
+  permissions: string[];
+  isActive: boolean;
+  lastLogin: Date;
+  createdAt: Date;
+  /** When set, session is bound to this warehouse; POS/inventory must use it (selector hidden). */
+  warehouseId?: string;
+  /** Optional store context from session (future). */
+  storeId?: string | null;
+  /** Optional device/POS id from session (future). */
+  deviceId?: string;
+  /** When 'main_town', POS shows fixed "Main Town" only (no store/location dropdown). When 'store' or unset, show dropdowns. */
+  assignedPos?: 'main_town' | 'store' | null;
+}
+
+export interface DashboardStats {
+  totalProducts: number;
+  totalStockValue: number;
+  lowStockItems: number;
+  outOfStockItems: number;
+  todaySales: number;
+  todayTransactions: number;
+  monthSales: number;
+  topProducts: Array<{
+    id: string;
+    name: string;
+    sales: number;
+    revenue: number;
+  }>;
+}

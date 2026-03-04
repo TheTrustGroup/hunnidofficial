@@ -1,0 +1,89 @@
+import { Calendar } from 'lucide-react';
+import { Button } from '../ui/Button';
+
+interface DateRangePickerProps {
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (date: string) => void;
+  onEndDateChange: (date: string) => void;
+  presets?: Array<{ label: string; days: number }>;
+}
+
+export function DateRangePicker({
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+  presets = [
+    { label: 'Today', days: 0 },
+    { label: 'Last 7 Days', days: 7 },
+    { label: 'Last 30 Days', days: 30 },
+    { label: 'Last 90 Days', days: 90 },
+  ],
+}: DateRangePickerProps) {
+  const handlePreset = (days: number) => {
+    const end = new Date();
+    const start = new Date();
+    if (days > 0) {
+      start.setDate(start.getDate() - days);
+    }
+    
+    onEndDateChange(end.toISOString().split('T')[0]);
+    onStartDateChange(start.toISOString().split('T')[0]);
+  };
+
+  return (
+    <div className="solid-card animate-fade-in-up">
+      <div className="flex items-center gap-2 mb-6">
+        <Calendar className="w-5 h-5 text-primary-600" strokeWidth={2} />
+        <h3 className="font-semibold text-slate-900">Date Range</h3>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <label htmlFor="date-range-start" className="block text-sm font-semibold text-slate-700 mb-2">
+            Start Date
+          </label>
+          <input
+            id="date-range-start"
+            type="date"
+            value={startDate}
+            onChange={e => onStartDateChange(e.target.value)}
+            className="input-field"
+            autoComplete="off"
+            aria-label="Start date"
+          />
+        </div>
+        <div>
+          <label htmlFor="date-range-end" className="block text-sm font-semibold text-slate-700 mb-2">
+            End Date
+          </label>
+          <input
+            id="date-range-end"
+            type="date"
+            value={endDate}
+            onChange={e => onEndDateChange(e.target.value)}
+            className="input-field"
+            autoComplete="off"
+            aria-label="End date"
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {presets.map(preset => (
+          <Button
+            key={preset.label}
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => handlePreset(preset.days)}
+            className="px-4 py-2 font-semibold bg-slate-100/80 hover:bg-slate-200/80 rounded-xl hover:-translate-y-0.5"
+          >
+            {preset.label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}

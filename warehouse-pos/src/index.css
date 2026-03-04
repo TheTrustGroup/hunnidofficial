@@ -1,0 +1,416 @@
+/* src/index.css - UI Polish: calm, intentional, production-ready (Apple-grade)
+ * Phase 6: One font (Inter), 8pt grid, equal card heights, button/icon consistency, mobile-first.
+ * Design tokens: vertical rhythm, spacing over borders, one primary action per screen.
+ *
+ * CONSISTENCY (Phase 6)
+ * --------------------
+ * - One font family: Inter (body + Tailwind font-sans). No other font imports.
+ * - 8pt spacing grid: use --grid-8, --grid-16, --grid-24, --grid-32, --grid-40, --grid-48 for layout.
+ * - Touch targets: min 44px (--touch-min). Buttons and icon buttons use Button component or min-h-touch.
+ * - Cards: .solid-card has default padding ≥16px; equal heights in grids via min-h or flex.
+ * - Icons: Lucide strokeWidth={2}, centered (flex items-center justify-center).
+ * - Mobile: padding ≥16px (max(1rem, safe-area)); no edge-touch; thumb-friendly primary actions.
+ */
+
+/* Font: Inter only, loaded in index.html (400,500,600,700). No additional font imports. */
+/* @import must precede other statements (CSS spec); centralized glassmorphism. */
+@import './styles/glassmorphism.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Design tokens: 4px base grid + mobile-first spacing & typography ---- */
+:root {
+  /* 4px base system: 4,8,12,16,20,24,32,40 (Phase 6 + structural audit) */
+  --grid-4: 4px;
+  --grid-8: 8px;
+  --grid-12: 12px;
+  --grid-16: 16px;
+  --grid-20: 20px;
+  --grid-24: 24px;
+  --grid-32: 32px;
+  --grid-40: 40px;
+  --grid-48: 48px;
+  /* Spacing rhythm */
+  --space-section: 1.5rem;   /* 24px: between major sections */
+  --space-block: 1rem;       /* 16px: between related blocks */
+  --space-inline: 0.75rem;   /* 12px: between inline elements */
+  --touch-min: 44px;         /* Minimum hit area (WCAG); ≥44px for primary actions */
+  --input-height: 44px;      /* Input/select min-height */
+  /* Unified radius: 8px globally for cards, buttons, inputs (structural audit) */
+  --radius-base: 8px;
+  --radius-lg: 8px;
+  --radius-card: 8px;
+  /* Typography hierarchy: H1 28/600, H2 20/600, Body 14–16, Meta 12–13 muted */
+  --text-meta: 0.75rem;      /* 12–13px muted */
+  --text-xs: 0.75rem;        /* 12px labels, captions */
+  --text-sm: 0.875rem;       /* 14px body */
+  --text-base: 1rem;         /* 16px body */
+  --text-lg: 1.125rem;       /* 18px card titles */
+  --text-h2: 1.25rem;        /* 20px section (H2) */
+  --text-h1: 1.75rem;        /* 28px page title (H1) */
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  /* Safe area: iOS notch/home indicator; fixed elements respect these */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  /* Hunnid brand (sidebar, CTAs, accents) */
+  --blue: #5CACFA;
+  --blue-hover: #3D96F5;
+  --blue-deep: #1A7DD4;
+  --blue-soft: rgba(92, 172, 250, 0.1);
+  --blue-border: rgba(92, 172, 250, 0.35);
+  --sidebar-bg: #0D1117;
+  --sidebar-active-bg: rgba(92, 172, 250, 0.12);
+  --sidebar-active-icon: #5CACFA;
+  --sidebar-w: 244px;
+  /* Z-index scale: 10=header, 40=mobile menu overlay, 50=modals, 60=toasts (transient only). Errors use in-flow layout, not stacking. */
+  --z-header: 10;
+  --z-banner: 9;
+  --z-mobile-menu: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  /* Viewport: 100dvh first (mobile Safari safe); fallback 100vh for older browsers */
+  --min-h-viewport: min(100dvh, 100vh);
+  --h-viewport: 100dvh;
+}
+@supports not (height: 100dvh) {
+  :root {
+    --min-h-viewport: 100vh;
+    --h-viewport: 100vh;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-slate-50 via-white to-slate-50 text-slate-900 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv11', 'ss01';
+    /* Reduced font-weight noise: hierarchy via size/spacing, not bold overload */
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Primary action: one per screen; clear, no competing decoration. Height ≥44px (Phase 6). */
+  .btn-primary {
+    min-height: var(--touch-min);
+    @apply px-6 py-3 rounded-xl font-semibold text-white shadow-primary transition-all duration-200 active:scale-[0.98];
+    background: linear-gradient(135deg, #5cacfa 0%, #4a9ae8 100%);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 6px 16px rgba(92, 172, 250, 0.35);
+  }
+
+  /* Secondary: de-emphasized, grouped logically */
+  .btn-secondary {
+    min-height: var(--touch-min);
+    @apply px-6 py-3 rounded-xl font-medium transition-colors duration-200 active:scale-[0.98];
+    background: rgba(241, 245, 249, 0.9);
+    color: #475569;
+    border: 1px solid rgba(226, 232, 240, 0.7);
+  }
+  .btn-secondary:hover {
+    background: rgba(248, 250, 252, 1);
+    border-color: rgba(203, 213, 225, 0.8);
+  }
+
+  /* Icon/ghost actions: consistent hit area (≥44px), centered; destructive clearly separated (Phase 6) */
+  .btn-action {
+    min-width: var(--touch-min);
+    min-height: var(--touch-min);
+    @apply inline-flex items-center justify-center rounded-lg font-medium transition-colors duration-150;
+    color: #64748b;
+  }
+  .btn-action:hover {
+    @apply bg-slate-100;
+    color: #334155;
+  }
+  .btn-action-view:hover { @apply bg-slate-100 text-slate-700; }
+  .btn-action-edit:hover { @apply bg-primary-50 text-primary-600; }
+  .btn-action-delete:hover {
+    @apply bg-red-50 text-red-600;
+    /* Destructive: clearly separated from primary so mistakes are avoidable */
+  }
+
+  /* Inputs: solid background, clear borders, no transparency (Phase 3 form usability) */
+  .input-field {
+    min-height: var(--input-height);
+    @apply w-full px-4 py-3 rounded-xl transition-all duration-200 text-base text-slate-900;
+    background-color: #fff;
+    border: 1px solid #e2e8f0;
+  }
+  .input-field::placeholder {
+    @apply text-slate-400;
+  }
+  .input-field:focus {
+    @apply outline-none;
+    border-color: #5cacfa;
+    box-shadow: 0 0 0 3px rgba(92, 172, 250, 0.12);
+  }
+  .input-field[aria-invalid="true"],
+  .input-field.border-red-500 {
+    border-color: #ef4444;
+  }
+  /* Select wrapper: above sticky table header (z-10) so dropdown isn't covered; below modals (50) */
+  .input-select-wrapper {
+    position: relative;
+    z-index: 20;
+    isolation: isolate;
+  }
+  .input-select-wrapper .input-field {
+    appearance: auto;
+  }
+  /* Textarea: same as input-field (solid, clear border) */
+  textarea.input-field {
+    min-height: auto;
+    resize: vertical;
+  }
+
+  /* Badges: calm labels, not loud; hierarchy via size/color only */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium tracking-wide;
+  }
+
+  .badge-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+
+  .badge-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+
+  .badge-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+
+  .badge-info {
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+  }
+
+  /* Table Styles: mobile-first horizontal scroll */
+  .table-scroll-wrap {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    border-radius: var(--radius-card, 8px);
+  }
+  .table-container {
+    overflow: hidden;
+    border-radius: var(--radius-card, 8px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background-color: #fff;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .table-container .table-scroll-wrap {
+    border-radius: inherit;
+  }
+
+  .table-header {
+    @apply bg-slate-50 border-b border-slate-200/80;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Stability: desktop table row 72px; consistent so list doesn't collapse during fetch (Phase 2/3). */
+  .table-row {
+    @apply border-b border-slate-200/40 transition-colors duration-150;
+    min-height: 72px;
+  }
+  /* Mobile grid card: consistent min-height to avoid layout jump (96–110px content block; card uses min-h). */
+  .inventory-card-content {
+    padding: var(--grid-16);
+  }
+  @media (min-width: 640px) {
+    .inventory-card-content {
+      padding: var(--grid-24);
+    }
+  }
+
+  .table-row:hover,
+  .table-row:focus-within {
+    background: rgba(248, 250, 252, 0.8);
+  }
+  @media (hover: none) {
+    .table-row:active {
+      background: rgba(248, 250, 252, 0.9);
+    }
+  }
+
+  /* Nav: consistent padding and touch targets; active state clear but not loud */
+  .nav-item {
+    min-height: var(--touch-min);
+    @apply flex items-center gap-3 px-4 py-3 mx-2 rounded-xl transition-colors duration-150 font-medium text-sm;
+  }
+  .nav-item:hover,
+  .nav-item:focus-visible,
+  .nav-item:active {
+    @apply bg-slate-100/80;
+  }
+  .nav-item-active {
+    @apply bg-primary-50/80 text-primary-700 font-semibold;
+    box-shadow: none;
+  }
+
+  /* Skeleton Loading */
+  .skeleton {
+    @apply animate-pulse bg-slate-200 rounded;
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(241, 245, 249, 0.4) 0%,
+      rgba(248, 250, 252, 0.8) 50%,
+      rgba(241, 245, 249, 0.4) 100%
+    );
+    background-size: 2000px 100%;
+    animation: shimmer 2s infinite;
+  }
+}
+
+@layer utilities {
+  /* Brand Gradient Text */
+  /* Gradient Text with Fallback */
+  .gradient-text {
+    background: linear-gradient(135deg, #5cacfa 0%, #4a9ae8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Smooth Scale */
+  .scale-98 {
+    transform: scale(0.98);
+  }
+
+  /* Scroll lock: when modal or mobile menu is open; body gets this class */
+  .scroll-lock {
+    overflow: hidden;
+    touch-action: none;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  /* Modal overlay: padding ≥16px (8pt grid), respects safe-area; no edge-touch (Phase 6) */
+  .modal-overlay-padding {
+    padding: max(var(--grid-16), var(--safe-top)) max(var(--grid-16), var(--safe-right)) max(var(--grid-16), var(--safe-bottom)) max(var(--grid-16), var(--safe-left));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .modal-content-fit {
+    max-height: min(90vh, calc(100dvh - 2rem));
+    margin: auto;
+    width: 100%;
+    max-width: 56rem;
+  }
+
+  /* Phase 6: solid surfaces use .solid-card / .solid-panel (glassmorphism.css). Unused .bg-glass / .border-glass removed. */
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.8);
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.9);
+}
+
+/* Standard scrollbar (Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 213, 225, 0.8) rgba(241, 245, 249, 0.5);
+}
+
+/* Print Styles for Receipts */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  #receipt-content,
+  #receipt-content * {
+    visibility: visible;
+  }
+  
+  #receipt-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+}
+
+/* Focus Visible for Accessibility — brand primary */
+*:focus-visible {
+  outline: 2px solid #5cacfa;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Selection color — brand primary (standard + Firefox legacy) */
+::selection {
+  background-color: rgba(92, 172, 250, 0.2);
+  color: #1e3a5f;
+}
+
+/* Smooth Transitions for All Interactive Elements; touch targets and tap highlight */
+button, a, input, select, textarea {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Improve touch responsiveness: reduce 300ms tap delay and double-tap zoom on buttons/links */
+@media (hover: none) {
+  button, a, [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
