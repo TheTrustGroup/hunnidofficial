@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getWarehouseProducts, createWarehouseProduct } from '@/lib/data/warehouseProducts';
 import { requireAdmin } from '@/lib/auth/session';
 import { logDurability } from '@/lib/data/durabilityLogger';
+import { toSafeError } from '@/lib/safeError';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,9 +36,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
     return NextResponse.json({ data: result.data, total: result.total });
   } catch (e) {
-    console.error('[admin/api/products GET]', e);
+    console.error('[API ERROR]', e);
     return NextResponse.json(
-      { message: e instanceof Error ? e.message : 'Failed to load products' },
+      { message: toSafeError(e) },
       { status: 500 }
     );
   }
@@ -77,9 +78,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       user_role: auth.role,
       message: e instanceof Error ? e.message : 'Failed to create product',
     });
-    console.error('[admin/api/products POST]', e);
+    console.error('[API ERROR]', e);
     return NextResponse.json(
-      { message: e instanceof Error ? e.message : 'Failed to create product' },
+      { message: toSafeError(e) },
       { status: 400 }
     );
   }

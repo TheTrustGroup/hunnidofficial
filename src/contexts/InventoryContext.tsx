@@ -359,7 +359,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const path = productsPath('/api/products', { limit: 1000 });
+        const path = productsPath('/api/products', { limit: 50 });
         // Fail fast on server/network errors so we show cached products instead of spinning (maxRetries: 0).
         const getOpts = { signal, timeoutMs, maxRetries: 0 };
         let raw: { data?: Product[]; total?: number } | Product[] | null = null;
@@ -369,7 +369,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           const status = (e as { status?: number })?.status;
           // Only fall back to admin endpoint when /api/products is not found (404). Never on 403 — cashiers must use /api/products only.
           if (status === 404) {
-            raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(API_BASE_URL, productsPath('/admin/api/products', { limit: 1000 }), getOpts);
+            raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(API_BASE_URL, productsPath('/admin/api/products', { limit: 50 }), getOpts);
           } else {
             throw e;
           }

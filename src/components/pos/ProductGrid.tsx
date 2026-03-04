@@ -1,5 +1,5 @@
 import { useMemo, memo } from 'react';
-import POSProductCard from './POSProductCard';
+import POSProductCard, { POSProductCardSkeleton } from './POSProductCard';
 import type { POSProduct } from './SizePickerSheet';
 import { getDeduplicatedCategoryOptions, colorMatchesFilter } from '../../lib/utils';
 
@@ -22,6 +22,10 @@ interface ProductGridProps {
   onColorFilterChange: (color: string) => void;
   /** When products are empty and not loading, call to retry loading (e.g. after API/network failure). */
   onRetry?: () => void;
+  /** When there are more products on the server, show a Load more button and call this when clicked. */
+  onLoadMore?: () => void;
+  loadingMore?: boolean;
+  totalCount?: number;
 }
 
 function ProductGridInner({
@@ -37,6 +41,9 @@ function ProductGridInner({
   onSizeFilterChange,
   onColorFilterChange,
   onRetry,
+  onLoadMore,
+  loadingMore = false,
+  totalCount,
 }: ProductGridProps) {
   const categoryOptions = useMemo(() => {
     const raw = Array.from(new Set(products.map((p) => (p.category ?? '').trim() || 'Uncategorized')));
@@ -87,8 +94,12 @@ function ProductGridInner({
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+      <div className="flex flex-col h-full">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-4 flex-1 content-start">
+          {Array.from({ length: 9 }, (_, i) => (
+            <POSProductCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -203,6 +214,18 @@ function ProductGridInner({
           <POSProductCard key={p.id} product={p} onSelect={onSelect} />
         ))}
       </div>
+      {onLoadMore && totalCount != null && products.length < totalCount && (
+        <div className="flex justify-center py-4 px-4">
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={onLoadMore}
+            className="h-11 px-6 rounded-xl border-2 border-slate-200 bg-white text-[13px] font-bold text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loadingMore ? 'Loading…' : `Load more (${products.length} of ${totalCount})`}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

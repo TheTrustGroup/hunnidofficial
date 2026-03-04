@@ -11,6 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 import { corsHeaders } from '@/lib/cors';
 import { requireAuth, getEffectiveWarehouseId } from '@/lib/auth/session';
 import { getScopeForUser } from '@/lib/data/userScopes';
+import { toSafeError } from '@/lib/safeError';
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
@@ -146,9 +147,28 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       if (error.message?.includes('INSUFFICIENT_STOCK')) {
-        return NextResponse.json({ error: error.message }, { status: 409, headers: h });
+        return NextResponse.json(
+          { error: 'Insufficient stock for one or more items. Reduce quantity or remove items and try again.' },
+          { status: 409, headers: h }
+        );
       }
+      // RPC missing (e.g. record_sale not deployed). Fallback is non-atomic — disabled by default.
+      // To use atomic sales: run migration 20250228170000_sales_sold_by_email.sql in Supabase (creates record_sale).
+      // Set ALLOW_SALE_FALLBACK=true only in dev/staging if you must test without the RPC; never in production.
       if (error.code === '42883' || error.message?.includes('does not exist')) {
+        console.error('[POST /api/sales] record_sale RPC failed (missing or error)', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
+        const allowFallback = process.env.ALLOW_SALE_FALLBACK === 'true';
+        if (!allowFallback) {
+          return NextResponse.json(
+            { error: 'Sale processing unavailable. Contact support.' },
+            { status: 503, headers: h }
+          );
+        }
+        console.warn('[SALE FALLBACK] Non-atomic path used — not safe for production');
         return manualSaleFallback({
           db,
           auth,
@@ -170,7 +190,8 @@ export async function POST(req: NextRequest) {
           h,
         });
       }
-      return NextResponse.json({ error: error.message }, { status: 500, headers: h });
+      console.error('[API ERROR]', error);
+      return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
     }
 
     const result = typeof data === 'string' ? JSON.parse(data) : (data ?? {});
@@ -210,16 +231,17 @@ export async function POST(req: NextRequest) {
       { status: 201, headers: h }
     );
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'Internal error';
-    console.error('[POST /api/sales]', message);
-    return NextResponse.json({ error: message }, { status: 500, headers: h });
+    console.error('[API ERROR]', e);
+    return NextResponse.json({ error: toSafeError(e) }, { status: 500, headers: h });
   }
 }
 
 // ── Manual fallback (use only when record_sale RPC is missing) ─────────────
-// WARNING: Not atomic. If a deduction fails mid-loop, sale + some lines may be
-// inserted without corresponding stock deduction. Prefer fixing the RPC and using it.
-// For production, ensure record_sale is deployed so this path is never used.
+// Disabled by default (ALLOW_SALE_FALLBACK must be explicitly "true"). Not atomic:
+// if a deduction fails mid-loop, sale + some lines may be inserted without corresponding
+// stock deduction. To re-enable the atomic path: deploy the record_sale RPC via
+// migration 20250228170000_sales_sold_by_email.sql in Supabase; then do not set
+// ALLOW_SALE_FALLBACK in production.
 
 async function manualSaleFallback(args: {
   db: ReturnType<typeof getDb>;
@@ -299,7 +321,10 @@ async function manualSaleFallback(args: {
     ...(paymentMixBreakdown && { payment_mix_breakdown: paymentMixBreakdown }),
     created_at: now,
   });
-  if (saleErr) return NextResponse.json({ error: saleErr.message }, { status: 500, headers: h });
+  if (saleErr) {
+    console.error('[API ERROR]', saleErr);
+    return NextResponse.json({ error: toSafeError(saleErr) }, { status: 500, headers: h });
+  }
 
   for (const line of normalizedLines) {
     await db.from('sale_lines').insert({
@@ -473,10 +498,8 @@ export async function GET(req: NextRequest) {
           isUnrestricted,
         });
       }
-      console.error('[GET /api/sales]', msg);
-      const errBody =
-        process.env.NODE_ENV === 'production' ? { error: 'Internal error' } : { error: msg };
-      return NextResponse.json(errBody, { status: 500, headers: h });
+      console.error('[API ERROR]', error);
+      return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
     }
 
     const rows = (data ?? []).filter((s: { status?: string }) => !s.status || s.status === 'completed');
@@ -484,11 +507,8 @@ export async function GET(req: NextRequest) {
     res.headers.set('Cache-Control', 'private, max-age=60');
     return res;
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'Internal error';
-    console.error('[GET /api/sales]', e);
-    const errBody =
-      process.env.NODE_ENV === 'production' ? { error: 'Internal error' } : { error: message };
-    return NextResponse.json(errBody, { status: 500, headers: h });
+    console.error('[API ERROR]', e);
+    return NextResponse.json({ error: toSafeError(e) }, { status: 500, headers: h });
   }
 }
 
@@ -533,12 +553,15 @@ export async function PATCH(req: NextRequest) {
     if (warehouseId) q = q.eq('warehouse_id', warehouseId);
 
     const { error } = await q;
-    if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: h });
+    if (error) {
+      console.error('[API ERROR]', error);
+      return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
+    }
 
     return NextResponse.json({ success: true, saleId, deliveryStatus }, { headers: h });
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500, headers: h });
+    console.error('[API ERROR]', e);
+    return NextResponse.json({ error: toSafeError(e) }, { status: 500, headers: h });
   }
 }
 
@@ -572,7 +595,10 @@ async function getSalesLegacy(
   if (from) q = q.gte('created_at', from);
   if (to) q = q.lte('created_at', to);
   const { data, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: h });
+  if (error) {
+    console.error('[API ERROR]', error);
+    return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
+  }
   return NextResponse.json(
     { data: shapeSales(data ?? []), total: data?.length ?? 0 },
     { headers: h }

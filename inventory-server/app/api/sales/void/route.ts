@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { corsHeaders } from '@/lib/cors';
 import { requireAuth } from '@/lib/auth/session';
 import { getScopeForUser } from '@/lib/data/userScopes';
+import { toSafeError } from '@/lib/safeError';
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
@@ -68,12 +69,13 @@ export async function POST(req: NextRequest) {
       if (error.message?.includes('SALE_ALREADY_VOIDED')) {
         return NextResponse.json({ error: 'Sale is already voided' }, { status: 409, headers: h });
       }
-      return NextResponse.json({ error: error.message }, { status: 500, headers: h });
+      console.error('[API ERROR]', error);
+      return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
     }
 
     return NextResponse.json({ success: true, saleId }, { headers: h });
   } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : 'Internal error';
-    return NextResponse.json({ error: message }, { status: 500, headers: h });
+    console.error('[API ERROR]', e);
+    return NextResponse.json({ error: toSafeError(e) }, { status: 500, headers: h });
   }
 }

@@ -21,6 +21,7 @@ import {
 } from '@/lib/api/productByIdHandlers';
 import type { PutProductBody } from '@/lib/data/warehouseProducts';
 import { corsHeaders } from '@/lib/cors';
+import { toSafeError } from '@/lib/safeError';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,13 +45,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAuth(request);
   if (auth instanceof NextResponse) return withCors(auth, request);
   const { searchParams } = new URL(request.url);
+  const requestedWarehouseId = searchParams.get('warehouse_id')?.trim() ?? undefined;
+
+  const scope = await getScopeForUser(auth.email);
+  const isAdmin = /^(admin|super_admin|administrator)$/i.test(auth.role ?? '');
+  if (!isAdmin && scope.allowedWarehouseIds.length > 0 && requestedWarehouseId && !scope.allowedWarehouseIds.includes(requestedWarehouseId)) {
+    return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
+  }
+
+  const effectiveWarehouseId = await getEffectiveWarehouseId(auth, requestedWarehouseId);
+  if (effectiveWarehouseId === null) {
+    return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
+  }
+
   const id = searchParams.get('id')?.trim();
   if (id) {
-    const warehouseId = searchParams.get('warehouse_id') ?? '';
-    return withCors(await handleGetProductById(id, warehouseId), request);
+    return withCors(await handleGetProductById(id, effectiveWarehouseId), request);
   }
   try {
-    const warehouseId = searchParams.get('warehouse_id') ?? undefined;
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
     const q = searchParams.get('q') ?? undefined;
@@ -59,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const color = searchParams.get('color') ?? undefined;
     const lowStock = searchParams.get('low_stock') === '1' || searchParams.get('low_stock') === 'true';
     const outOfStock = searchParams.get('out_of_stock') === '1' || searchParams.get('out_of_stock') === 'true';
-    const result = await getWarehouseProducts(warehouseId, {
+    const result = await getWarehouseProducts(effectiveWarehouseId, {
       limit: limit != null ? parseInt(limit, 10) : undefined,
       offset: offset != null ? parseInt(offset, 10) : undefined,
       q,
@@ -73,10 +85,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     res.headers.set('Cache-Control', 'private, max-age=60');
     return withCors(res, request);
   } catch (e) {
-    console.error('[api/products GET]', e);
+    console.error('[API ERROR]', e);
     return withCors(
       NextResponse.json(
-        { message: e instanceof Error ? e.message : 'Failed to load products' },
+        { message: toSafeError(e) },
         { status: 500 }
       ),
       request
@@ -128,10 +140,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       user_role: auth.role,
       message: e instanceof Error ? e.message : 'Failed to create product',
     });
-    console.error('[api/products POST]', e);
+    console.error('[API ERROR]', e);
     return withCors(
       NextResponse.json(
-        { message: e instanceof Error ? e.message : 'Failed to create product' },
+        { message: toSafeError(e) },
         { status: 400 }
       ),
       request

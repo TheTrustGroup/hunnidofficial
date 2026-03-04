@@ -12,7 +12,15 @@ Use this checklist before and after deploying the Warehouse POS app to productio
 
 ---
 
-## 2. Build Optimization
+## 2. Avoiding Chunk Load Errors (404 for route JS)
+
+- [ ] **Index not cached:** `vercel.json` sets `Cache-Control: no-store` for `/` and `/index.html` so users always get the latest HTML and correct asset paths after a deploy.
+- [ ] **Assets immutable:** `/assets/*` is cached long-term (`max-age=31536000, immutable`) since filenames include content hashes; new deploys produce new hashes so old chunks are not requested.
+- [ ] **If "Importing a module script failed" appears:** The error boundary shows a friendly message and a "Refresh page" button. Users should refresh to load the new index and chunks. Ensure no proxy or CDN caches `index.html` (or purge it on deploy).
+
+---
+
+## 3. Build Optimization
 
 - [ ] **Production build:** Run `npm run build` (uses `mode: 'production'`). Do not deploy dev builds.
 - [ ] **Minify:** JS and CSS are minified by default (Vite esbuild). No extra config required.
@@ -23,7 +31,7 @@ Use this checklist before and after deploying the Warehouse POS app to productio
 
 ---
 
-## 3. IndexedDB
+## 4. IndexedDB
 
 - [ ] **Migrations:** The app uses Dexie with a version chain (`version(1)`, `version(2)` with upgrade). For future schema changes, add `version(3).stores(...).upgrade(tx => { ... })` in `src/db/inventoryDB.js` and test upgrade from v2.
 - [ ] **Upgrade testing:** Before releasing a new version that bumps DB version, test in a browser that already has data (v1 or v2); confirm open and read/write work.
@@ -31,17 +39,18 @@ Use this checklist before and after deploying the Warehouse POS app to productio
 
 ---
 
-## 4. Security
+## 5. Security
 
 - [ ] **Sensitive data in IndexedDB:** Product and sync data are not encrypted at rest. If you need to encrypt sensitive fields, add encryption before `db.products.add`/`put` and decryption on read (e.g. AES-GCM with a key derived from user secret). Document key management.
 - [ ] **Input validation:** All user inputs (login, product form, etc.) are validated with Zod (see `src/lib/validationSchemas.ts`). Keep schemas strict and reject invalid payloads.
 - [ ] **Sanitization:** Use `escapeHtml()` from `src/lib/sanitize.ts` for any user-generated text rendered in the DOM. Avoid `dangerouslySetInnerHTML` with raw user content; for rich HTML use a sanitizer like DOMPurify.
 - [ ] **CSRF:** If the API uses cookie-based auth, ensure the backend has CSRF protection (e.g. same-site cookies, CSRF tokens). The frontend sends `credentials: 'include'` where needed; document backend CSRF requirements.
 - [ ] **HTTPS only:** Serve the app and API over HTTPS only. Redirect HTTP → HTTPS at the host or CDN. Set `Strict-Transport-Security` and secure cookies where applicable.
+- [ ] **API server env:** For the Next.js API (`inventory-server`), copy `inventory-server/.env.example` to `inventory-server/.env` and set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Never commit `.env` (it is in `.gitignore`).
 
 ---
 
-## 5. Monitoring
+## 6. Monitoring
 
 - [ ] **Error tracking:** Optional Sentry (or similar). Set `VITE_SENTRY_DSN` and wire `reportError` in `main.tsx` to `Sentry.captureException`. Respect user consent (Settings → Admin & logs → "Send error reports to server").
 - [ ] **Performance:** Optional performance monitoring (e.g. Sentry, Web Vitals). Add a small script to measure LCP, FID, CLS and send to your backend or analytics.
@@ -50,7 +59,7 @@ Use this checklist before and after deploying the Warehouse POS app to productio
 
 ---
 
-## 6. User Onboarding
+## 7. User Onboarding
 
 - [ ] **First-time tutorial:** The onboarding modal (see `OnboardingModal.tsx`) shows once per device (localStorage key `warehouse_onboarding_seen`). It explains offline use, sync status, and links to help.
 - [ ] **Help link:** Update the help URL in `OnboardingModal.tsx` (`HELP_URL`) to your docs or repo (e.g. `docs/TROUBLESHOOTING.md` or your docs site).
@@ -58,7 +67,7 @@ Use this checklist before and after deploying the Warehouse POS app to productio
 
 ---
 
-## 7. Rollback Plan
+## 8. Rollback Plan
 
 - [ ] **Disable offline mode:** To effectively "disable" offline behavior: (1) Do not register the service worker (comment out or gate `serviceWorkerRegistration.register()` in `main.tsx`), and (2) In the API client, you can short-circuit or fail when offline so the UI always requires network. IndexedDB will still hold data; the app will just not rely on it for offline CRUD if you change the context to always fetch from server. Document the exact steps for your team.
 - [ ] **Previous version:** Keep the previous production build artifact (e.g. in CI or a `releases/` folder) so you can redeploy it quickly. Tag releases in git.
@@ -66,7 +75,7 @@ Use this checklist before and after deploying the Warehouse POS app to productio
 
 ---
 
-## 8. Browser Requirements
+## 9. Browser Requirements
 
 - [ ] **Compatibility check:** The app shows a full-screen message for unsupported browsers (see `BrowserCheck.tsx`). Minimum: Chrome 87+, Safari 14+, Firefox 78+, Edge 87+. Requires IndexedDB and Service Worker.
 - [ ] **Upgrade message:** Users on older browsers see "Browser not fully supported" and can choose "Get Chrome" or "Continue anyway". "Continue anyway" is stored so the message does not reappear.

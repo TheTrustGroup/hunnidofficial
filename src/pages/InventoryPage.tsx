@@ -725,7 +725,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
             >
               {totalCount === 0 && !loading && !error
                 ? 'No products yet'
-                : `${totalCount} product${totalCount !== 1 ? 's' : ''} · Page ${currentPage} of ${totalPages}`}
+                : totalCount > 0 && products.length < totalCount
+                  ? `Showing ${products.length} of ${totalCount} products`
+                  : `${totalCount} product${totalCount !== 1 ? 's' : ''} · Page ${currentPage} of ${totalPages}`}
             </p>
           </div>
           <button

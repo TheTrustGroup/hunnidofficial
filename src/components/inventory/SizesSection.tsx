@@ -6,7 +6,7 @@
 // Parent owns state. This component only renders and calls onChange.
 // ============================================================
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -178,9 +178,11 @@ export default function SizesSection({
   showValidation = false,
 }: SizesSectionProps) {
 
-  // Focus the last added row's size input
-  const lastRowRef = useRef<HTMLInputElement>(null);
+  // Focus the last added row's size input (or select in dropdown mode)
+  const lastRowRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
   const prevRowCount = useRef(value.quantityBySize.length);
+  /** When true, size rows use a dropdown of size codes instead of free text. */
+  const [sizeInputMode, setSizeInputMode] = useState<'manual' | 'dropdown'>('manual');
 
   useEffect(() => {
     if (
@@ -282,7 +284,7 @@ export default function SizesSection({
         Stock &amp; Sizes
       </p>
 
-      {/* Type selector */}
+      {/* Type selector — mobile-first: min 44px touch targets */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         {TYPE_BTNS.map(({ kind, label, icon }) => (
           <button
@@ -291,9 +293,9 @@ export default function SizesSection({
             disabled={disabled}
             onClick={() => handleKindChange(kind)}
             className={`
-              h-11 rounded-xl border-[1.5px] text-[13px] font-semibold
+              min-h-[44px] h-11 rounded-xl border-[1.5px] text-[13px] font-semibold
               flex items-center justify-center gap-1.5
-              transition-all duration-150
+              transition-all duration-150 touch-manipulation
               disabled:opacity-40 disabled:cursor-not-allowed
               ${value.sizeKind === kind
                 ? 'bg-slate-900 border-slate-900 text-white'
@@ -330,7 +332,7 @@ export default function SizesSection({
       {/* Content — sized */}
       {value.sizeKind === 'sized' && (
         <div>
-          {/* Datalist for autocomplete */}
+          {/* Datalist for autocomplete (manual mode) */}
           <datalist id={datalistId}>
             {sizeCodes.map(s => (
               <option key={s.size_code} value={s.size_code}>
@@ -339,14 +341,53 @@ export default function SizesSection({
             ))}
           </datalist>
 
-          {/* Table header */}
-          <div className="grid grid-cols-[1fr_100px_36px] gap-2 px-1 pb-2 border-b-[1.5px] border-slate-100 mb-1">
+          {/* Size input mode toggle: type vs dropdown — mobile-friendly min touch targets */}
+          {sizeCodes.length > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+              <span className="text-[12px] font-medium text-slate-500">Size input:</span>
+              <div className="flex rounded-lg border-[1.5px] border-slate-200 p-0.5 bg-slate-50 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setSizeInputMode('manual')}
+                  disabled={disabled}
+                  className={`
+                    flex-1 sm:flex-none min-h-[44px] px-3 py-2.5 sm:py-1.5 rounded-md text-[12px] font-semibold transition-all touch-manipulation
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    ${sizeInputMode === 'manual'
+                      ? 'bg-white border border-slate-200 shadow-sm text-slate-900'
+                      : 'text-slate-500 hover:text-slate-700'
+                    }
+                  `}
+                >
+                  Type size
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSizeInputMode('dropdown')}
+                  disabled={disabled}
+                  className={`
+                    flex-1 sm:flex-none min-h-[44px] px-3 py-2.5 sm:py-1.5 rounded-md text-[12px] font-semibold transition-all touch-manipulation
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    ${sizeInputMode === 'dropdown'
+                      ? 'bg-white border border-slate-200 shadow-sm text-slate-900'
+                      : 'text-slate-500 hover:text-slate-700'
+                    }
+                  `}
+                >
+                  Pick from list
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Table header — responsive: stacked on mobile, grid on sm+ */}
+          <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_100px_36px] gap-2 px-1 pb-2 border-b-[1.5px] border-slate-100 mb-1">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Size</span>
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide text-right">Qty</span>
-            <span />
+            <span className="hidden sm:block w-9" aria-hidden="true" />
           </div>
 
-          {/* Size rows */}
+          {/* Size rows — mobile-first: full-width dropdown, touch-friendly min 44px */}
           <div className="flex flex-col gap-0.5">
             {value.quantityBySize.map((row, idx) => {
               const hasError =
@@ -354,43 +395,90 @@ export default function SizesSection({
                 row.sizeCode.trim() === '' &&
                 row.quantity > 0;
               const isLast = idx === value.quantityBySize.length - 1;
+              const usedInOtherRows = value.quantityBySize
+                .filter((_, i) => i !== idx)
+                .map(r => (r.sizeCode ?? '').trim())
+                .filter(Boolean);
+              const currentCode = (row.sizeCode ?? '').trim();
+              const dropdownOptions = sizeCodes.filter(
+                s => !usedInOtherRows.includes(s.size_code) || s.size_code === currentCode
+              );
+              // Include current row's code if it's not in sizeCodes (e.g. legacy or custom) so it still displays
+              const hasCurrentInList = currentCode && dropdownOptions.some(s => s.size_code === currentCode);
+              const optionsToShow = hasCurrentInList
+                ? dropdownOptions
+                : currentCode
+                  ? [{ size_code: currentCode, size_label: currentCode }, ...dropdownOptions]
+                  : dropdownOptions;
 
               return (
                 <div
                   key={idx}
                   className={`
-                    grid grid-cols-[1fr_100px_36px] gap-2 items-center
+                    grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_100px_36px] gap-2 sm:gap-2 items-center
                     px-1 py-1.5 rounded-lg
                     transition-colors duration-150
                     hover:bg-slate-50
+                    min-h-[44px]
                     ${hasError ? 'bg-red-50' : ''}
                   `}
                 >
-                  {/* Size code input */}
-                  <input
-                    ref={isLast ? lastRowRef : undefined}
-                    type="text"
-                    list={datalistId}
-                    value={row.sizeCode}
-                    placeholder="e.g. EU30"
-                    disabled={disabled}
-                    onChange={e => handleSizeCode(idx, e.target.value)}
-                    className={`
-                      h-11 w-full rounded-lg border-[1.5px] px-3
-                      font-mono text-[14px] font-medium text-slate-900
-                      bg-slate-50 outline-none
-                      placeholder:font-sans placeholder:text-slate-300 placeholder:font-normal
-                      focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                      transition-all duration-150
-                      ${hasError
-                        ? 'border-red-400 bg-red-50'
-                        : 'border-slate-200'
-                      }
-                    `}
-                  />
+                  {/* Size code: dropdown or text input — 16px font on mobile to avoid iOS zoom */}
+                  {sizeInputMode === 'dropdown' && sizeCodes.length > 0 ? (
+                    <select
+                      ref={isLast ? (lastRowRef as RefObject<HTMLSelectElement>) : undefined}
+                      value={row.sizeCode}
+                      disabled={disabled}
+                      onChange={e => handleSizeCode(idx, e.target.value)}
+                      className={`
+                        min-h-[44px] w-full min-w-0 rounded-lg border-[1.5px] px-3 py-2
+                        font-medium text-[16px] sm:text-[14px] text-slate-900
+                        bg-slate-50 outline-none cursor-pointer
+                        focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                        transition-all duration-150
+                        touch-manipulation
+                        ${hasError
+                          ? 'border-red-400 bg-red-50'
+                          : 'border-slate-200'
+                        }
+                      `}
+                      aria-label="Select size"
+                    >
+                      <option value="">Select size…</option>
+                      {optionsToShow.map(s => (
+                        <option key={s.size_code} value={s.size_code}>
+                          {s.size_label ?? s.size_code}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      ref={isLast ? (lastRowRef as RefObject<HTMLInputElement>) : undefined}
+                      type="text"
+                      list={datalistId}
+                      value={row.sizeCode}
+                      placeholder="e.g. EU30"
+                      disabled={disabled}
+                      onChange={e => handleSizeCode(idx, e.target.value)}
+                      className={`
+                        min-h-[44px] w-full min-w-0 rounded-lg border-[1.5px] px-3 py-2
+                        font-mono text-[16px] sm:text-[14px] font-medium text-slate-900
+                        bg-slate-50 outline-none
+                        placeholder:font-sans placeholder:text-slate-300 placeholder:font-normal
+                        focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                        transition-all duration-150
+                        touch-manipulation
+                        ${hasError
+                          ? 'border-red-400 bg-red-50'
+                          : 'border-slate-200'
+                        }
+                      `}
+                    />
+                  )}
 
-                  {/* Quantity input */}
+                  {/* Quantity input — touch-friendly, no zoom on iOS */}
                   <input
                     type="number"
                     min={0}
@@ -398,31 +486,31 @@ export default function SizesSection({
                     disabled={disabled}
                     onChange={e => handleSizeQty(idx, parseInt(e.target.value) || 0)}
                     className={`
-                      h-11 w-full rounded-lg border-[1.5px] px-2 text-center
+                      min-h-[44px] w-full min-w-[72px] sm:min-w-0 sm:w-full max-w-[100px] rounded-lg border-[1.5px] px-2 py-2 text-center
                       font-sans text-[16px] font-bold text-slate-900
                       bg-slate-50 outline-none
                       focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
                       disabled:opacity-50 disabled:cursor-not-allowed
                       [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
                       [&::-webkit-inner-spin-button]:appearance-none
-                      transition-all duration-150
+                      transition-all duration-150 touch-manipulation
                       ${row.quantity === 0 ? 'text-slate-300' : 'text-slate-900'}
                       border-slate-200
                     `}
                   />
 
-                  {/* Remove button */}
+                  {/* Remove button — min 44px touch target on mobile */}
                   <button
                     type="button"
                     onClick={() => handleRemoveRow(idx)}
                     disabled={disabled}
                     className="
-                      w-9 h-9 rounded-lg border-none bg-transparent
+                      min-w-[44px] min-h-[44px] w-9 h-9 sm:w-9 sm:h-9 rounded-lg border-none bg-transparent
                       text-slate-300 flex items-center justify-center
                       hover:bg-red-50 hover:text-red-500
                       active:scale-90
                       disabled:opacity-40 disabled:cursor-not-allowed
-                      transition-all duration-150
+                      transition-all duration-150 touch-manipulation
                     "
                     aria-label="Remove size"
                   >
@@ -431,7 +519,7 @@ export default function SizesSection({
 
                   {/* Row error */}
                   {hasError && (
-                    <p className="col-span-3 text-[11px] text-red-500 font-medium px-1 pb-1">
+                    <p className="col-span-full text-[11px] text-red-500 font-medium px-1 pb-1">
                       Enter a size code for this row
                     </p>
                   )}

@@ -6,6 +6,7 @@ import {
 } from '@/lib/data/warehouseProducts';
 import type { Session } from '@/lib/auth/session';
 import type { PutProductBody } from '@/lib/data/warehouseProducts';
+import { toSafeError } from '@/lib/safeError';
 
 /** GET one product by query id + warehouse_id. Returns 200 with product (includes images) or 404. */
 export async function handleGetProductById(
@@ -34,9 +35,8 @@ export async function handlePutProductById(
     }
     return NextResponse.json(updated);
   } catch (e) {
-    console.error('[api/products PUT]', e);
-    const message = e instanceof Error ? e.message : 'Failed to update product';
-    return NextResponse.json({ message }, { status: 400 });
+    console.error('[API ERROR]', e);
+    return NextResponse.json({ message: toSafeError(e) }, { status: 400 });
   }
 }
 
@@ -51,8 +51,7 @@ export async function handleDeleteProductById(
     await deleteWarehouseProduct(id, warehouseId);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error('[api/products DELETE]', e);
-    const message = e instanceof Error ? e.message : 'Failed to delete product';
-    return NextResponse.json({ message }, { status: 400 });
+    console.error('[API ERROR]', e);
+    return NextResponse.json({ message: toSafeError(e) }, { status: 400 });
   }
 }

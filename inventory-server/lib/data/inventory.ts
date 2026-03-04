@@ -1,4 +1,7 @@
 /**
+ * DEPRECATED — not used by any active route. Remove in next cleanup sprint.
+ * (Active product APIs use warehouse_products / warehouseProducts.ts.)
+ *
  * INVENTORY — SINGLE SOURCE OF TRUTH (inventory-server app only)
  * Server only. Direct DB reads. No caching. No fallback.
  * Uses real Supabase schema: Category, Product, ProductVariant.

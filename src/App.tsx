@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useRef } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -197,8 +198,15 @@ function ProtectedRoutes() {
   );
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 60_000, gcTime: 5 * 60 * 1000 },
+  },
+});
+
 function App() {
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserCheck>
     <ToastProvider>
       <ServiceWorkerUpdateListener />
@@ -338,6 +346,7 @@ function App() {
       </NetworkStatusProvider>
     </ToastProvider>
     </BrowserCheck>
+    </QueryClientProvider>
   );
 }
 

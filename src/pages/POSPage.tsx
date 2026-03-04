@@ -18,7 +18,7 @@
 //   → Amber toast warning: "⚠ Sale not synced — deploy /api/sales"
 //   → Checkout still completes (cashier not blocked)
 //   → Stock IS deducted optimistically in UI
-//   → Next loadProducts() call will restore real server values
+//   → Next products refetch will restore real server values
 //
 // REQUIREMENTS:
 //   - Run COMPLETE_SQL_FIX.sql in Supabase SQL Editor
@@ -31,7 +31,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { InfiniteData } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
+import { useProductsQuery, productsQueryKey } from '../hooks/useProductsQuery';
 import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from '../contexts/WarehouseContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -107,8 +110,18 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     if (isWarehouseBoundToSession) setSessionOpen(false);
   }, [isWarehouseBoundToSession]);
   const [warehouse, setWarehouseLocal] = useState<Warehouse>(contextWarehouse);
-  const [products, setProducts]           = useState<POSProduct[]>([]);
-  const [loading, setLoading]             = useState(false);
+
+  const queryClient = useQueryClient();
+  const productsQuery = useProductsQuery(warehouse?.id ?? '', !sessionOpen);
+  const {
+    products,
+    totalCount,
+    isLoading: loading,
+    loadingMore,
+    loadMore,
+    refetch: refetchProducts,
+  } = productsQuery;
+
   const [search, setSearch]               = useState('');
   const [category, setCategory]           = useState('all');
   const [sizeFilter, setSizeFilter]       = useState('all');
@@ -128,9 +141,11 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   }, []);
 
   // Keep local warehouse in sync with context (sidebar change or context loaded from API)
+  // Sync local warehouse when context resolves; omit full object to avoid loop
   useEffect(() => {
     if (contextWarehouse) setWarehouseLocal(contextWarehouse);
-  }, [contextWarehouse?.id, contextWarehouse?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextWarehouse?.id, contextWarehouse?.name]);
 
   // ── API ───────────────────────────────────────────────────────────────────
 
@@ -161,37 +176,15 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     }
   }, []);
 
-  // ── Load products ─────────────────────────────────────────────────────────
-
-  const loadProducts = useCallback(async (wid: string, silent = false) => {
-    if (!wid?.trim()) return;
-    if (!silent) setLoading(true);
-    try {
-      const data = await apiFetch<POSProduct[] | { data?: POSProduct[]; products?: POSProduct[] }>(
-        `/api/products?warehouse_id=${encodeURIComponent(wid.trim())}&limit=1000`
-      );
-      const list: POSProduct[] = Array.isArray(data)
-        ? data
-        : (data as { data?: POSProduct[] }).data ?? (data as { products?: POSProduct[] }).products ?? [];
-      if (isMounted.current) setProducts(Array.isArray(list) ? list : []);
-    } catch (e: unknown) {
-      if (!silent && isMounted.current) showToast(e instanceof Error ? e.message : 'Failed to load products', 'err');
-      if (isMounted.current) setProducts([]);
-    } finally {
-      if (!silent && isMounted.current) setLoading(false);
-    }
-  }, [apiFetch]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Load products when POS is ready (session closed) and we have a valid warehouse. Re-run when warehouse.id becomes available (e.g. after context resolves for bound POS).
+  // Products come from useProductsQuery (shared cache). Clear cart/filters when warehouse or session changes.
   useEffect(() => {
     if (sessionOpen || !warehouse?.id) return;
-    loadProducts(warehouse.id);
     setCart([]);
     setSearch('');
     setCategory('all');
     setSizeFilter('all');
     setColorFilter('all');
-  }, [warehouse?.id, sessionOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [warehouse?.id, sessionOpen]);
 
   // ── Session ───────────────────────────────────────────────────────────────
 
@@ -311,30 +304,38 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       }
     }
 
-    // Step 2: Deduct stock locally only when sync succeeded (so UI matches server)
-    if (syncOk) {
-      setProducts(prev => prev.map(p => {
-        const saleLines = payload.lines.filter(l => l.productId === p.id);
-        if (saleLines.length === 0) return p;
-
-        if (p.sizeKind === 'sized') {
-          const updatedSizes = (p.quantityBySize ?? []).map(row => {
-            const line = saleLines.find(l =>
-              l.sizeCode && row.sizeCode &&
-              l.sizeCode.toUpperCase() === row.sizeCode.toUpperCase()
-            );
-            return line ? { ...row, quantity: Math.max(0, row.quantity - line.qty) } : row;
-          });
-          return {
-            ...p,
-            quantityBySize: updatedSizes,
-            quantity: updatedSizes.reduce((s, r) => s + r.quantity, 0),
-          };
-        }
-
-        const totalSold = saleLines.reduce((s, l) => s + l.qty, 0);
-        return { ...p, quantity: Math.max(0, p.quantity - totalSold) };
-      }));
+    // Step 2: Deduct stock in React Query cache when sync succeeded (so UI matches server)
+    if (syncOk && warehouse?.id) {
+      const key = productsQueryKey(warehouse.id);
+      queryClient.setQueryData<InfiniteData<{ data: POSProduct[]; total: number }>>(key, (old) => {
+        if (!old) return old;
+        const deduct = (p: POSProduct): POSProduct => {
+          const saleLines = payload.lines.filter((l) => l.productId === p.id);
+          if (saleLines.length === 0) return p;
+          if (p.sizeKind === 'sized') {
+            const updatedSizes = (p.quantityBySize ?? []).map((row) => {
+              const line = saleLines.find(
+                (l) =>
+                  l.sizeCode &&
+                  row.sizeCode &&
+                  l.sizeCode.toUpperCase() === row.sizeCode.toUpperCase()
+              );
+              return line ? { ...row, quantity: Math.max(0, row.quantity - line.qty) } : row;
+            });
+            return {
+              ...p,
+              quantityBySize: updatedSizes,
+              quantity: updatedSizes.reduce((s, r) => s + r.quantity, 0),
+            };
+          }
+          const totalSold = saleLines.reduce((s, l) => s + l.qty, 0);
+          return { ...p, quantity: Math.max(0, p.quantity - totalSold) };
+        };
+        return {
+          ...old,
+          pages: old.pages.map((page) => ({ ...page, data: page.data.map(deduct) })),
+        };
+      });
     }
 
     // Step 3: Clear cart + close sheet only when sale synced; preserve cart on failure so user can retry
@@ -371,8 +372,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   function handleNewSale() {
     setSaleResult(null);
     setCart([]);
-    // Re-fetch from server = ground truth stock after sales
-    loadProducts(warehouse.id, true);
+    refetchProducts();
   }
 
   // ── Share ─────────────────────────────────────────────────────────────────
@@ -458,11 +458,14 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
             sizeFilter={sizeFilter}
             colorFilter={colorFilter}
             onSelect={product => setActiveProduct(structuredClone(product))}
+            onLoadMore={loadMore}
+            loadingMore={loadingMore}
+            totalCount={totalCount}
+            onRetry={productsQuery.error ? () => refetchProducts() : undefined}
             onClearSearch={() => setSearch('')}
             onCategoryChange={setCategory}
             onSizeFilterChange={setSizeFilter}
             onColorFilterChange={setColorFilter}
-            onRetry={() => warehouse?.id && loadProducts(warehouse.id)}
           />
         </div>
 

@@ -50,6 +50,16 @@ export function getUserFriendlyMessage(error: unknown): string {
     return 'Server error. Please try again in a moment.';
   }
 
+  // Chunk / module load failures (stale deploy, CDN cache, network)
+  if (
+    str.includes('importing a module script failed') ||
+    str.includes('loading chunk') ||
+    str.includes('failed to fetch dynamically imported module') ||
+    str.includes('error loading dynamically imported module')
+  ) {
+    return 'A new version may be available or a file failed to load. Refresh the page to continue.';
+  }
+
   // Abort (user navigated away or cancelled)
   if (str.includes('abort')) {
     return 'Request was cancelled.';
