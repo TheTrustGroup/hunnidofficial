@@ -55,6 +55,12 @@ npm run dev
 3. **Health:** After deploy, `GET /api/health` should return `200` and `"status":"ok"` (and `"db":"ok"` when Supabase is reachable).
 4. **Smoke:** Open frontend → log in → open Inventory or POS → confirm product list loads and at least one card shows an image or placeholder.
 
+## Deploy (this repo)
+
+- **App lives in:** `warehouse-pos/` (frontend + `inventory-server`).
+- **Clean build:** From repo root: `cd warehouse-pos && rm -rf node_modules dist && npm install && npm run build`.
+- **Deploy:** Push `main` to `origin`; Vercel builds and deploys from Git. If push fails with "refusing to allow an OAuth App to create or update workflow", use a token with **workflow** scope or push from GitHub CLI / SSH.
+
 ## Deploy / 405 fix runbooks
 
-Archived runbooks for CORS and `/api/products` deployment are in **inventory-server/docs/archive/** (e.g. `DEPLOY_AND_VERIFY_405.md`, `DEPLOY_VERIFY_405_FIX.md`).
+Archived runbooks for CORS and `/api/products` deployment are in **warehouse-pos/inventory-server/docs/archive/** (e.g. `DEPLOY_AND_VERIFY_405.md`, `DEPLOY_VERIFY_405_FIX.md`).
