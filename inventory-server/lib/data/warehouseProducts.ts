@@ -192,20 +192,17 @@ export async function getWarehouseProducts(
     }
     const { data: sizeRows } = await db
       .from('warehouse_inventory_by_size')
-      .select('product_id, size_code, quantity, size_codes!left(size_label)')
+      .select('product_id, size_code, quantity')
       .eq('warehouse_id', effectiveWarehouseId)
       .in('product_id', productIds);
-    const sizeList = (sizeRows ?? []) as Array<{
-      product_id: string;
-      size_code: string;
-      quantity: number;
-      size_codes?: { size_label?: string } | null;
-    }>;
+    const sizeList = (sizeRows ?? []) as Array<{ product_id: string; size_code: string; quantity: number }>;
     for (const r of sizeList) {
       if (!sizeMap[r.product_id]) sizeMap[r.product_id] = [];
+      const code = String(r.size_code ?? '').trim();
+      if (!code) continue;
       sizeMap[r.product_id].push({
-        sizeCode: String(r.size_code),
-        sizeLabel: r.size_codes?.size_label ?? r.size_code,
+        sizeCode: code,
+        sizeLabel: code,
         quantity: Number(r.quantity ?? 0),
       });
     }
@@ -276,15 +273,15 @@ export async function getProductById(
     .maybeSingle();
   const { data: sizeRows } = await db
     .from('warehouse_inventory_by_size')
-    .select('size_code, quantity, size_codes!left(size_label)')
+    .select('size_code, quantity')
     .eq('warehouse_id', warehouseId)
     .eq('product_id', productId);
-  const sizes = ((sizeRows ?? []) as Array<{ size_code: string; quantity: number; size_codes?: { size_label?: string } | null }>)
-    .map((s) => ({
-      sizeCode: String(s.size_code),
-      sizeLabel: s.size_codes?.size_label ?? s.size_code,
-      quantity: Number(s.quantity ?? 0),
-    }))
+  const sizes = ((sizeRows ?? []) as Array<{ size_code: string; quantity: number }>)
+    .filter((s) => String(s.size_code ?? '').trim())
+    .map((s) => {
+      const code = String(s.size_code).trim();
+      return { sizeCode: code, sizeLabel: code, quantity: Number(s.quantity ?? 0) };
+    })
     .sort((a, b) => a.sizeCode.localeCompare(b.sizeCode));
   const isSized = (r.size_kind as string) === 'sized' && sizes.length > 0;
   quantity = isSized ? sizes.reduce((s, x) => s + x.quantity, 0) : Number((invRow as { quantity?: number } | null)?.quantity ?? 0);
@@ -395,7 +392,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
       .map((r) => ({
         product_id: id,
         warehouse_id: warehouseId,
-        size_code: String(r.sizeCode).trim(),
+        size_code: String(r.sizeCode).trim().toUpperCase(),
         quantity: Number(r.quantity) || 0,
       }));
     if (sizeRows.length > 0) {
@@ -519,7 +516,7 @@ export async function updateWarehouseProduct(
       .map((r) => ({
         product_id: productId,
         warehouse_id: warehouseId,
-        size_code: String(r.sizeCode).trim(),
+        size_code: String(r.sizeCode).trim().toUpperCase(),
         quantity: Number(r.quantity) || 0,
       }));
     if (sizeRows.length > 0) {
