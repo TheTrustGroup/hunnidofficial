@@ -48,6 +48,12 @@ npm run dev
 | `npm run test:e2e`| Run Playwright E2E (smoke)     |
 | `npm run lint`    | Run ESLint                     |
 
+## Stock value (reporting & dashboard)
+
+- **Formula:** Total stock value = Σ (quantity × unit cost) per product. Unit cost = `costPrice` when &gt; 0, else `sellingPrice`. Quantity for sized products = sum of `quantityBySize[].quantity`.
+- **Sources:** Dashboard and Inventory "Stock value" use `GET /api/dashboard` (server, up to 2000 products per warehouse). Reports and CSV export use `reportService.getProductQty` + `getProductValuePrice` so export matches on-screen totals.
+- **Accuracy:** Set `costPrice` on products for cost-based value; warehouses with &gt; 2000 products may need a higher limit or DB-side aggregation (see `inventory-server/lib/data/dashboardStats.ts`).
+
 ## Deploy checklist (inventory-server)
 
 1. **Env:** Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (and optional `SESSION_SECRET` / `JWT_SECRET` for auth) in Vercel (or host).

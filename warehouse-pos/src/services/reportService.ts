@@ -27,6 +27,10 @@ export interface SalesReport {
 export interface InventoryReport {
   totalProducts: number;
   totalStockValue: number;
+  /** Products with no cost price (valued at selling) — helps reconcile if your total looks high. */
+  productsValuedAtSelling: number;
+  /** Total if we only used cost price (excludes products with no cost). Use to compare with a cost-only manual calc. */
+  totalStockValueAtCostOnly: number;
   lowStockItems: number;
   outOfStockItems: number;
   productsByCategory: Array<{
@@ -237,12 +241,19 @@ function isMockProduct(product: Product): boolean {
   return false;
 }
 
-/** Quantity for stats: sized products use sum of quantityBySize; others use quantity. */
-function getProductQty(p: Product): number {
+/** Quantity for stats: sized products use sum of quantityBySize; others use quantity. Exported for CSV export and other callers. */
+export function getProductQty(p: Product): number {
   if (p.sizeKind === 'sized' && (p.quantityBySize?.length ?? 0) > 0) {
     return (p.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
   }
   return Number(p.quantity ?? 0) || 0;
+}
+
+/** Unit price for stock value: cost when set and > 0, else selling price. Matches dashboard and inventory stats. */
+export function getProductValuePrice(p: Product): number {
+  const cost = Number(p.costPrice ?? 0) || 0;
+  const selling = Number(p.sellingPrice ?? 0) || 0;
+  return cost > 0 ? cost : selling;
 }
 
 export function generateInventoryReport(products: Product[]): InventoryReport {
@@ -255,6 +266,11 @@ export function generateInventoryReport(products: Product[]): InventoryReport {
   const priceForValue = (p: Product) => cost(p) > 0 ? cost(p) : selling(p);
   const reorder = (p: Product) => Number(p.reorderLevel ?? 0) || 0;
   const totalStockValue = realProducts.reduce((sum, p) => sum + getProductQty(p) * priceForValue(p), 0);
+  const productsValuedAtSelling = realProducts.filter(p => cost(p) <= 0 && selling(p) > 0).length;
+  const totalStockValueAtCostOnly = realProducts.reduce(
+    (sum, p) => sum + (cost(p) > 0 ? getProductQty(p) * cost(p) : 0),
+    0
+  );
   const lowStockItems = realProducts.filter(p => {
     const q = getProductQty(p);
     return q > 0 && q <= reorder(p);
@@ -296,6 +312,8 @@ export function generateInventoryReport(products: Product[]): InventoryReport {
   return {
     totalProducts,
     totalStockValue,
+    productsValuedAtSelling,
+    totalStockValueAtCostOnly,
     lowStockItems,
     outOfStockItems,
     productsByCategory,

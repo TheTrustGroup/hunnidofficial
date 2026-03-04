@@ -8,7 +8,7 @@ import { SalesMetrics } from '../components/reports/SalesMetrics';
 import { SalesChart } from '../components/reports/SalesChart';
 import { TopProductsTable } from '../components/reports/TopProductsTable';
 import { InventoryMetrics } from '../components/reports/InventoryMetrics';
-import { generateSalesReport, generateInventoryReport, exportToCSV, SalesReport, InventoryReport } from '../services/reportService';
+import { generateSalesReport, generateInventoryReport, exportToCSV, getProductQty, getProductValuePrice, SalesReport, InventoryReport } from '../services/reportService';
 import { fetchSalesAsTransactions } from '../services/salesApi';
 import { fetchTransactionsFromApi } from '../services/transactionsApi';
 import { Transaction } from '../types';
@@ -136,16 +136,19 @@ export function Reports() {
   };
 
   const handleExportInventory = () => {
-    const exportData = products.map(p => ({
-      'SKU': p.sku,
-      'Name': p.name,
-      'Category': getCategoryDisplay(p.category),
-      'Quantity': p.quantity,
-      'Cost Price': p.costPrice,
-      'Selling Price': p.sellingPrice,
-      'Total Value': p.quantity * p.costPrice,
-    }));
-    
+    const exportData = products.map(p => {
+      const qty = getProductQty(p);
+      const unitPrice = getProductValuePrice(p);
+      return {
+        'SKU': p.sku,
+        'Name': p.name,
+        'Category': getCategoryDisplay(p.category),
+        'Quantity': qty,
+        'Cost Price': p.costPrice,
+        'Selling Price': p.sellingPrice,
+        'Total Value': qty * unitPrice,
+      };
+    });
     exportToCSV(exportData, 'inventory_report');
   };
 

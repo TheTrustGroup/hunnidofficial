@@ -7,6 +7,7 @@ import { getWarehouseProducts, type ProductRecord } from '@/lib/data/warehousePr
 import { getSupabase } from '@/lib/supabase';
 
 const LOW_STOCK_ALERTS_LIMIT = 10;
+/** Max products per warehouse for dashboard stats. If a warehouse has more, totalStockValue will be understated; consider DB-side aggregation (e.g. RPC) for very large catalogs. */
 const PRODUCTS_LIMIT = 2000;
 
 function getProductQty(p: ProductRecord): number {
