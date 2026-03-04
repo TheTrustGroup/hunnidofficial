@@ -22,6 +22,7 @@ import type { LucideIcon } from 'lucide-react';
 import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle } from 'lucide-react';
 import { useWarehouse } from '../contexts/WarehouseContext';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
+import { INVENTORY_UPDATED_EVENT } from '../lib/inventoryEvents';
 
 // ── Types (match GET /api/dashboard response) ──────────────────────────────
 
@@ -261,6 +262,22 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadData(warehouseId);
+  }, [warehouseId, loadData]);
+
+  // Refetch when inventory changes (e.g. POS sale, order deduct) so stock value and counts stay correct
+  useEffect(() => {
+    const onInventoryUpdated = () => loadData(warehouseId);
+    window.addEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
+    return () => window.removeEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
+  }, [warehouseId, loadData]);
+
+  // When user switches back to this tab (e.g. did a sale in another tab), refetch so units and stock value are correct
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadData(warehouseId);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [warehouseId, loadData]);
 
   // Today's sales per warehouse (super-admin at-a-glance; one lightweight request).

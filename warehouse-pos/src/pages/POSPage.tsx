@@ -34,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import type { InfiniteData } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
+import { notifyInventoryUpdated } from '../lib/inventoryEvents';
 import { useProductsQuery, productsQueryKey } from '../hooks/useProductsQuery';
 import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from '../contexts/WarehouseContext';
@@ -365,6 +366,8 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       completedAt,
       deliveryStatus: payload.deliveryStatus ?? 'delivered',
     });
+    // So Dashboard and Inventory refetch and show updated stock value / quantities
+    notifyInventoryUpdated();
   }
 
   // ── New sale ──────────────────────────────────────────────────────────────

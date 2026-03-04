@@ -249,11 +249,10 @@ export function getProductQty(p: Product): number {
   return Number(p.quantity ?? 0) || 0;
 }
 
-/** Unit price for stock value: cost when set and > 0, else selling price. Matches dashboard and inventory stats. */
+/** Unit price for stock value: cost only. Products with no cost contribute 0 (accurate total, no inflation). */
 export function getProductValuePrice(p: Product): number {
   const cost = Number(p.costPrice ?? 0) || 0;
-  const selling = Number(p.sellingPrice ?? 0) || 0;
-  return cost > 0 ? cost : selling;
+  return cost > 0 ? cost : 0;
 }
 
 export function generateInventoryReport(products: Product[]): InventoryReport {
@@ -262,15 +261,10 @@ export function generateInventoryReport(products: Product[]): InventoryReport {
 
   const totalProducts = realProducts.length;
   const cost = (p: Product) => Number(p.costPrice ?? 0) || 0;
-  const selling = (p: Product) => Number(p.sellingPrice ?? 0) || 0;
-  const priceForValue = (p: Product) => cost(p) > 0 ? cost(p) : selling(p);
   const reorder = (p: Product) => Number(p.reorderLevel ?? 0) || 0;
-  const totalStockValue = realProducts.reduce((sum, p) => sum + getProductQty(p) * priceForValue(p), 0);
-  const productsValuedAtSelling = realProducts.filter(p => cost(p) <= 0 && selling(p) > 0).length;
-  const totalStockValueAtCostOnly = realProducts.reduce(
-    (sum, p) => sum + (cost(p) > 0 ? getProductQty(p) * cost(p) : 0),
-    0
-  );
+  const totalStockValue = realProducts.reduce((sum, p) => sum + getProductQty(p) * (cost(p) > 0 ? cost(p) : 0), 0);
+  const productsValuedAtSelling = realProducts.filter(p => cost(p) <= 0).length;
+  const totalStockValueAtCostOnly = totalStockValue;
   const lowStockItems = realProducts.filter(p => {
     const q = getProductQty(p);
     return q > 0 && q <= reorder(p);
@@ -282,7 +276,7 @@ export function generateInventoryReport(products: Product[]): InventoryReport {
   realProducts.forEach(p => {
     const catKey = getCategoryDisplay(p.category);
     const existing = categoryStats.get(catKey);
-    const value = getProductQty(p) * priceForValue(p);
+    const value = cost(p) > 0 ? getProductQty(p) * cost(p) : 0;
     if (existing) {
       existing.count += 1;
       existing.value += value;
@@ -304,7 +298,7 @@ export function generateInventoryReport(products: Product[]): InventoryReport {
     .map(p => ({
       name: p.name,
       quantity: getProductQty(p),
-      value: getProductQty(p) * priceForValue(p),
+      value: cost(p) > 0 ? getProductQty(p) * cost(p) : 0,
     }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);

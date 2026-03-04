@@ -50,9 +50,10 @@ npm run dev
 
 ## Stock value (reporting & dashboard)
 
-- **Formula:** Total stock value = Σ (quantity × unit cost) per product. Unit cost = `costPrice` when &gt; 0, else `sellingPrice`. Quantity for sized products = sum of `quantityBySize[].quantity`.
-- **Sources:** Dashboard and Inventory "Stock value" use `GET /api/dashboard` (server, up to 2000 products per warehouse). Reports and CSV export use `reportService.getProductQty` + `getProductValuePrice` so export matches on-screen totals.
-- **Accuracy:** Set `costPrice` on products for cost-based value; warehouses with &gt; 2000 products may need a higher limit or DB-side aggregation (see `inventory-server/lib/data/dashboardStats.ts`).
+- **Formula:** Total stock value = Σ (quantity × cost price) per product. **Cost only:** products with no cost (or 0) contribute 0 to the total (no selling-price fallback, so the total is accurate and never inflated). Quantity for sized products = sum of `quantityBySize[].quantity`.
+- **Sources:** Dashboard and Inventory "Stock value" use `GET /api/dashboard` (server, up to 2000 products per warehouse). Reports and CSV export use the same cost-only logic.
+- **After a sale:** POS and order deductions dispatch an event so Dashboard and Inventory refetch and the displayed stock value updates immediately.
+- **Accuracy:** Set `costPrice` on all products you want included in the total; warehouses with &gt; 2000 products may need a higher limit or DB-side aggregation (see `inventory-server/lib/data/dashboardStats.ts`).
 
 ## Deploy checklist (inventory-server)
 

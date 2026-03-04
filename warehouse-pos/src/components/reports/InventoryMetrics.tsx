@@ -8,7 +8,6 @@ interface InventoryMetricsProps {
 
 export function InventoryMetrics({ report }: InventoryMetricsProps) {
   const valuedAtSelling = report.productsValuedAtSelling ?? 0;
-  const costOnlyTotal = report.totalStockValueAtCostOnly ?? 0;
   const metrics = [
     {
       label: 'Total Products',
@@ -55,7 +54,7 @@ export function InventoryMetrics({ report }: InventoryMetricsProps) {
       </div>
       {valuedAtSelling > 0 && (
         <p className="text-sm text-slate-500">
-          Total stock value uses <strong>cost price</strong> when set; otherwise <strong>selling price</strong>. {valuedAtSelling} product{valuedAtSelling !== 1 ? 's' : ''} had no cost (valued at selling). Cost-only total: {formatCurrency(costOnlyTotal)} — use this to compare with a cost-only calculation.
+          Total stock value uses <strong>cost price only</strong>. {valuedAtSelling} product{valuedAtSelling !== 1 ? 's' : ''} have no cost set and are excluded from the total.
         </p>
       )}
     </div>

@@ -6,6 +6,7 @@ import { useWarehouse } from './WarehouseContext';
 import { useToast } from './ToastContext';
 import { API_BASE_URL } from '../lib/api';
 import { apiGet, apiPost, apiPatch } from '../lib/apiClient';
+import { notifyInventoryUpdated } from '../lib/inventoryEvents';
 import { reportError } from '../lib/errorReporting';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 
@@ -142,6 +143,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
     await apiPost(API_BASE_URL, '/api/orders/deduct', payload);
     await refreshProducts();
+    notifyInventoryUpdated();
   }, [currentWarehouseId, refreshProducts]);
 
   // Atomic add when delivery failed or order cancelled (return stock).
@@ -153,6 +155,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
     await apiPost(API_BASE_URL, '/api/orders/return-stock', payload);
     await refreshProducts();
+    notifyInventoryUpdated();
   }, [currentWarehouseId, refreshProducts]);
 
   // Create new order (resilient to 404 when backend does not implement POST /api/orders)

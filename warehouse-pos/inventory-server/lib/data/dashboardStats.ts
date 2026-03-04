@@ -108,7 +108,8 @@ export async function getDashboardStats(
     const qty = getProductQty(p);
     const reorder = p.reorderLevel ?? 0;
     const cost = p.costPrice ?? 0;
-    const price = cost > 0 ? cost : (p.sellingPrice ?? 0);
+    // Cost-only: products with no cost contribute 0 to total (accurate, no inflation from selling price)
+    const price = cost > 0 ? cost : 0;
     totalUnits += qty;
     totalStockValue += qty * price;
     if (qty === 0) outOfStockCount++;
@@ -117,7 +118,7 @@ export async function getDashboardStats(
     const cat = p.category?.trim() || 'Uncategorised';
     if (!categorySummary[cat]) categorySummary[cat] = { count: 0, value: 0 };
     categorySummary[cat].count++;
-    categorySummary[cat].value += qty * price;
+    categorySummary[cat].value += qty * (cost > 0 ? cost : 0);
   }
 
   const lowStockItems: DashboardLowStockItem[] = lowStockCandidates

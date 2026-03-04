@@ -17,6 +17,7 @@ import ProductCard, { ProductCardSkeleton, type Product } from '../components/in
 import ProductModal from '../components/inventory/ProductModal';
 import { type SizeCode } from '../components/inventory/SizesSection';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
+import { INVENTORY_UPDATED_EVENT, notifyInventoryUpdated } from '../lib/inventoryEvents';
 import { useWarehouse } from '../contexts/WarehouseContext';
 import type { Warehouse } from '../types';
 
@@ -60,7 +61,7 @@ function computeStats(products: Product[]) {
     const qty     = getProductQty(p);
     const reorder = p.reorderLevel ?? 3;
     const cost    = p.costPrice ?? 0;
-    const price   = cost > 0 ? cost : (p.sellingPrice ?? 0);
+    const price   = cost > 0 ? cost : 0; // cost-only so total is accurate
     totalUnits += qty;
     totalValue += qty * price;
     if (qty === 0) outCount++;
@@ -555,6 +556,16 @@ export default function InventoryPage(_props: InventoryPageProps) {
     return () => { cancelled = true; };
   }, [warehouseId, apiFetch]);
 
+  // Refetch when inventory changes (e.g. POS sale, order deduct) so stock value and quantities update
+  useEffect(() => {
+    const onInventoryUpdated = () => {
+      loadWarehouseStats();
+      loadProducts(0, false, true);
+    };
+    window.addEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
+    return () => window.removeEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
+  }, [warehouseId, loadWarehouseStats, loadProducts]);
+
   // ── Lifecycle: warehouse change ────────────────────────────────────────────
 
   useEffect(() => {
@@ -697,6 +708,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
         lastSaveTimeRef.current = Date.now();
         loadWarehouseStats();
+        notifyInventoryUpdated();
         showToast(`${payload.name} updated`, 'success');
       } catch (e: unknown) {
         const err = e as Error;
@@ -731,6 +743,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
         lastSaveTimeRef.current = Date.now();
         loadWarehouseStats();
+        notifyInventoryUpdated();
         showToast(`${payload.name} added`, 'success');
       } catch (e: unknown) {
         const err = e as Error;

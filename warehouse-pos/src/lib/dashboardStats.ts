@@ -29,7 +29,7 @@ export function computeDashboardStats(
   const cost = (p: ProductForStats) => Number(p.costPrice ?? 0) || 0;
   const reorder = (p: ProductForStats) => Number(p.reorderLevel ?? 0) || 0;
   const totalProducts = products.length;
-  const totalStockValue = products.reduce((sum, p) => sum + q(p) * cost(p), 0);
+  const totalStockValue = products.reduce((sum, p) => sum + q(p) * (cost(p) > 0 ? cost(p) : 0), 0);
   const lowStockItems = products.filter((p) => q(p) > 0 && q(p) <= reorder(p)).length;
   const outOfStockItems = products.filter((p) => q(p) === 0).length;
 
