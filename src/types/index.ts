@@ -112,7 +112,7 @@ export interface TransactionItem {
 }
 
 export interface Payment {
-  method: 'cash' | 'card' | 'mobile_money';
+  method: 'cash' | 'card' | 'mobile_money' | 'mixed';
   amount: number;
 }
 

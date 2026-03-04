@@ -35,7 +35,7 @@ interface Sale {
   receiptId: string;
   warehouseId: string;
   customerName: string | null;
-  paymentMethod: 'Cash' | 'MoMo' | 'Card';
+  paymentMethod: 'Cash' | 'MoMo' | 'Card' | 'Mix';
   subtotal: number;
   discountPct: number;
   discountAmt: number;
@@ -140,12 +140,14 @@ const PAY_COLORS: Record<string, string> = {
   Cash: 'bg-emerald-100 text-emerald-800',
   MoMo: 'bg-amber-100  text-amber-800',
   Card: 'bg-blue-100   text-blue-800',
+  Mix:  'bg-violet-100 text-violet-800',
 };
 
 function PayBadge({ method }: { method: string }) {
+  const icon = method === 'Cash' ? '💵' : method === 'MoMo' ? '📱' : method === 'Card' ? '💳' : method === 'Mix' ? '🔄' : '💰';
   return (
     <span className={`inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-bold ${PAY_COLORS[method] ?? 'bg-slate-100 text-slate-600'}`}>
-      {method === 'Cash' ? '💵' : method === 'MoMo' ? '📱' : '💳'} {method}
+      {icon} {method}
     </span>
   );
 }
@@ -373,6 +375,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
   const cashTotal       = displayed.filter(s => s.paymentMethod === 'Cash').reduce((s, x) => s + x.total, 0);
   const momoTotal       = displayed.filter(s => s.paymentMethod === 'MoMo').reduce((s, x) => s + x.total, 0);
   const cardTotal       = displayed.filter(s => s.paymentMethod === 'Card').reduce((s, x) => s + x.total, 0);
+  const mixTotal        = displayed.filter(s => s.paymentMethod === 'Mix').reduce((s, x) => s + x.total, 0);
   const avgSale         = displayed.length > 0 ? totalRevenue / displayed.length : 0;
   const currentWh = warehouseId === ALL_WAREHOUSES_ID
     ? { id: ALL_WAREHOUSES_ID, name: 'All warehouses' }
@@ -542,11 +545,9 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
           <SummaryCard label="Items sold" value={totalItems.toLocaleString()} sub={`Avg ${fmt(avgSale)}/sale`} />
           <SummaryCard label="Cash" value={fmt(cashTotal)} />
           <SummaryCard label="MoMo" value={fmt(momoTotal)} />
-        </div>
-
-        {cardTotal > 0 && (
           <SummaryCard label="Card" value={fmt(cardTotal)} />
-        )}
+          <SummaryCard label="Mix" value={fmt(mixTotal)} />
+        </div>
 
         {/* ── Search ── */}
         <div className="relative">

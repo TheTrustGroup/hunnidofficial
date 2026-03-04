@@ -22,7 +22,7 @@ export interface SaleFromApi {
   receiptId: string;
   warehouseId: string;
   customerName: string | null;
-  paymentMethod: 'Cash' | 'MoMo' | 'Card';
+  paymentMethod: 'Cash' | 'MoMo' | 'Card' | 'Mix';
   subtotal: number;
   discountPct: number;
   discountAmt: number;
@@ -45,6 +45,7 @@ function paymentMethodForReport(m: string): Payment['method'] {
   if (lower === 'cash') return 'cash';
   if (lower === 'momo' || lower === 'mobile_money') return 'mobile_money';
   if (lower === 'card') return 'card';
+  if (lower === 'mix') return 'mixed';
   return 'cash';
 }
 

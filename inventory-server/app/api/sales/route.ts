@@ -72,8 +72,8 @@ export async function POST(req: NextRequest) {
       { error: 'warehouseId is required and must be a warehouse you are allowed to use' },
       { status: 400, headers: h }
     );
-  if (!['Cash', 'MoMo', 'Card'].includes(paymentMethod))
-    return NextResponse.json({ error: 'paymentMethod must be Cash, MoMo, or Card' }, { status: 400, headers: h });
+  if (!['Cash', 'MoMo', 'Card', 'Mix'].includes(paymentMethod))
+    return NextResponse.json({ error: 'paymentMethod must be Cash, MoMo, Card, or Mix' }, { status: 400, headers: h });
   if (!Array.isArray(lines) || lines.length === 0)
     return NextResponse.json({ error: 'lines must be non-empty array' }, { status: 400, headers: h });
 

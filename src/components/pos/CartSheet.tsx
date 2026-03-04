@@ -17,7 +17,7 @@ export interface CartLine {
   imageUrl?:  string | null;
 }
 
-export type PaymentMethod  = 'Cash' | 'MoMo' | 'Card';
+export type PaymentMethod  = 'Cash' | 'MoMo' | 'Card' | 'Mix';
 export type DeliveryStatus = 'delivered' | 'pending' | 'dispatched';
 
 export interface SalePayload {
@@ -214,7 +214,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
             <div className="px-5 pt-2 pb-3 border-t border-slate-100">
               <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Payment method</p>
               <div className="flex gap-2">
-                {([{ method: 'Cash', icon: '💵' }, { method: 'MoMo', icon: '📱' }, { method: 'Card', icon: '💳' }] as { method: PaymentMethod; icon: string }[]).map(({ method, icon }) => (
+                {([{ method: 'Cash', icon: '💵' }, { method: 'MoMo', icon: '📱' }, { method: 'Card', icon: '💳' }, { method: 'Mix', icon: '🔄' }] as { method: PaymentMethod; icon: string }[]).map(({ method, icon }) => (
                   <PayBtn key={method} method={method} icon={icon} selected={paymentMethod === method} onSelect={() => setPaymentMethod(method)} />
                 ))}
               </div>

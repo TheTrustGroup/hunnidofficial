@@ -89,6 +89,7 @@ const PAYMENT_CONFIG: Record<string, { icon: string; label: string; color: strin
   Cash: { icon: '💵', label: 'Cash',         color: 'bg-emerald-500' },
   MoMo: { icon: '📱', label: 'Mobile Money', color: 'bg-amber-500'   },
   Card: { icon: '💳', label: 'Card',         color: 'bg-blue-500'    },
+  Mix:  { icon: '🔄', label: 'Mix',          color: 'bg-violet-500'  },
 };
 
 // ── Download receipt as printable page ────────────────────────────────────
