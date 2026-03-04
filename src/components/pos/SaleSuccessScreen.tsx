@@ -13,6 +13,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { type SalePayload, type DeliveryStatus } from './CartSheet';
+import { PayIcon } from './PaymentIcons';
 
 // ── Extended sale type (POSPage sets receiptId from server) ────────────────
 export interface CompletedSale extends Omit<SalePayload, 'deliveryStatus'> {
@@ -85,18 +86,18 @@ const IconPlus = () => (
 
 // ── Payment config ─────────────────────────────────────────────────────────
 
-const PAYMENT_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
-  Cash: { icon: '💵', label: 'Cash',         color: 'bg-emerald-500' },
-  MoMo: { icon: '📱', label: 'Mobile Money', color: 'bg-amber-500'   },
-  Card: { icon: '💳', label: 'Card',         color: 'bg-blue-500'    },
-  Mix:  { icon: '🔄', label: 'Mix',          color: 'bg-violet-500'  },
+const PAYMENT_CONFIG: Record<string, { label: string; color: string }> = {
+  Cash: { label: 'Cash',         color: 'bg-emerald-500' },
+  MoMo: { label: 'Mobile Money', color: 'bg-amber-500'   },
+  Card: { label: 'Card',         color: 'bg-blue-500'    },
+  Mix:  { label: 'Mix',          color: 'bg-violet-500'  },
 };
 
 // ── Download receipt as printable page ────────────────────────────────────
 
 function downloadReceipt(sale: CompletedSale) {
   const receiptNo = sale.receiptId ?? `RCP-${Date.now().toString(36).toUpperCase()}`;
-  const payment   = PAYMENT_CONFIG[sale.paymentMethod] ?? { icon: '💰', label: sale.paymentMethod, color: '' };
+  const payment   = PAYMENT_CONFIG[sale.paymentMethod] ?? { label: sale.paymentMethod, color: '' };
   const itemCount = sale.lines.reduce((s, l) => s + l.qty, 0);
 
   // ── Date formatting ────────────────────────────────────────────────────
@@ -478,7 +479,7 @@ function downloadReceipt(sale: CompletedSale) {
   <!-- Payment -->
   <div class="payment-section">
     <span class="payment-label">Payment</span>
-    <span class="payment-pill">${payment.icon} ${payment.label}</span>
+    <span class="payment-pill">${payment.label}</span>
   </div>
 
   <!-- Footer -->
@@ -584,7 +585,7 @@ export default function SaleSuccessScreen({
 
   if (!sale) return null;
 
-  const payment  = PAYMENT_CONFIG[sale.paymentMethod] ?? { icon: '💰', label: sale.paymentMethod, color: 'bg-slate-600' };
+  const payment  = PAYMENT_CONFIG[sale.paymentMethod] ?? { label: sale.paymentMethod, color: 'bg-slate-600' };
   const receiptNo         = sale.receiptId ?? `RCPT-${Date.now().toString(36).toUpperCase()}`;
   const itemCount         = sale.lines.reduce((s, l) => s + l.qty, 0);
   const isPendingDelivery = sale.deliveryStatus === 'pending' || sale.deliveryStatus === 'dispatched';
@@ -638,7 +639,12 @@ export default function SaleSuccessScreen({
             inline-flex items-center gap-1.5 h-7 px-3 rounded-full
             ${payment.color} text-white text-[12px] font-bold
           `}>
-            {payment.icon} {payment.label}
+            <PayIcon method={sale.paymentMethod} size={14} /> {payment.label}
+            {sale.paymentMethod === 'Mix' && sale.paymentMixBreakdown && (
+              <span className="opacity-90 font-normal">
+                {' '}(Cash {fmt(sale.paymentMixBreakdown.cash)} · MoMo {fmt(sale.paymentMixBreakdown.momo)} · Card {fmt(sale.paymentMixBreakdown.card)})
+              </span>
+            )}
           </span>
 
           <span className="inline-flex items-center h-7 px-3 rounded-full
@@ -737,7 +743,12 @@ export default function SaleSuccessScreen({
                 inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-bold text-white
                 ${payment.color}
               `}>
-                {payment.icon} {payment.label}
+                <PayIcon method={sale.paymentMethod} size={12} /> {payment.label}
+                {sale.paymentMethod === 'Mix' && sale.paymentMixBreakdown && (
+                  <span className="opacity-90 text-[10px] font-normal block mt-0.5">
+                    Cash {fmt(sale.paymentMixBreakdown.cash)} · MoMo {fmt(sale.paymentMixBreakdown.momo)} · Card {fmt(sale.paymentMixBreakdown.card)}
+                  </span>
+                )}
               </span>
             </div>
           </div>

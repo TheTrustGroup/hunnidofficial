@@ -77,6 +77,22 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(lines) || lines.length === 0)
     return NextResponse.json({ error: 'lines must be non-empty array' }, { status: 400, headers: h });
 
+  const rawMix = body.paymentMixBreakdown as Record<string, unknown> | undefined;
+  let paymentMixBreakdown: { cash: number; momo: number; card: number } | null = null;
+  if (paymentMethod === 'Mix' && rawMix && typeof rawMix === 'object') {
+    const cash = Number(rawMix.cash ?? 0);
+    const momo = Number(rawMix.momo ?? 0);
+    const card = Number(rawMix.card ?? 0);
+    const sum = cash + momo + card;
+    if (Math.abs(sum - total) > 0.01) {
+      return NextResponse.json(
+        { error: `Mix breakdown (Cash + MoMo + Card) must equal total. Got ${sum.toFixed(2)}, total ${total.toFixed(2)}` },
+        { status: 400, headers: h }
+      );
+    }
+    paymentMixBreakdown = { cash, momo, card };
+  }
+
   type NLine = {
     productId: string;
     sizeCode: string | null;
@@ -113,7 +129,8 @@ export async function POST(req: NextRequest) {
   try {
     const db = getDb();
 
-    // Try atomic RPC first
+    // Try atomic RPC first. record_sale deducts stock (warehouse_inventory / warehouse_inventory_by_size)
+    // and inserts sale + sale_lines. Ensure migration 20250228170000_sales_sold_by_email.sql is applied.
     const { data, error } = await db.rpc('record_sale', {
       p_warehouse_id: warehouseId,
       p_lines: normalizedLines,
@@ -149,6 +166,7 @@ export async function POST(req: NextRequest) {
           deliveryAddress,
           deliveryNotes,
           expectedDate,
+          paymentMixBreakdown,
           h,
         });
       }
@@ -158,19 +176,25 @@ export async function POST(req: NextRequest) {
     const result = typeof data === 'string' ? JSON.parse(data) : (data ?? {});
     const saleId = result.id ?? result.saleId;
 
-    // Patch delivery fields onto the sale if needed
-    if (effectiveDeliveryStatus !== 'delivered' && saleId) {
-      await db
-        .from('sales')
-        .update({
+    // Patch delivery fields and/or mix breakdown onto the sale if needed
+    if (saleId) {
+      const patches: Record<string, unknown> = {};
+      if (effectiveDeliveryStatus !== 'delivered') {
+        Object.assign(patches, {
           delivery_status: effectiveDeliveryStatus,
           recipient_name: recipientName,
           recipient_phone: recipientPhone,
           delivery_address: deliveryAddress,
           delivery_notes: deliveryNotes,
           expected_date: expectedDate,
-        })
-        .eq('id', saleId);
+        });
+      }
+      if (paymentMethod === 'Mix' && paymentMixBreakdown) {
+        patches.payment_mix_breakdown = paymentMixBreakdown;
+      }
+      if (Object.keys(patches).length > 0) {
+        await db.from('sales').update(patches).eq('id', saleId);
+      }
     }
 
     return NextResponse.json(
@@ -223,6 +247,7 @@ async function manualSaleFallback(args: {
   deliveryAddress: string | null;
   deliveryNotes: string | null;
   expectedDate: string | null;
+  paymentMixBreakdown: { cash: number; momo: number; card: number } | null;
   h: Record<string, string>;
 }): Promise<NextResponse> {
   const {
@@ -242,6 +267,7 @@ async function manualSaleFallback(args: {
     deliveryAddress,
     deliveryNotes,
     expectedDate,
+    paymentMixBreakdown,
     h,
   } = args;
   const { randomUUID } = await import('crypto');
@@ -270,6 +296,7 @@ async function manualSaleFallback(args: {
     delivery_address: deliveryAddress,
     delivery_notes: deliveryNotes,
     expected_date: expectedDate,
+    ...(paymentMixBreakdown && { payment_mix_breakdown: paymentMixBreakdown }),
     created_at: now,
   });
   if (saleErr) return NextResponse.json({ error: saleErr.message }, { status: 500, headers: h });
@@ -399,7 +426,7 @@ export async function GET(req: NextRequest) {
       .select(
         `
       id, receipt_id, warehouse_id, customer_name,
-      payment_method, subtotal, discount_pct, discount_amt,
+      payment_method, payment_mix_breakdown, subtotal, discount_pct, discount_amt,
       total, item_count, sold_by, sold_by_email, status, created_at,
       voided_at, voided_by,
       delivery_status, recipient_name, recipient_phone,
@@ -436,6 +463,7 @@ export async function GET(req: NextRequest) {
         msg.includes('delivered_by') ||
         msg.includes('expected_date') ||
         msg.includes('sold_by_email') ||
+        msg.includes('payment_mix_breakdown') ||
         /column.*does not exist/i.test(msg);
       if (useLegacy) {
         console.warn('[GET /api/sales] DB missing columns, using legacy:', msg);
@@ -560,6 +588,7 @@ function shapeSales(rows: Array<Record<string, unknown>>) {
     warehouseId: s.warehouse_id,
     customerName: s.customer_name,
     paymentMethod: s.payment_method,
+    paymentMixBreakdown: s.payment_mix_breakdown as { cash?: number; momo?: number; card?: number } | null ?? null,
     subtotal: Number(s.subtotal ?? 0),
     discountPct: Number(s.discount_pct ?? 0),
     discountAmt: Number(s.discount_amt ?? 0),

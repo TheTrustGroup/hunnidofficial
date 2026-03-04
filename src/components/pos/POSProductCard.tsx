@@ -23,9 +23,17 @@ interface POSProductCardProps {
 
 type StockStatus = 'in' | 'low' | 'out';
 
+function getTotalQuantity(product: POSProduct): number {
+  if (product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0) {
+    return (product.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
+  }
+  return product.quantity ?? 0;
+}
+
 function getStockStatus(product: POSProduct): StockStatus {
-  if (product.quantity === 0) return 'out';
-  if (product.quantity <= 3) return 'low';
+  const qty = getTotalQuantity(product);
+  if (qty === 0) return 'out';
+  if (qty <= 3) return 'low';
   return 'in';
 }
 
@@ -70,6 +78,7 @@ function ImagePlaceholder() {
 // ── Main Component ─────────────────────────────────────────────────────────
 
 function POSProductCard({ product, onSelect }: POSProductCardProps) {
+  const totalQty = getTotalQuantity(product);
   const status = getStockStatus(product);
   const isOut = status === 'out';
   const firstImage = (product.images ?? [])[0];
@@ -80,8 +89,16 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
     status === 'out'
       ? 'Out'
       : status === 'low'
-        ? `${product.quantity} left`
-        : `${product.quantity} in stock`;
+        ? `${totalQty} left`
+        : `${totalQty} in stock`;
+
+  const isSized = product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0;
+  const sizeBreakdown = isSized
+    ? (product.quantityBySize ?? [])
+        .filter((r) => (r.quantity ?? 0) > 0)
+        .map((r) => `${r.sizeLabel ?? r.sizeCode}:${r.quantity ?? 0}`)
+        .join(' · ')
+    : '';
 
   return (
     <button
@@ -96,7 +113,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
         disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none
         focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5CACFA]"
     >
-      {/* Image: 1:1 square, gradient placeholder (CHANGE 5) */}
+      {/* Image: 1:1 square, gradient placeholder */}
       <div className="relative w-full aspect-square overflow-hidden bg-[#EEF1F6]">
         {hasImage ? (
           <img
@@ -108,7 +125,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
         ) : (
           <ImagePlaceholder />
         )}
-        <StockBadge status={status} qty={product.quantity} />
+        <StockBadge status={status} qty={totalQty} />
       </div>
 
       <div className="px-2.5 pt-2 pb-2.5">
@@ -131,6 +148,11 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
             {stockLabel}
           </span>
         </div>
+        {sizeBreakdown && (
+          <p className="text-[10px] text-[#8892A0] mt-1 truncate" title={sizeBreakdown}>
+            {sizeBreakdown}
+          </p>
+        )}
       </div>
     </button>
   );

@@ -3,6 +3,9 @@ import POSProductCard from './POSProductCard';
 import type { POSProduct } from './SizePickerSheet';
 import { getDeduplicatedCategoryOptions, colorMatchesFilter } from '../../lib/utils';
 
+/** Color filter options (match Inventory). */
+const COLOR_OPTIONS = ['Black', 'White', 'Red', 'Blue', 'Brown', 'Green', 'Grey', 'Navy', 'Beige', 'Multi', 'Uncategorized'];
+
 export type { POSProduct };
 
 interface ProductGridProps {
@@ -39,6 +42,16 @@ function ProductGridInner({
     const raw = Array.from(new Set(products.map((p) => (p.category ?? '').trim() || 'Uncategorized')));
     const opts = getDeduplicatedCategoryOptions(raw);
     return [{ value: 'all', label: 'All' }, ...opts];
+  }, [products]);
+
+  const sizeOptions = useMemo(() => {
+    const codes = new Map<string, string>();
+    for (const p of products) {
+      for (const row of p.quantityBySize ?? []) {
+        if (row.sizeCode) codes.set(row.sizeCode, row.sizeLabel ?? row.sizeCode);
+      }
+    }
+    return Array.from(codes.entries(), ([value, label]) => ({ value, label })).sort((a, b) => a.value.localeCompare(b.value));
   }, [products]);
 
   const filtered = useMemo(() => {
@@ -127,7 +140,7 @@ function ProductGridInner({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Category tabs: 30px height, 6px radius, active #0D1117 white, scrollable (CHANGE 5) */}
+      {/* Category tabs: 30px height, 6px radius, active #0D1117 white, scrollable */}
       {categoryOptions.length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-2 px-4 pt-2 flex-shrink-0" style={{ scrollbarWidth: 'none' }}>
           {categoryOptions.map((opt) => (
@@ -146,6 +159,44 @@ function ProductGridInner({
           ))}
         </div>
       )}
+
+      {/* Size and Color filters (match Inventory) */}
+      <div className="flex flex-wrap items-center gap-2 px-4 pb-2 flex-shrink-0">
+        <select
+          aria-label="Filter by size"
+          value={sizeFilter}
+          onChange={(e) => onSizeFilterChange(e.target.value)}
+          className="h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat focus:outline-none focus:border-[#5CACFA]"
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+            backgroundPosition: 'right 10px center',
+            backgroundSize: '10px 6px',
+          }}
+        >
+          <option value="all">Size: All</option>
+          {sizeOptions.map(({ value, label }) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter by color"
+          value={colorFilter}
+          onChange={(e) => onColorFilterChange(e.target.value)}
+          className="h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat focus:outline-none focus:border-[#5CACFA]"
+          style={{
+            fontFamily: "'DM Sans', sans-serif",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+            backgroundPosition: 'right 10px center',
+            backgroundSize: '10px 6px',
+          }}
+        >
+          <option value="all">Color: All</option>
+          {COLOR_OPTIONS.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-4 flex-1 content-start">
         {filtered.map((p) => (

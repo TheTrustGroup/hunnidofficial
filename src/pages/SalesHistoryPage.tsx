@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
 import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
 import { useAuth } from '../contexts/AuthContext';
+import { PayIcon } from '../components/pos/PaymentIcons';
 
 interface SalesHistoryPageProps { apiBaseUrl?: string; }
 
@@ -49,6 +50,8 @@ interface Sale {
   recipientName:   string | null;
   expectedDate:    string | null;
   deliveredAt:     string | null;
+  /** When paymentMethod is Mix, breakdown from API. */
+  paymentMixBreakdown?: { cash?: number; momo?: number; card?: number } | null;
 }
 
 type DateFilter = 'today' | 'week' | 'month' | 'all';
@@ -143,11 +146,13 @@ const PAY_COLORS: Record<string, string> = {
   Mix:  'bg-violet-100 text-violet-800',
 };
 
-function PayBadge({ method }: { method: string }) {
-  const icon = method === 'Cash' ? '💵' : method === 'MoMo' ? '📱' : method === 'Card' ? '💳' : method === 'Mix' ? '🔄' : '💰';
+function PayBadge({ method, mixBreakdown }: { method: string; mixBreakdown?: { cash?: number; momo?: number; card?: number } | null }) {
+  const mixTitle = method === 'Mix' && mixBreakdown
+    ? `Cash ${fmt(mixBreakdown.cash ?? 0)} · MoMo ${fmt(mixBreakdown.momo ?? 0)} · Card ${fmt(mixBreakdown.card ?? 0)}`
+    : undefined;
   return (
-    <span className={`inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-bold ${PAY_COLORS[method] ?? 'bg-slate-100 text-slate-600'}`}>
-      {icon} {method}
+    <span className={`inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-bold ${PAY_COLORS[method] ?? 'bg-slate-100 text-slate-600'}`} title={mixTitle}>
+      <PayIcon method={method} size={12} /> {method}
     </span>
   );
 }
@@ -216,7 +221,7 @@ function SaleRow({
               <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold" title="POS / Warehouse">
                 {warehouseName}
               </span>
-              <PayBadge method={sale.paymentMethod} />
+              <PayBadge method={sale.paymentMethod} mixBreakdown={sale.paymentMixBreakdown} />
               <DeliveryBadge status={sale.deliveryStatus ?? 'delivered'} expectedDate={sale.expectedDate} />
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">

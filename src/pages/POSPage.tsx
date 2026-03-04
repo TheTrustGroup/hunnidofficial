@@ -264,7 +264,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
           discountPct:     payload.discountPct,
           discountAmt:     payload.discountAmt,
           total:           payload.total,
-          // Delivery fields
+          ...(payload.paymentMixBreakdown && { paymentMixBreakdown: payload.paymentMixBreakdown }),
           deliveryStatus:  payload.deliveryStatus  ?? 'delivered',
           recipientName:   payload.recipientName   || null,
           recipientPhone:  payload.recipientPhone  || null,
@@ -380,7 +380,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       '─────────────────────',
       sale.discountPct > 0 ? `Discount: −${fmt(sale.discountAmt)}` : null,
       `Total: ${fmt(sale.total)}`,
-      `Paid via: ${sale.paymentMethod}`,
+      `Paid via: ${sale.paymentMethod}${sale.paymentMethod === 'Mix' && sale.paymentMixBreakdown ? ` (Cash ${fmt(sale.paymentMixBreakdown.cash)} · MoMo ${fmt(sale.paymentMixBreakdown.momo)} · Card ${fmt(sale.paymentMixBreakdown.card)})` : ''}`,
       sale.customerName ? `Customer: ${sale.customerName}` : null,
       `Date: ${new Date(sale.completedAt ?? Date.now()).toLocaleString('en-GH')}`,
     ].filter(Boolean).join('\n');
