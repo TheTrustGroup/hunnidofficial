@@ -28,8 +28,8 @@ export const DEFAULT_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
 
 const STORAGE_KEY = 'warehouse_current_id';
 
-/** Fallback names when /api/warehouses does not return the warehouse (e.g. bound POS). Match server posPasswords. */
-const KNOWN_WAREHOUSE_NAMES: Record<string, string> = {
+/** Fallback names when /api/warehouses does not return the warehouse (e.g. bound POS). Match server/DB. Single source for dropdown and dashboard "sales by location". */
+export const KNOWN_WAREHOUSE_NAMES: Record<string, string> = {
   '00000000-0000-0000-0000-000000000001': 'Main Jeff',
   '00000000-0000-0000-0000-000000000002': 'Hunnid Main',
 };
