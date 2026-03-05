@@ -32,6 +32,12 @@ Single reference for stack, current capabilities, gaps, and the improvement plan
 - **Selection value** (Inventory when filters applied): Sum of (quantity × selling price) over the **current filtered/loaded product set** only. Label and subtitle must state "Selection value" and "at selling price" so it is never confused with Total stock value.
 - **Contract:** Any UI label "Total stock value" (or "Total Stock Value") must display the cost-based warehouse total from the above source. Any other aggregate (e.g. filtered set, selling price) must use a different label (e.g. "Selection value") and explicit basis in the subtitle.
 
+### Inventory list data source (avoid duplicate state)
+
+- **Route `/inventory`** renders **InventoryPage** (`src/pages/InventoryPage.tsx`). That page **owns** its product list: local `useState` + its own `loadProducts` (GET /api/products). It does **not** use `InventoryContext.products`.
+- **InventoryContext** (`src/contexts/InventoryContext.tsx`) also holds a product list and is used by other consumers (e.g. POS product grid, Dashboard stats). The legacy **Inventory.tsx** (table/grid view) has been removed; the only inventory list UI is **InventoryPage**. So for the /inventory route there is a single product-list source (InventoryPage state); context list is used elsewhere (POS, Dashboard, etc.).
+- **Do not** duplicate state: keep a single source per screen. When adding features that touch the product list on InventoryPage, use this page’s state and `loadProducts`; do not mix in context list for the same view.
+
 ---
 
 ## Prioritized improvement roadmap

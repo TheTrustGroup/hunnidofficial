@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Download, FileText, Table } from 'lucide-react';
+import { Download, FileText, Table, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useInventory } from '../contexts/InventoryContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useWarehouse } from '../contexts/WarehouseContext';
@@ -41,6 +41,7 @@ export function Reports() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsSource, setTransactionsSource] = useState<TransactionsSource>('local');
   const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
 
   const canFetchServerData = !!user;
 
@@ -68,6 +69,7 @@ export function Reports() {
 
     if (canFetchServerData) {
       setTransactionsLoading(true);
+      setTransactionsError(null);
       try {
         const { data } = await fetchSalesAsTransactions(API_BASE_URL, {
           from: fromIso,
@@ -89,12 +91,14 @@ export function Reports() {
           setTransactions(data);
           setTransactionsSource('server');
         } catch {
+          setTransactionsError('Failed to load sales from server. Showing local data if available.');
           fallbackLocal();
         }
       } finally {
         setTransactionsLoading(false);
       }
     } else {
+      setTransactionsError(null);
       fallbackLocal();
     }
   }, [startDate, endDate, canFetchServerData, currentWarehouseId]);
@@ -224,6 +228,18 @@ export function Reports() {
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
           />
+          {transactionsError && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3" role="alert">
+              <p className="text-amber-900 text-sm font-medium flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-600" aria-hidden />
+                {transactionsError}
+              </p>
+              <Button variant="primary" size="sm" onClick={() => loadSalesData()} className="inline-flex items-center gap-2 shrink-0" aria-label="Retry loading sales">
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </Button>
+            </div>
+          )}
           {transactionsLoading && (
             <p className="text-sm text-slate-500">Loading sales from server…</p>
           )}

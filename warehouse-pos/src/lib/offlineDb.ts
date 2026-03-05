@@ -54,10 +54,11 @@ function serializeForDb<T>(obj: T): Record<string, unknown> {
 }
 
 function deserializeDates<T>(obj: Record<string, unknown>, dateKeys: string[]): T {
-  const out = { ...obj };
+  const out: Record<string, unknown> = { ...obj };
   for (const k of dateKeys) {
-    if (typeof (out as any)[k] === 'string') {
-      (out as any)[k] = new Date((out as any)[k] as string);
+    const v = out[k];
+    if (typeof v === 'string') {
+      out[k] = new Date(v);
     }
   }
   return out as T;

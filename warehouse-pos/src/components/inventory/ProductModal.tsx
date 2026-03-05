@@ -604,7 +604,7 @@ export default function ProductModal({
     if (form.sellingPrice === '' || Number(form.sellingPrice) < 0)
       e.sellingPrice = 'Enter a valid selling price.';
     const sizeError = getValidationError(form.sizes);
-    if (sizeError) e.sizes = sizeError as any;
+    if (sizeError) e.sizes = sizeError;
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -938,9 +938,9 @@ export default function ProductModal({
             <div className="h-px bg-slate-100" />
 
             {/* ── Section: Stock & Sizes ── */}
-            {(errors as any).sizes && (
+            {errors.sizes && (
               <div className="px-3.5 py-2.5 rounded-xl bg-red-50 border border-red-100 text-[13px] font-medium text-red-600 mb-2">
-                {(errors as any).sizes}
+                {errors.sizes}
               </div>
             )}
             <SizesSection

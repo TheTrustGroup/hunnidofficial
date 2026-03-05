@@ -88,7 +88,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.error('[API ERROR]', e);
     return withCors(
       NextResponse.json(
-        { message: toSafeError(e) },
+        { error: toSafeError(e) },
         { status: 500 }
       ),
       request
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     body = await request.json();
   } catch {
-    return withCors(NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 }), request);
+    return withCors(NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }), request);
   }
   const warehouseId = (body?.warehouseId as string) ?? undefined;
   const scope = await getScopeForUser(auth.email);
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     console.error('[API ERROR]', e);
     return withCors(
       NextResponse.json(
-        { message: toSafeError(e) },
+        { error: toSafeError(e) },
         { status: 400 }
       ),
       request
@@ -158,7 +158,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
   try {
     body = (await request.json()) as PutProductBody & { id?: string };
   } catch {
-    return withCors(NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 }), request);
+    return withCors(NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }), request);
   }
   const id = typeof body.id === 'string' ? body.id.trim() : '';
   if (!id) return withCors(NextResponse.json({ error: 'id required in body' }, { status: 400 }), request);

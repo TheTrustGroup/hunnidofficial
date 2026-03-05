@@ -36,7 +36,7 @@ export async function handlePutProductById(
     return NextResponse.json(updated);
   } catch (e) {
     console.error('[API ERROR]', e);
-    return NextResponse.json({ message: toSafeError(e) }, { status: 400 });
+    return NextResponse.json({ error: toSafeError(e) }, { status: 400 });
   }
 }
 
@@ -52,6 +52,6 @@ export async function handleDeleteProductById(
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error('[API ERROR]', e);
-    return NextResponse.json({ message: toSafeError(e) }, { status: 400 });
+    return NextResponse.json({ error: toSafeError(e) }, { status: 400 });
   }
 }

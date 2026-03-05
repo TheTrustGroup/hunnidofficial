@@ -167,12 +167,12 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
         costPrice: currentProduct.costPrice,
         sellingPrice: currentProduct.sellingPrice,
         reorderLevel: currentProduct.reorderLevel,
-        warehouseId: (currentProduct as any).warehouseId ?? warehouseId,
+        warehouseId: (currentProduct as Product & { warehouseId?: string }).warehouseId ?? warehouseId,
         location: currentProduct.location && typeof currentProduct.location === 'object'
-          ? { warehouse: (currentProduct.location as any).warehouse ?? 'Main Store', aisle: (currentProduct.location as any).aisle ?? '', rack: (currentProduct.location as any).rack ?? '', bin: (currentProduct.location as any).bin ?? '' }
+          ? { warehouse: (currentProduct.location as { warehouse?: string }).warehouse ?? 'Main Store', aisle: (currentProduct.location as { aisle?: string }).aisle ?? '', rack: (currentProduct.location as { rack?: string }).rack ?? '', bin: (currentProduct.location as { bin?: string }).bin ?? '' }
           : { warehouse: 'Main Store', aisle: '', rack: '', bin: '' },
         supplier: currentProduct.supplier && typeof currentProduct.supplier === 'object'
-          ? { name: (currentProduct.supplier as any).name ?? '', contact: (currentProduct.supplier as any).contact ?? '', email: (currentProduct.supplier as any).email ?? '' }
+          ? { name: (currentProduct.supplier as { name?: string }).name ?? '', contact: (currentProduct.supplier as { contact?: string }).contact ?? '', email: (currentProduct.supplier as { email?: string }).email ?? '' }
           : { name: '', contact: '', email: '' },
         images: skipImageOverwrite ? prev.images : validImages,
         expiryDate: currentProduct.expiryDate,

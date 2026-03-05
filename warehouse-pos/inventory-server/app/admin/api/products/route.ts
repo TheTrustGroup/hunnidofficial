@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getWarehouseProducts, createWarehouseProduct } from '@/lib/data/warehouseProducts';
-import { requireAdmin } from '@/lib/auth/session';
+import { requireAdmin, getEffectiveWarehouseId } from '@/lib/auth/session';
 import { logDurability } from '@/lib/data/durabilityLogger';
 import { toSafeError } from '@/lib/safeError';
+import { handlePutProductById } from '@/lib/api/productByIdHandlers';
+import type { PutProductBody } from '@/lib/data/warehouseProducts';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +40,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } catch (e) {
     console.error('[API ERROR]', e);
     return NextResponse.json(
-      { message: toSafeError(e) },
+      { error: toSafeError(e) },
       { status: 500 }
     );
   }
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ message: 'Invalid JSON body' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
   const warehouseId = (body?.warehouseId as string) ?? undefined;
   try {
@@ -80,8 +82,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
     console.error('[API ERROR]', e);
     return NextResponse.json(
-      { message: toSafeError(e) },
+      { error: toSafeError(e) },
       { status: 400 }
     );
   }
+}
+
+/** PUT product: body { id, warehouseId, ... }. Returns updated product. Same behavior as /api/products PUT. */
+export async function PUT(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAdmin(request);
+  if (auth instanceof NextResponse) return auth;
+  let body: PutProductBody & { id?: string };
+  try {
+    body = (await request.json()) as PutProductBody & { id?: string };
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+  const id = typeof body.id === 'string' ? body.id.trim() : '';
+  if (!id) return NextResponse.json({ error: 'id required in body' }, { status: 400 });
+  const bodyWarehouseId = String(body.warehouseId ?? body.warehouse_id ?? '').trim();
+  const warehouseId = await getEffectiveWarehouseId(auth, bodyWarehouseId || undefined, {
+    path: request.nextUrl.pathname,
+    method: 'PUT',
+  });
+  if (!warehouseId) return NextResponse.json({ error: 'warehouseId required' }, { status: 400 });
+  return handlePutProductById(request, id, body, warehouseId, auth);
+}
+
+/** PATCH: same as PUT. */
+export async function PATCH(request: NextRequest): Promise<NextResponse> {
+  return PUT(request);
 }

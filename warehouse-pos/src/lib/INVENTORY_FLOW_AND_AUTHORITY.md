@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│ 1. UI (Inventory.tsx)                                                                   │
+│ 1. UI (InventoryPage.tsx)                                                               │
 │    ProductFormModal → form state (local React state)                                     │
 │    handleSubmitProduct() → addProduct(data) or updateProduct(id, data)                   │
 └─────────────────────────────────────────────────────────────────────────────────────────┘

@@ -27,7 +27,7 @@ Additive, production-safe fixes. No redesign; no regression in POS performance.
 ## Phase 2 — Stop inventory flashing
 
 - **List:** Never clear products before fetch; keep previous list visible while loading; skeleton when no products; stable container min-height.
-- **Files:** `Inventory.tsx`, `InventoryListSkeleton.tsx` (new), `InventoryContext.tsx` (no setProducts([])).
+- **Files:** `InventoryPage.tsx`, `InventoryListSkeleton.tsx` (new), `InventoryContext.tsx` (no setProducts([])).
 
 ## Phase 3 — Remove UI jitter
 
@@ -61,6 +61,6 @@ Additive, production-safe fixes. No redesign; no regression in POS performance.
 - **`index.css`:** Viewport uses 100dvh (Safari-safe); table-row min-height prevents list collapse.
 - **`App.tsx` ProtectedRoutes:** authError and user-null block dashboard; role from server only.
 - **`InventoryContext.tsx` addProduct:** Optimistic temp → replace on success, remove on failure; circuit check before insert; no full refetch after add.
-- **`Inventory.tsx`:** Stable list min-height; keep list visible when loading; skeleton when no products.
+- **`InventoryPage.tsx`:** Stable list min-height; keep list visible when loading; skeleton when no products.
 - **`main.tsx`:** Build version logged for cross-browser consistency check.
 - **`public/service-worker.js`:** HTML/document never cached (NetworkOnly); static assets only.

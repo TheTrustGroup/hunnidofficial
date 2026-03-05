@@ -7,7 +7,7 @@
 ### 1. Inventory Mutations (✅ FIXED)
 **Files Modified:**
 - `src/contexts/InventoryContext.tsx`
-- `src/pages/Inventory.tsx`
+- `src/pages/InventoryPage.tsx`
 - `src/contexts/POSContext.tsx`
 - `src/contexts/OrderContext.tsx`
 
@@ -103,14 +103,14 @@
 **Files Modified:**
 - `src/components/layout/Header.tsx`
 - `src/pages/Dashboard.tsx`
-- `src/pages/Inventory.tsx`
+- `src/pages/InventoryPage.tsx`
 
 **Changes:**
 - **Header Search:** Now functional - navigates to `/inventory?q=...` on submit
 - **Header Notifications:** Disabled with tooltip "Notifications coming soon"
 - **Dashboard "View Low Stock Items":** Navigates to `/inventory?filter=lowStock`
 - **Dashboard "Restock Now":** Navigates to `/inventory?filter=outOfStock`
-- Inventory page handles URL query params for search and filters
+- InventoryPage handles URL query params for search and filters
 
 ### 10. Accountability Fixes (✅ FIXED)
 **Files Modified:**

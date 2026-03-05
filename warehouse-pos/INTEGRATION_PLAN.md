@@ -352,7 +352,7 @@ If critical issues appear after enabling offline:
 | IndexedDB | `src/db/inventoryDB.js` |
 | Sync service | `src/services/syncService.js` |
 | Offline hook | `src/hooks/useInventory.js` |
-| Inventory UI / context | `src/contexts/InventoryContext.tsx`, `src/pages/Inventory.tsx` |
+| Inventory UI / context | `src/contexts/InventoryContext.tsx`, `src/pages/InventoryPage.tsx` |
 | Network & auto-sync | `src/contexts/NetworkStatusContext.tsx` |
 | Service worker | `public/service-worker.js`, `src/serviceWorkerRegistration.js` |
 | Admin / clear data | `src/components/settings/AdminDashboard.tsx`, Settings → Admin & logs |

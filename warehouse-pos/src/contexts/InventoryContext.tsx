@@ -23,6 +23,16 @@ import { getCategoryDisplay, normalizeProductLocation } from '../lib/utils';
 import { parseProductsResponse } from '../lib/apiSchemas';
 import { useInventory as useOfflineInventory } from '../hooks/useInventory';
 import { getProductImages, setProductImages } from '../lib/productImagesStore';
+import {
+  PRODUCTS_CACHE_TTL_MS,
+  SILENT_REFRESH_THROTTLE_MS,
+  RECENT_ADD_WINDOW_MS,
+  RECENT_UPDATE_WINDOW_MS,
+  RECENT_DELETE_WINDOW_MS,
+  SIZE_UPDATE_COOLDOWN_MS,
+  INVENTORY_POLL_MS,
+  INVENTORY_PAGE_SIZE,
+} from '../constants/inventory';
 
 /** Per-warehouse cache key so we can show the right list immediately on login/refresh. */
 function productsCacheKey(warehouseId: string): string {
@@ -163,7 +173,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   }, [effectiveWarehouseId, isMainStoreIdWithWrongLabel]);
   /** Throttle silent refresh so poll + visibility + mount don't cause back-to-back requests (reduces list jitter). */
   const lastSilentRefreshAtRef = useRef<number>(0);
-  const SILENT_REFRESH_THROTTLE_MS = 2000;
 
   const products = useMemo(
     (): Product[] => (offlineEnabled ? (offline.products ?? []) : apiOnlyProducts),
@@ -232,7 +241,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     if (products.length > 0) persistProducts(products);
   }, [products, persistProducts]);
 
-  const PRODUCTS_CACHE_TTL_MS = 60_000; // 60s per-warehouse cache
   const cacheRef = useRef<Record<string, { data: Product[]; ts: number }>>({});
   /** Throttle "Showing cached data" toast to once per 15s so multiple failed loads don't stack. */
   const lastCachedToastAtRef = useRef<number>(0);
@@ -243,11 +251,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const lastUpdatedProductRef = useRef<{ product: Product; at: number } | null>(null);
   /** Ids deleted in the last window so in-flight loadProducts cannot re-add them (avoids delete "flashing back"). */
   const recentlyDeletedIdsRef = useRef<Set<string>>(new Set());
-  const RECENT_ADD_WINDOW_MS = 15_000;
-  const RECENT_UPDATE_WINDOW_MS = 60_000;
-  const RECENT_DELETE_WINDOW_MS = 15_000;
-  /** After a sized product update, skip silent refresh for this long so API list does not overwrite with stale One size. */
-  const SIZE_UPDATE_COOLDOWN_MS = 20_000;
   const lastSizeUpdateAtRef = useRef<number>(0);
 
   const productsPath = (base: string, opts?: { limit?: number; offset?: number; q?: string; category?: string; low_stock?: boolean; out_of_stock?: boolean }) => {
@@ -298,7 +301,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
             }
           }
         } catch (e) {
-          // Invalid JSON, remove it
+          reportError(e instanceof Error ? e : new Error(String(e)), { context: 'clearMockData', key });
           localStorage.removeItem(key);
         }
       }
@@ -307,20 +310,22 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   /** Normalize product from API or localStorage: dates, location, images array, and numeric fields so list and totals are accurate. */
   /** Always set sizeKind and quantityBySize so Sizes column/card never show blank for One size / Multiple sizes. */
-  const normalizeProduct = (p: any): Product =>
-    normalizeProductLocation({
+  const normalizeProduct = (p: Record<string, unknown>): Product => {
+    const normalized: Record<string, unknown> = {
       ...p,
       images: Array.isArray(p.images) ? p.images : [],
       quantity: Number(p.quantity ?? 0) || 0,
       costPrice: Number(p.costPrice ?? p.cost_price ?? 0) || 0,
       sellingPrice: Number(p.sellingPrice ?? p.selling_price ?? 0) || 0,
       reorderLevel: Number(p.reorderLevel ?? p.reorder_level ?? 0) || 0,
-      createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
-      updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),
-      expiryDate: p.expiryDate ? new Date(p.expiryDate) : null,
+      createdAt: p.createdAt ? new Date(p.createdAt as string) : new Date(),
+      updatedAt: p.updatedAt ? new Date(p.updatedAt as string) : new Date(),
+      expiryDate: p.expiryDate ? new Date(p.expiryDate as string) : null,
       sizeKind: (p.sizeKind ?? p.size_kind ?? 'na') as 'na' | 'one_size' | 'sized',
       quantityBySize: Array.isArray(p.quantityBySize) ? p.quantityBySize : [],
-    });
+    };
+    return normalizeProductLocation(normalized as { location?: unknown }) as Product;
+  };
 
   /**
    * Load products: SERVER IS SINGLE SOURCE OF TRUTH.
@@ -359,7 +364,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const path = productsPath('/api/products', { limit: 50 });
+        const path = productsPath('/api/products', { limit: INVENTORY_PAGE_SIZE });
         // Fail fast on server/network errors so we show cached products instead of spinning (maxRetries: 0).
         const getOpts = { signal, timeoutMs, maxRetries: 0 };
         let raw: { data?: Product[]; total?: number } | Product[] | null = null;
@@ -369,7 +374,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           const status = (e as { status?: number })?.status;
           // Only fall back to admin endpoint when /api/products is not found (404). Never on 403 — cashiers must use /api/products only.
           if (status === 404) {
-            raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(API_BASE_URL, productsPath('/admin/api/products', { limit: 50 }), getOpts);
+            raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(API_BASE_URL, productsPath('/admin/api/products', { limit: INVENTORY_PAGE_SIZE }), getOpts);
           } else {
             throw e;
           }
@@ -518,7 +523,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           });
         }
         if (offlineEnabled) {
-          mirrorProductsFromApi(merged).catch(() => {});
+          mirrorProductsFromApi(merged).catch((e) => {
+            reportError(e instanceof Error ? e : new Error(String(e)), { context: 'mirrorProductsFromApi', listLength: merged.length });
+          });
         }
         logInventoryRead({ listLength: listToSet.length, environment: import.meta.env.PROD ? 'production' : 'development' });
         // Persist per-warehouse list (including []) so Dashboard/Inventory never show another warehouse's cached data.
@@ -601,7 +608,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   }, [currentWarehouseId]);
 
   // Real-time: poll when tab visible so all devices see server truth. 30s reduces jitter from aggressive refresh while keeping cross-device updates reasonable.
-  const INVENTORY_POLL_MS = 30_000;
   useRealtimeSync({ onSync: () => loadProducts(undefined, { silent: true, bypassCache: true }), intervalMs: INVENTORY_POLL_MS });
 
   // When user returns to this tab, refetch from server so changes from other devices (e.g. deletes) show immediately.
@@ -816,7 +822,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         console.time('State Update');
       }
       let normalized = (created as { id?: string }).id
-        ? normalizeProduct(created as any)
+        ? normalizeProduct(created as Record<string, unknown>)
         : ({ ...tempProduct, _pending: undefined, id: tempId } as Product);
       const resolvedId = normalized.id ?? tempId;
       // Preserve form data when API omits or returns zero so every detail entered is recorded in state
@@ -938,7 +944,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         console.time('State Update (update)');
       }
       const normalized = fromApi && (fromApi as { id?: string }).id
-        ? normalizeProduct(fromApi as any)
+        ? normalizeProduct(fromApi as Record<string, unknown>)
         : updated;
       const apiHasImages = Array.isArray(normalized.images) && normalized.images.length > 0;
       // Keep images from our update if API response omits them (e.g. backend doesn't return base64)

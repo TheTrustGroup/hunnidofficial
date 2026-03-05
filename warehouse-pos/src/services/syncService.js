@@ -518,7 +518,9 @@ export class SyncService {
         if (status >= 400 && status < 500 && item.data?.id) {
           try {
             await setSyncError(item.data.id, errorMsg);
-          } catch (_) {}
+          } catch (e) {
+            console.warn('[syncService] setSyncError failed for', item.data.id, e?.message ?? e);
+          }
         }
         await db.syncQueue.update(queueId, {
           attempts,

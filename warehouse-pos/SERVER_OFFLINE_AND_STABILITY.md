@@ -52,7 +52,7 @@ Vercel has a **4.5 MB** body size limit. Product images are stored as base64 in 
 - **Circuit breaker**: `src/lib/circuit.ts` (threshold, cooldown), `src/lib/apiClient.ts` (when we call `recordFailure`).
 - **Banner**: `src/components/layout/Layout.tsx` (debounce, show/hide, Try again / Dismiss), `src/contexts/ApiStatusContext.tsx` (single source for `isDegraded`).
 - **API base & client**: `src/lib/api.ts` (API_BASE_URL), `src/lib/apiClient.ts` (timeouts, retry GET-only, circuit).
-- **Destructive actions**: `src/pages/Inventory.tsx` (disable delete when degraded), `ProductTableView` / `ProductGridView` (`disableDestructiveActions`).
+- **Destructive actions**: `src/pages/InventoryPage.tsx` (disable delete when degraded), `ProductTableView` / `ProductGridView` (`disableDestructiveActions`).
 - **Modal/panel opacity**: `src/styles/glassmorphism.css` (`.solid-panel`), `src/components/inventory/ProductFormModal.tsx` (opaque overlay + panel).
 
 ## Phase 5 — Offline / degraded mode guardrails
@@ -70,7 +70,7 @@ Vercel has a **4.5 MB** body size limit. Product images are stored as base64 in 
   - **Sync pending**: SyncStatusBar shows "Offline — Read-only. Sync pending: N items" when offline with pending sync items; "Syncing N items..." when syncing.
 
 **Files involved (Phase 5)**  
-- **Read-only mode**: `src/pages/Inventory.tsx`, `src/pages/POS.tsx`, `src/pages/Orders.tsx` (compute `readOnlyMode`; disable Add/Edit/Delete, Complete sale, order status actions).  
+- **Read-only mode**: `src/pages/InventoryPage.tsx`, `src/pages/POS.tsx`, `src/pages/Orders.tsx` (compute `readOnlyMode`; disable Add/Edit/Delete, Complete sale, order status actions).  
 - **ProductFormModal**: `src/components/inventory/ProductFormModal.tsx` (`readOnlyMode` prop, banner, disabled Submit).  
 - **PaymentPanel**: `src/components/pos/PaymentPanel.tsx` (`disableComplete` prop).  
 - **Labels**: `src/components/layout/Layout.tsx` (degraded banner copy), `src/contexts/NetworkStatusContext.tsx` (offline banner copy), `src/components/SyncStatusBar.tsx` (offline + sync-pending label).

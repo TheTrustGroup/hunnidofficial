@@ -59,7 +59,7 @@
 **After:** They are async and must be awaited
 
 **Impact:** 
-- ✅ All callers updated to await (Inventory.tsx, POSContext.tsx, OrderContext.tsx)
+- ✅ All callers updated to await (InventoryPage.tsx, POSContext.tsx, OrderContext.tsx)
 - ✅ No breaking changes - all existing code updated
 
 ### 2. Error Handling

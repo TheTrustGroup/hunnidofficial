@@ -81,8 +81,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       const data = await apiGet<Order[] | { data: Order[] }>(API_BASE_URL, '/api/orders', {
         timeoutMs: options?.timeoutMs,
       });
-      const list = Array.isArray(data) ? data : (data && (data as any).data && Array.isArray((data as any).data) ? (data as any).data : []);
-      setOrders(list.map((o: any) => normalizeOrder(o)));
+      const list: Order[] = Array.isArray(data)
+        ? data
+        : (data && typeof data === 'object' && 'data' in data && Array.isArray((data as { data: Order[] }).data))
+          ? (data as { data: Order[] }).data
+          : [];
+      setOrders(list.map((o) => normalizeOrder(o)));
     } catch (err) {
       reportError(err, { context: 'loadOrders' });
       setOrders([]);
