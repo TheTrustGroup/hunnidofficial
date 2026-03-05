@@ -159,6 +159,24 @@ export async function POST(req: NextRequest) {
           { status: 400, headers: h }
         );
       }
+      // One-time fix: duplicate record_sale overload causes "Could not choose the best candidate"
+      if (error.message?.includes('Could not choose the best candidate')) {
+        console.error('[POST /api/sales] record_sale ambiguous (duplicate overload). Run RUN_ONCE_fix_record_sale_500.sql in Supabase.', {
+          message: error.message,
+        });
+        return NextResponse.json(
+          {
+            error: 'Sale recording requires a one-time database fix. Run the SQL below in Supabase SQL Editor (project linked to this API), then retry.',
+            code: 'RECORD_SALE_AMBIGUOUS',
+            fixSql: [
+              'DROP FUNCTION IF EXISTS record_sale(uuid, jsonb, numeric, numeric, numeric, numeric, text, text, uuid, text, jsonb);',
+              'DROP FUNCTION IF EXISTS record_sale(uuid, text, numeric, numeric, numeric, numeric, text, text, uuid, text, jsonb);',
+              'DROP FUNCTION IF EXISTS record_sale(uuid, jsonb, numeric, numeric, numeric, numeric, text, text, uuid, text);',
+            ],
+          },
+          { status: 503, headers: h }
+        );
+      }
       // RPC missing (e.g. record_sale not deployed). Fallback is non-atomic — disabled by default.
       // To use atomic sales: run migration 20250228170000_sales_sold_by_email.sql in Supabase (creates record_sale).
       // Set ALLOW_SALE_FALLBACK=true only in dev/staging if you must test without the RPC; never in production.
