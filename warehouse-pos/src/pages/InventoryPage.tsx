@@ -345,11 +345,13 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const lastSaveTimeRef    = useRef<number>(0);
   const loadAbortRef       = useRef<AbortController | null>(null);
   const didInitialLoad     = useRef(false);
+  const productsLengthRef   = useRef(0);
   const searchDebounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchCategoryRef   = useRef({ search: '', category: 'all' as FilterKey, sizeCode: 'all' as string, color: 'all' as string });
   const skipSearchDebounceRef = useRef(true);
   const lastVisibilityRefetchRef = useRef<number>(0);
   searchCategoryRef.current = { search, category, sizeCode: sizeFilter, color: colorFilter };
+  productsLengthRef.current = products.length;
 
   const { toasts, show: showToast } = useToast();
 
@@ -420,7 +422,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
   // ── Load products (server-side q + category; paginated) ───────────────────
 
-  const loadProducts = useCallback(async (offset: number, append: boolean, silent = false) => {
+  const loadProducts = useCallback(async (offset: number, append: boolean, silent = false, requestLimit?: number) => {
     if (modalOpenRef.current) return;
     if (loadInflightRef.current) {
       if (silent) return;
@@ -428,9 +430,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
     }
 
     const { search: q, category: cat, sizeCode: sc, color: col } = searchCategoryRef.current;
+    const limit = requestLimit ?? PAGE_SIZE;
     const params = new URLSearchParams();
     params.set('warehouse_id', warehouseId);
-    params.set('limit', String(PAGE_SIZE));
+    params.set('limit', String(limit));
     params.set('offset', String(Math.max(0, offset)));
     if (q.trim()) params.set('q', q.trim());
     if (cat !== 'all' && cat.trim()) params.set('category', cat.trim());
@@ -506,7 +509,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
     stopPoll();
     pollTimerRef.current = setInterval(() => {
       if (!modalOpenRef.current && document.visibilityState === 'visible') {
-        loadProducts(0, false, true);
+        const n = productsLengthRef.current;
+        loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
       }
     }, POLL_MS);
   }
@@ -550,7 +554,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
   useEffect(() => {
     const onInventoryUpdated = () => {
       loadWarehouseStats();
-      loadProducts(0, false, true);
+      const n = productsLengthRef.current;
+      loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
     };
     window.addEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
     return () => window.removeEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
@@ -584,7 +589,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
       if (now - lastVisibilityRefetchRef.current < VISIBILITY_REFETCH_MS) return;
       lastVisibilityRefetchRef.current = now;
       loadWarehouseStats();
-      loadProducts(0, false, true);
+      const n = productsLengthRef.current;
+      loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
     };
     document.addEventListener('visibilitychange', onVisible);
     const initGate = setTimeout(() => { didInitialLoad.current = true; }, 500);
@@ -636,7 +642,12 @@ export default function InventoryPage(_props: InventoryPageProps) {
     setModalOpen(false);
     setEditingProduct(null);
     const msSinceSave = Date.now() - lastSaveTimeRef.current;
-    if (msSinceSave > 5000) setTimeout(() => loadProducts(0, false, true), 500);
+    if (msSinceSave > 5000) {
+      setTimeout(() => {
+        const n = productsLengthRef.current;
+        loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
+      }, 500);
+    }
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -733,7 +744,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
         }
 
         if (created?.id) setProducts(prev => [created!, ...prev]);
-        else setTimeout(() => loadProducts(0, false, true), 300);
+        else setTimeout(() => {
+          const n = productsLengthRef.current;
+          loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
+        }, 300);
 
         lastSaveTimeRef.current = Date.now();
         loadWarehouseStats();
