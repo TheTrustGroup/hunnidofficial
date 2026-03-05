@@ -26,6 +26,12 @@ Single reference for stack, current capabilities, gaps, and the improvement plan
 - **Versioning / deploy:** Git; CI at repo root `.github/workflows/ci.yml` (frontend: lint + test + build; backend: lint + build). Frontend: `npm run ci`, `test:e2e` = Playwright. Backend: `test:health`, `test:smoke` (run with server up). Deploy is manual (e.g. Vercel git push or dashboard).
 - **Tests:** Frontend: Vitest (unit + integration); Playwright (e2e). ~15 test files. Backend: no unit/integration tests; health check only.
 
+### Stock value semantics (single source of truth)
+
+- **Total stock value** (Dashboard, Inventory when no filter, Reports): Warehouse-level sum of (quantity × cost price). **Cost only;** null/0 cost contributes 0. **Source:** DB RPC `get_warehouse_stats(p_warehouse_id)` → `total_stock_value`; surfaced by GET /api/dashboard and by report generation. Dashboard and Inventory (no filter) must use this value only; show "—" / "Loading…" until the API returns so no selling-price or partial fallback is shown under this label.
+- **Selection value** (Inventory when filters applied): Sum of (quantity × selling price) over the **current filtered/loaded product set** only. Label and subtitle must state "Selection value" and "at selling price" so it is never confused with Total stock value.
+- **Contract:** Any UI label "Total stock value" (or "Total Stock Value") must display the cost-based warehouse total from the above source. Any other aggregate (e.g. filtered set, selling price) must use a different label (e.g. "Selection value") and explicit basis in the subtitle.
+
 ---
 
 ## Prioritized improvement roadmap

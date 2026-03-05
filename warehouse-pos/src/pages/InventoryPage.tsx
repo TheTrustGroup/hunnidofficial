@@ -829,9 +829,17 @@ export default function InventoryPage(_props: InventoryPageProps) {
           />
           <div className="col-span-2 lg:col-span-1">
             <StatCard
-              label="Stock value"
-              value={formatGHC(hasFilter ? stats.totalValue : (warehouseStats?.totalStockValue ?? stats.totalValue))}
-              sub={`${(hasFilter ? stats.totalUnits : (warehouseStats?.totalUnits ?? stats.totalUnits)).toLocaleString()} units`}
+              label={hasFilter ? 'Selection value' : 'Total stock value'}
+              value={hasFilter
+                ? formatGHC(stats.totalValue)
+                : warehouseStats != null
+                  ? formatGHC(warehouseStats.totalStockValue)
+                  : '—'}
+              sub={hasFilter
+                ? `${stats.totalUnits.toLocaleString()} units · at selling price`
+                : warehouseStats != null
+                  ? `${(warehouseStats.totalUnits ?? stats.totalUnits).toLocaleString()} units · at cost`
+                  : 'Loading…'}
               accent
             />
           </div>

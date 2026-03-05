@@ -333,6 +333,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const [modalOpen,      setModalOpen]      = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [confirmDelete,  setConfirmDelete]  = useState<Product | null>(null);
+  const [warehouseStats,   setWarehouseStats] = useState<{ totalStockValue: number; totalUnits: number } | null>(null);
 
   const modalOpenRef       = useRef(false);
   const pollTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -348,8 +349,11 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
   const { toasts, show: showToast } = useToast();
 
-  // Derived stats (memoised — recompute only when products change)
+  // Derived stats (memoised — recompute only when products change). Uses selling price for selection value.
   const stats = useMemo(() => computeStats(products), [products]);
+
+  // Warehouse-level totals (cost-based, single source of truth from DB). Fetched for "Total stock value" when no filter.
+  const hasFilter = (search?.trim() ?? '') !== '' || category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all';
 
   // ── apiFetch (retry + abort) ──────────────────────────────────────────────
 
@@ -471,6 +475,29 @@ export default function InventoryPage(_props: InventoryPageProps) {
         else setLoading(false);
       }
     }
+  }, [warehouseId, apiFetch]);
+
+  // Warehouse-level totals (cost-based) for "Total stock value" when no filter. Same source as Dashboard.
+  useEffect(() => {
+    if (!warehouseId) {
+      setWarehouseStats(null);
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    apiFetch<{ totalStockValue?: number; totalUnits?: number }>(
+      `/api/dashboard?warehouse_id=${encodeURIComponent(warehouseId)}&date=${today}`
+    )
+      .then((data) => {
+        if (data && typeof data.totalStockValue === 'number') {
+          setWarehouseStats({
+            totalStockValue: data.totalStockValue,
+            totalUnits: typeof data.totalUnits === 'number' ? data.totalUnits : 0,
+          });
+        } else {
+          setWarehouseStats(null);
+        }
+      })
+      .catch(() => setWarehouseStats(null));
   }, [warehouseId, apiFetch]);
 
   // ── Load size codes ───────────────────────────────────────────────────────
@@ -745,7 +772,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
         </div>
       </div>
 
-      {/* ══ Stats: mobile 2-col + Stock Value full width; desktop 3-col (CHANGE 7) ══ */}
+      {/* ══ Stats: Total stock value (cost, warehouse) vs Selection value (selling, filtered) ══ */}
       {!loading && !error && (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5 px-4 lg:px-0">
           <StatCard
@@ -761,9 +788,17 @@ export default function InventoryPage(_props: InventoryPageProps) {
           />
           <div className="col-span-2 lg:col-span-1">
             <StatCard
-              label="Stock value"
-              value={formatGHC(stats.totalValue)}
-              sub={`${stats.totalUnits.toLocaleString()} units`}
+              label={hasFilter ? 'Selection value' : 'Total stock value'}
+              value={hasFilter
+                ? formatGHC(stats.totalValue)
+                : warehouseStats != null
+                  ? formatGHC(warehouseStats.totalStockValue)
+                  : '—'}
+              sub={hasFilter
+                ? `${stats.totalUnits.toLocaleString()} units · at selling price`
+                : warehouseStats != null
+                  ? `${warehouseStats.totalUnits.toLocaleString()} units · at cost`
+                  : 'Loading…'}
               accent
             />
           </div>

@@ -132,10 +132,10 @@ export async function POST(req: NextRequest) {
     const db = getDb();
 
     // Try atomic RPC first. record_sale deducts stock (warehouse_inventory / warehouse_inventory_by_size)
-    // and inserts sale + sale_lines. Pass p_lines as array so PostgREST sends jsonb; string would be wrong type.
+    // and inserts sale + sale_lines. Pass p_lines as JSON string so DB always receives valid array (record_sale has text overload).
     const { data, error } = await db.rpc('record_sale', {
       p_warehouse_id: warehouseId,
-      p_lines: normalizedLines,
+      p_lines: JSON.stringify(normalizedLines),
       p_subtotal: subtotal,
       p_discount_pct: discountPct,
       p_discount_amt: discountAmt,
@@ -151,6 +151,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           { error: 'Insufficient stock for one or more items. Reduce quantity or remove items and try again.' },
           { status: 409, headers: h }
+        );
+      }
+      if (error.message?.includes('INVALID_LINE')) {
+        return NextResponse.json(
+          { error: 'Invalid line items. Ensure each product has an ID; sized products must include size.' },
+          { status: 400, headers: h }
         );
       }
       // RPC missing (e.g. record_sale not deployed). Fallback is non-atomic — disabled by default.
