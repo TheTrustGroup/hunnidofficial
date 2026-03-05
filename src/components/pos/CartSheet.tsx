@@ -85,6 +85,9 @@ function CartLineItem({ line, onUpdateQty, onRemove }: { line: CartLine; onUpdat
       <div className="flex-1 min-w-0">
         <p className="text-[14px] font-bold text-slate-900 truncate leading-snug">{line.name}</p>
         <p className="text-[12px] text-slate-400 mt-0.5">{line.sizeLabel ? `${line.sizeLabel} · ` : ''}{fmt(line.unitPrice)} each</p>
+        <p className="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1" role="status">
+          <span aria-hidden>−{line.qty}</span> from stock at checkout
+        </p>
         <div className="flex items-center gap-2 mt-2">
           <button type="button" onClick={() => onUpdateQty(line.key, -1)} disabled={line.qty <= 1} className="w-7 h-7 rounded-lg border-[1.5px] border-slate-200 bg-white text-[14px] font-bold text-slate-600 flex items-center justify-center hover:bg-slate-100 active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150">−</button>
           <span className="text-[14px] font-bold text-slate-900 min-w-[20px] text-center tabular-nums">{line.qty}</span>

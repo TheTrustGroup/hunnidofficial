@@ -147,28 +147,38 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
           {isSized ? (
             <>
               <div className="grid grid-cols-3 gap-2 mb-4">
-                {sizes.map((row) => (
-                  <button
-                    key={row.sizeCode}
-                    type="button"
-                    disabled={row.quantity <= 0}
-                    onClick={() => addToPending(row.sizeCode, row.sizeLabel ?? null)}
-                    className="rounded-xl border border-slate-200 py-3 font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:border-primary-400 hover:bg-primary-50"
-                  >
-                    <span className="block">{row.sizeLabel ?? row.sizeCode}</span>
-                    <span className="text-xs text-slate-500">Stock: {row.quantity}</span>
-                  </button>
-                ))}
+                {sizes.map((row) => {
+                  const outOfStock = row.quantity <= 0;
+                  return (
+                    <button
+                      key={row.sizeCode}
+                      type="button"
+                      disabled={outOfStock}
+                      onClick={() => addToPending(row.sizeCode, row.sizeLabel ?? null)}
+                      className={`rounded-xl border py-3 font-medium transition-colors
+                        ${outOfStock
+                          ? 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed'
+                          : 'border-slate-200 hover:border-primary-400 hover:bg-primary-50'
+                        }`}
+                    >
+                      <span className="block">{row.sizeLabel ?? row.sizeCode}</span>
+                      <span className={`text-xs ${outOfStock ? 'text-red-500 font-medium' : 'text-slate-500'}`}>
+                        {outOfStock ? 'Out of stock' : `Stock: ${row.quantity}`}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {pending.length > 0 && (
                 <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-                  <p className="text-xs font-medium text-slate-500 mb-2">Selection</p>
+                  <p className="text-xs font-medium text-slate-500 mb-2">Selection — stock deducted at checkout</p>
                   <ul className="space-y-1.5">
                     {pending.map((line, i) => (
                       <li key={i} className="flex items-center justify-between gap-2 text-sm">
                         <span className="font-medium text-slate-800">
                           {line.sizeLabel ?? line.sizeCode ?? 'One size'} × {line.qty}
+                          <span className="ml-1.5 text-xs font-normal text-slate-500">(−{line.qty} from stock)</span>
                         </span>
                         <div className="flex items-center gap-1">
                           <button
@@ -218,13 +228,16 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              className="w-full rounded-xl bg-primary-600 py-3 font-semibold text-white"
-            >
-              Add to cart — GH₵{(product.sellingPrice * qty).toLocaleString('en-GH', { minimumFractionDigits: 2 })}
-            </button>
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500">Qty {qty} — deducts {qty} from stock at checkout</p>
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                className="w-full rounded-xl bg-primary-600 py-3 font-semibold text-white"
+              >
+                Add to cart — GH₵{(product.sellingPrice * qty).toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+              </button>
+            </div>
           )}
         </div>
       </div>

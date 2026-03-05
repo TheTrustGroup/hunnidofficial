@@ -227,10 +227,13 @@ export async function POST(req: NextRequest) {
 
     await invalidateDashboardCacheForWarehouse(warehouseId);
 
-    return NextResponse.json(
+    const receiptId = result.receiptId ?? result.receipt_id ?? `RCP-${saleId?.slice(0, 8) ?? 'unknown'}`;
+    console.info('[POST /api/sales] 201', { saleId, receiptId, warehouseId, itemCount: normalizedLines.reduce((s, l) => s + l.qty, 0) });
+
+    const res = NextResponse.json(
       {
         id: saleId,
-        receiptId: result.receiptId ?? result.receipt_id ?? `RCP-${saleId?.slice(0, 8) ?? 'unknown'}`,
+        receiptId,
         total,
         itemCount: normalizedLines.reduce((s, l) => s + l.qty, 0),
         status: 'completed',
@@ -239,6 +242,8 @@ export async function POST(req: NextRequest) {
       },
       { status: 201, headers: h }
     );
+    if (saleId) res.headers.set('X-Sale-Id', saleId);
+    return res;
   } catch (e: unknown) {
     console.error('[API ERROR]', e);
     return NextResponse.json({ error: toSafeError(e) }, { status: 500, headers: h });

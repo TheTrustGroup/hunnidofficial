@@ -10,6 +10,7 @@
 
 import { memo } from 'react';
 import { safeProductImageUrl, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
+import { getProductQtyForAlert, getStockStatus as getStockStatusFromUtil } from '../../lib/stockAlerts';
 import { type POSProduct } from './SizePickerSheet';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -21,19 +22,13 @@ interface POSProductCardProps {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-type StockStatus = 'in' | 'low' | 'out';
+type StockStatusUI = 'in' | 'low' | 'out';
 
-function getTotalQuantity(product: POSProduct): number {
-  if (product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0) {
-    return (product.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
-  }
-  return product.quantity ?? 0;
-}
-
-function getStockStatus(product: POSProduct): StockStatus {
-  const qty = getTotalQuantity(product);
-  if (qty === 0) return 'out';
-  if (qty <= 3) return 'low';
+function toUIStatus(
+  status: 'in_stock' | 'low_stock' | 'out_of_stock'
+): StockStatusUI {
+  if (status === 'out_of_stock') return 'out';
+  if (status === 'low_stock') return 'low';
   return 'in';
 }
 
@@ -44,14 +39,20 @@ function formatPrice(n: number): string {
   })}`;
 }
 
-// ── Stock Badge ────────────────────────────────────────────────────────────
+// ── Stock Badge (out of stock / low stock) ──────────────────────────────────
 
-function StockBadge({ status, qty }: { status: StockStatus; qty: number }) {
+function StockBadge({ status, qty }: { status: StockStatusUI; qty: number }) {
   if (status === 'in') return null;
-  const label = status === 'low' ? `${qty} left` : 'Out';
+  const label = status === 'low' ? `${qty} left` : 'Out of stock';
+  const isOut = status === 'out';
   return (
     <span
-      className={`absolute top-2 right-2 text-[10px] font-semibold ${status === 'low' ? 'text-[#D97706]' : 'text-[#DC2626]'}`}
+      className={`absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide shadow-sm ${
+        isOut
+          ? 'bg-red-500 text-white'
+          : 'bg-amber-500 text-white'
+      }`}
+      aria-live="polite"
     >
       {label}
     </span>
@@ -78,8 +79,8 @@ function ImagePlaceholder() {
 // ── Main Component ─────────────────────────────────────────────────────────
 
 function POSProductCard({ product, onSelect }: POSProductCardProps) {
-  const totalQty = getTotalQuantity(product);
-  const status = getStockStatus(product);
+  const totalQty = getProductQtyForAlert(product);
+  const status = toUIStatus(getStockStatusFromUtil(product));
   const isOut = status === 'out';
   const firstImage = (product.images ?? [])[0];
   const safeSrc = firstImage ? safeProductImageUrl(firstImage) : '';
@@ -87,7 +88,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
 
   const stockLabel =
     status === 'out'
-      ? 'Out'
+      ? 'Out of stock'
       : status === 'low'
         ? `${totalQty} left`
         : `${totalQty} in stock`;
@@ -105,16 +106,21 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
       type="button"
       disabled={isOut}
       onClick={() => onSelect(product)}
-      className="group w-full text-left bg-white rounded-[10px] overflow-hidden border border-[rgba(0,0,0,0.07)]
-        shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]
-        transition-all duration-150
-        hover:shadow-[0_4px_16px_rgba(13,17,23,0.09)] hover:-translate-y-0.5
-        active:scale-[0.97]
-        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5CACFA]"
+      aria-label={isOut ? `${product.name}, out of stock` : product.name}
+      className={`group w-full text-left rounded-[10px] overflow-hidden border transition-all duration-150
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5CACFA]
+        ${isOut
+          ? 'bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed'
+          : 'bg-white border-[rgba(0,0,0,0.07)] shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)] hover:shadow-[0_4px_16px_rgba(13,17,23,0.09)] hover:-translate-y-0.5 active:scale-[0.97]'
+        }`}
     >
-      {/* Image: 1:1 square, gradient placeholder */}
+      {/* Image: 1:1 square; out-of-stock overlay */}
       <div className="relative w-full aspect-square overflow-hidden bg-[#EEF1F6]">
+        {isOut && (
+          <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center z-10" aria-hidden>
+            <span className="text-white text-xs font-bold uppercase tracking-wider">Out of stock</span>
+          </div>
+        )}
         {hasImage ? (
           <img
             src={safeSrc}
@@ -143,7 +149,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
             {formatPrice(product.sellingPrice)}
           </span>
           <span
-            className={`text-[10px] flex-shrink-0 ${status === 'low' ? 'text-[#D97706]' : 'text-[#8892A0]'}`}
+            className={`text-[10px] flex-shrink-0 font-medium ${status === 'out' ? 'text-red-600' : status === 'low' ? 'text-[#D97706]' : 'text-[#8892A0]'}`}
           >
             {stockLabel}
           </span>

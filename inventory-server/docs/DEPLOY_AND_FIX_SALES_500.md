@@ -67,6 +67,20 @@ After migrations, the next GET /api/sales will use the main path; you should no 
 
 ---
 
+## Verify that sales (POST) reach the server
+
+**Flow:** POS (e.g. `src/pages/POSPage.tsx`) → `POST ${VITE_API_BASE_URL}/api/sales` with auth headers/cookies → `inventory-server/app/api/sales/route.ts` → `record_sale` RPC → 201 + JSON body.
+
+1. **Server logs:** On every successful sale the API logs:
+   - `[POST /api/sales] 201` with `{ saleId, receiptId, warehouseId, itemCount }`
+   - Search logs for this line to confirm sales are hitting the server and persisting.
+
+2. **Response:** Success returns **201** with body `{ id, receiptId, total, itemCount, status: 'completed', createdAt }` and header `X-Sale-Id: <uuid>`.
+
+3. **If sales do not reach the server:** Check (a) `VITE_API_BASE_URL` in the frontend build points to the deployed API, (b) auth passes (`requireAuth`; user must have warehouse scope for POST /api/sales), (c) `record_sale` RPC exists in Supabase (run migrations). On RPC missing, API returns 503 unless `ALLOW_SALE_FALLBACK=true` (dev only).
+
+---
+
 ## Step 5 (optional): Dev-only error in response
 
 In non-production, GET /api/sales already returns the real error message in the JSON body on 500. In production the body is `{ "error": "Internal error" }`; details are only in server logs (Step 3).
