@@ -1,5 +1,36 @@
 # Data integrity (Section 2)
 
+## Product identity and duplicates
+
+**Canonical rule:** Products are **not** uniquely identified by name alone. The same product name can appear for different variants (e.g. **different colors**: "Adidas Gazelle" in Red vs Black). Treat as **one product per** `(name, color, sku)` for duplicate detection.
+
+- **Same name + different color (or different SKU):** Valid. Do not merge or flag as duplicate.
+- **Same name + same color + same SKU:** Potential true duplicate; investigate (merge or de-duplicate only after confirming).
+- **Schema:** `warehouse_products.name`, `warehouse_products.color` (nullable), `warehouse_products.sku`. Use `color` and `sku` in list/pos and in any duplicate checks.
+
+Diagnostics that look for "duplicate products" must use **(name, color, sku)** (or at least name + color). See `supabase/scripts/phase2_diagnostic_queries.sql` — query 10 flags only potential true duplicates (same name, same color, same SKU).
+
+### Duplicate prevention (constraint)
+
+- **Migration:** `20260306100000_unique_product_identity.sql`
+- **Index:** `idx_warehouse_products_identity` UNIQUE on `(lower(trim(name)), coalesce(trim(color), ''), coalesce(trim(sku), ''))`.
+- **Effect:** Inserts/updates that would create a second row with the same normalized (name, color, sku) fail with a unique violation. Same name with different color or SKU remains allowed.
+- **Prerequisite:** Run **after** merging existing true duplicates (query 10 returns 0 rows). If the migration fails, run the merge script first, then re-run the migration.
+- **API:** Ensure POST/PUT product endpoints return a clear response (e.g. 409 Conflict) when the unique constraint is violated, so the client can show "A product with this name, color, and SKU already exists."
+
+### Merge procedure (true duplicates)
+
+**Preferred (all groups in one go):**
+
+1. **Detect:** Run query 10 in `supabase/scripts/phase2_diagnostic_queries.sql`. Any row with `product_count > 1` is a duplicate group.
+2. **Merge all:** Run `supabase/scripts/merge_all_true_duplicates.sql`. It finds every duplicate group, keeps the oldest product (by `created_at`) as keeper, and merges all others into it. No hardcoded IDs.
+3. **Verify:** Re-run query 10; expect 0 rows.
+4. **Apply constraint:** Run migration `20260306100000_unique_product_identity.sql` (or `npx supabase db push`). If it fails with "Key ... is duplicated", more duplicates exist — run step 2 again (e.g. new data was added), then step 4 again.
+
+**Alternative (specific pairs only):** Use `merge_true_duplicates_dry_run.sql` then `merge_true_duplicates.sql` with a hand-edited `VALUES` list when you only want to merge certain pairs.
+
+---
+
 ## Implemented
 
 ### 1. Atomic sale and no oversell (record_sale)
@@ -10,6 +41,25 @@
   2. Inserts the sale and sale_lines only after all deductions succeed.
 - **Concurrency:** Two cashiers selling the last unit: one succeeds, the other gets `INSUFFICIENT_STOCK` and can retry or show “Insufficient stock” (API returns 409).
 - **API:** POST /api/sales returns **409** when the RPC raises INSUFFICIENT_STOCK so the client can show a clear message.
+
+### 4. Sizes UPSERT and non-negative quantity
+
+- **Migration:** `20260306130000_sizes_upsert_and_constraints.sql`
+- **Problem:** Product update previously did DELETE all `warehouse_inventory_by_size` rows then INSERT from payload. Sending a partial or empty size list wiped existing sizes (root cause of "sizes/details disappearing").
+- **Behaviour (RPC and API):**
+  - **Payload null/undefined (sizes not sent):** Do not change `warehouse_inventory_by_size`; only sync `warehouse_inventory.quantity` when needed.
+  - **Payload empty array:** Delete all by-size rows for that (warehouse, product).
+  - **Payload non-empty:** UPSERT each (warehouse_id, product_id, size_code) with quantity; then DELETE only rows whose size_code is **not** in the payload. Sizes not mentioned are left unchanged; sizes in the payload are updated or inserted.
+- **Constraints:** `chk_warehouse_inventory_by_size_quantity_non_negative` and `chk_warehouse_inventory_quantity_non_negative` enforce `quantity >= 0`. Migration one-time corrects any existing negative values to 0 before adding constraints.
+- **Reconciliation:** If `warehouse_inventory.quantity` has drifted from `SUM(warehouse_inventory_by_size.quantity)` (phase2 diagnostic query 6), run `supabase/scripts/backfill_warehouse_inventory_from_by_size.sql` to resync totals from by_size.
+
+### 5. Cost at time of sale (sale_lines.cost_price)
+
+- **Migrations:** `20260306110000_sale_lines_cost_price.sql` (add column), `20260306120000_record_sale_cost_price.sql` (record_sale_impl sets it per line from warehouse_products).
+- **Behaviour:** Each sale line stores `cost_price` from the product at sale time. COGS and profit in reports must use `sale_lines.cost_price`, not current product cost.
+- **Backfill:** Run `supabase/scripts/backfill_sale_lines_cost_price.sql` once after adding the column to set `cost_price` for existing rows from current `warehouse_products.cost_price` (best estimate for legacy data).
+- **GET /api/sales:** Returns `costPrice` per line when the column exists.
+- **GET /api/reports/sales:** Aggregated sales report from SQL (RPC `get_sales_report`): revenue, COGS (from `sale_lines.cost_price`), profit, AOV, top products, sales by day, by category. Query params: `from`, `to`, `warehouse_id`, `include_voided`. Reports UI prefers this endpoint when authenticated so profit and COGS are correct.
 
 ### 2. Other atomic paths
 

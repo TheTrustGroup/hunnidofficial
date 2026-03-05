@@ -9,7 +9,7 @@ import { SalesChart } from '../components/reports/SalesChart';
 import { TopProductsTable } from '../components/reports/TopProductsTable';
 import { InventoryMetrics } from '../components/reports/InventoryMetrics';
 import { generateSalesReport, generateInventoryReport, exportToCSV, getProductQty, getProductValuePrice, SalesReport, InventoryReport } from '../services/reportService';
-import { fetchSalesAsTransactions } from '../services/salesApi';
+import { fetchSalesAsTransactions, fetchSalesReportFromApi, type SalesReportFromApi } from '../services/salesApi';
 import { fetchTransactionsFromApi } from '../services/transactionsApi';
 import { Transaction } from '../types';
 import { formatCurrency, getCategoryDisplay, formatDate } from '../lib/utils';
@@ -36,6 +36,8 @@ export function Reports() {
   const [endDate, setEndDate] = useState(today);
 
   const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
+  /** When set, sales metrics come from GET /api/reports/sales (SQL, correct COGS/profit). Otherwise from JS generateSalesReport. */
+  const [salesReportFromApi, setSalesReportFromApi] = useState<SalesReport | null>(null);
   const [inventoryReport, setInventoryReport] = useState<InventoryReport | null>(null);
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -45,7 +47,36 @@ export function Reports() {
 
   const canFetchServerData = !!user;
 
-  /** Load sales: prefer GET /api/sales (POS data). When at a POS location (bound), currentWarehouseId is set so results are accurate per location. */
+  /** When report API was used, use it (correct COGS/profit); else use JS-generated report. */
+  const effectiveSalesReport = salesReportFromApi ?? salesReport;
+
+  function mapReportApiToSalesReport(data: SalesReportFromApi): SalesReport {
+    return {
+      totalRevenue: data.revenue,
+      totalProfit: data.profit,
+      totalTransactions: data.transactionCount,
+      totalVoided: data.totalVoided,
+      totalItemsSold: data.totalItemsSold,
+      averageOrderValue: data.averageOrderValue,
+      topSellingProducts: (data.topProducts ?? []).map(p => ({
+        productName: p.product_name ?? '',
+        quantitySold: p.quantity_sold ?? 0,
+        revenue: p.revenue ?? 0,
+      })),
+      salesByCategory: (data.salesByCategory ?? []).map(c => ({
+        category: c.category ?? '',
+        revenue: c.revenue ?? 0,
+        quantity: c.quantity ?? 0,
+      })),
+      salesByDay: (data.salesByDay ?? []).map(d => ({
+        date: d.date ?? '',
+        revenue: d.revenue ?? 0,
+        transactions: d.transactions ?? 0,
+      })),
+    };
+  }
+
+  /** Load sales: prefer GET /api/reports/sales (SQL, correct profit). Fallback: GET /api/sales then generate report in JS. */
   const loadSalesData = useCallback(async () => {
     const start = parseDate(startDate);
     const end = parseDate(endDate + 'T23:59:59');
@@ -65,40 +96,55 @@ export function Reports() {
       }));
       setTransactions(withDates);
       setTransactionsSource('local');
+      setSalesReportFromApi(null);
     };
 
     if (canFetchServerData) {
       setTransactionsLoading(true);
       setTransactionsError(null);
       try {
-        const { data } = await fetchSalesAsTransactions(API_BASE_URL, {
+        const { data } = await fetchSalesReportFromApi(API_BASE_URL, {
           from: fromIso,
           to: toIso,
           warehouse_id: currentWarehouseId || undefined,
-          limit: 2000,
           include_voided: true,
         });
-        setTransactions(data);
+        setSalesReportFromApi(mapReportApiToSalesReport(data));
+        setTransactions([]);
         setTransactionsSource('server');
       } catch {
+        setSalesReportFromApi(null);
         try {
-          const { data } = await fetchTransactionsFromApi(API_BASE_URL, {
+          const { data } = await fetchSalesAsTransactions(API_BASE_URL, {
             from: fromIso,
             to: toIso,
             warehouse_id: currentWarehouseId || undefined,
             limit: 2000,
+            include_voided: true,
           });
           setTransactions(data);
           setTransactionsSource('server');
         } catch {
-          setTransactionsError('Failed to load sales from server. Showing local data if available.');
-          fallbackLocal();
+          try {
+            const { data } = await fetchTransactionsFromApi(API_BASE_URL, {
+              from: fromIso,
+              to: toIso,
+              warehouse_id: currentWarehouseId || undefined,
+              limit: 2000,
+            });
+            setTransactions(data);
+            setTransactionsSource('server');
+          } catch {
+            setTransactionsError('Failed to load sales from server. Showing local data if available.');
+            fallbackLocal();
+          }
         }
       } finally {
         setTransactionsLoading(false);
       }
     } else {
       setTransactionsError(null);
+      setSalesReportFromApi(null);
       fallbackLocal();
     }
   }, [startDate, endDate, canFetchServerData, currentWarehouseId]);
@@ -253,11 +299,11 @@ export function Reports() {
             </p>
           )}
 
-          {salesReport && (
+          {effectiveSalesReport && (
             <>
-              <SalesMetrics report={salesReport} />
-              <SalesChart report={salesReport} />
-              <TopProductsTable report={salesReport} />
+              <SalesMetrics report={effectiveSalesReport} />
+              <SalesChart report={effectiveSalesReport} />
+              <TopProductsTable report={effectiveSalesReport} />
               {/* Category Performance */}
               <div className="table-container">
                 <h3 className="text-lg font-semibold text-slate-900 mb-6 px-6 pt-6">Category Performance</h3>
@@ -272,7 +318,7 @@ export function Reports() {
                   </tr>
                 </thead>
                 <tbody>
-                  {salesReport.salesByCategory.map((cat, idx) => (
+                  {effectiveSalesReport.salesByCategory.map((cat, idx) => (
                     <tr key={idx} className="table-row">
                       <td className="px-4 py-3 font-medium text-slate-900">{cat.category}</td>
                       <td className="px-4 py-3 text-right text-slate-600">{cat.quantity}</td>
@@ -280,7 +326,7 @@ export function Reports() {
                         {formatCurrency(cat.revenue)}
                       </td>
                       <td className="px-4 py-3 text-right text-slate-600">
-                        {salesReport.totalRevenue > 0 ? ((cat.revenue / salesReport.totalRevenue) * 100).toFixed(1) : '0.0'}%
+                        {effectiveSalesReport.totalRevenue > 0 ? ((cat.revenue / effectiveSalesReport.totalRevenue) * 100).toFixed(1) : '0.0'}%
                       </td>
                     </tr>
                   ))}

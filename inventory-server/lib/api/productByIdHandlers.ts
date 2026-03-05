@@ -37,6 +37,13 @@ export async function handlePutProductById(
     await invalidateDashboardCacheForWarehouse(warehouseId);
     return NextResponse.json(updated);
   } catch (e) {
+    const err = e as Error & { code?: string };
+    if (err?.code === '23505') {
+      return NextResponse.json(
+        { error: 'A product with this name, color, and SKU already exists.' },
+        { status: 409 }
+      );
+    }
     console.error('[API ERROR]', e);
     return NextResponse.json({ message: toSafeError(e) }, { status: 400 });
   }

@@ -194,6 +194,12 @@ async function handleUpdate(req: NextRequest, ctx: RouteCtx) {
     });
 
     if (rpcErr) {
+      if (rpcErr.code === '23505') {
+        return NextResponse.json(
+          { error: 'A product with this name, color, and SKU already exists.' },
+          { status: 409, headers: h }
+        );
+      }
       if (rpcErr.code === '42883' || rpcErr.message?.includes('does not exist')) {
         await manualUpdate(db, id, wid, productRow, totalQty, sizesToWrite, now);
       } else if (rpcErr.message?.includes('someone else') || rpcErr.code === 'P0001') {
@@ -223,7 +229,14 @@ async function handleUpdate(req: NextRequest, ctx: RouteCtx) {
     return NextResponse.json(updated, { headers: h });
 
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Internal server error';
+    const err = e as Error & { code?: string };
+    if (err?.code === '23505') {
+      return NextResponse.json(
+        { error: 'A product with this name, color, and SKU already exists.' },
+        { status: 409, headers: h }
+      );
+    }
+    const msg = err instanceof Error ? err.message : 'Internal server error';
     console.error('[PUT /api/products/:id] unhandled error:', msg);
     return NextResponse.json({ error: msg }, { status: 500, headers: h });
   }
@@ -335,7 +348,14 @@ async function manualUpdate(
     .update(rowWithoutWarehouse)
     .eq('id', id);
 
-  if (upErr) throw new Error(`Failed to update product: ${upErr.message}`);
+  if (upErr) {
+    if ((upErr as { code?: string }).code === '23505') {
+      const err = new Error('A product with this name, color, and SKU already exists.') as Error & { code?: string };
+      err.code = '23505';
+      throw err;
+    }
+    throw new Error(`Failed to update product: ${upErr.message}`);
+  }
 
   await db.from('warehouse_inventory').upsert(
     { warehouse_id: wid, product_id: id, quantity: qty, updated_at: now },
@@ -343,18 +363,27 @@ async function manualUpdate(
   );
 
   if (sizeRows !== null) {
-    await db.from('warehouse_inventory_by_size').delete()
-      .eq('warehouse_id', wid).eq('product_id', id);
-
-    if (sizeRows.length > 0) {
-      const { error: insErr } = await db.from('warehouse_inventory_by_size').insert(
-        sizeRows.map(r => ({
-          warehouse_id: wid, product_id: id,
-          size_code: r.sizeCode, quantity: r.quantity,
-          updated_at: now,
-        }))
-      );
-      if (insErr) throw new Error(`Failed to save sizes: ${insErr.message}`);
+    if (sizeRows.length === 0) {
+      await db.from('warehouse_inventory_by_size').delete()
+        .eq('warehouse_id', wid).eq('product_id', id);
+    } else {
+      const rows = sizeRows.map(r => ({
+        warehouse_id: wid,
+        product_id: id,
+        size_code: r.sizeCode,
+        quantity: Math.max(0, Number(r.quantity) || 0),
+        updated_at: now,
+      }));
+      const { error: upsertErr } = await db.from('warehouse_inventory_by_size').upsert(rows, {
+        onConflict: 'warehouse_id,product_id,size_code',
+      });
+      if (upsertErr) throw new Error(`Failed to save sizes: ${upsertErr.message}`);
+      const payloadCodes = sizeRows.map(r => r.sizeCode);
+      const { data: existing } = await db.from('warehouse_inventory_by_size').select('size_code').eq('warehouse_id', wid).eq('product_id', id);
+      const toRemove = (existing ?? []).filter((x: { size_code: string }) => !payloadCodes.includes(x.size_code));
+      if (toRemove.length > 0) {
+        await db.from('warehouse_inventory_by_size').delete().eq('warehouse_id', wid).eq('product_id', id).in('size_code', toRemove.map((x: { size_code: string }) => x.size_code));
+      }
     }
   }
 }

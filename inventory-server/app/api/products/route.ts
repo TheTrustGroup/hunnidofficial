@@ -133,6 +133,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       await invalidateDashboardCacheForWarehouse(warehouseId.trim());
     return withCors(NextResponse.json(created, { status: 201 }), request);
   } catch (e) {
+    const err = e as Error & { code?: string };
+    if (err?.code === '23505') {
+      return withCors(
+        NextResponse.json(
+          { error: 'A product with this name, color, and SKU already exists.' },
+          { status: 409 }
+        ),
+        request
+      );
+    }
     const entityId = (body?.id && typeof body.id === 'string' ? body.id : '') || 'unknown';
     logDurability({
       status: 'failed',
@@ -141,7 +151,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       warehouse_id: warehouseId,
       request_id: requestId,
       user_role: auth.role,
-      message: e instanceof Error ? e.message : 'Failed to create product',
+      message: err instanceof Error ? err.message : 'Failed to create product',
     });
     console.error('[API ERROR]', e);
     return withCors(

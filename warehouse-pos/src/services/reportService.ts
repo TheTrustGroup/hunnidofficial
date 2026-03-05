@@ -109,15 +109,14 @@ export function generateSalesReport(
     0
   );
 
-  // Calculate profit
+  // Calculate profit: use cost at time of sale (item.costPrice) when available, else current product cost
   let totalProfit = 0;
   filteredTransactions.forEach(transaction => {
     transaction.items.forEach(item => {
       const product = products.find(p => p.id === item.productId);
-      if (product) {
-        const profit = (item.unitPrice - product.costPrice) * item.quantity;
-        totalProfit += profit;
-      }
+      const costPerUnit = item.costPrice ?? (product ? Number(product.costPrice ?? 0) : 0);
+      const profit = (item.unitPrice - costPerUnit) * item.quantity;
+      totalProfit += profit;
     });
   });
 

@@ -438,6 +438,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Number(sp.get('limit') ?? 100), 500);
   const offset = Number(sp.get('offset') ?? 0);
   const pending = sp.get('pending') === 'true';
+  const deliveryHistory = sp.get('delivery_history') === 'true';
   const includeVoided = sp.get('include_voided') === 'true';
 
   // Enforce warehouse scope: Hunnid Main users must not see Main Jeff data and vice versa.
@@ -471,7 +472,7 @@ export async function GET(req: NextRequest) {
       delivered_at, delivered_by,
       sale_lines (
         id, product_id, size_code, name, sku,
-        unit_price, qty, line_total, product_image_url
+        unit_price, qty, line_total, product_image_url, cost_price
       )
     `
       )
@@ -485,7 +486,9 @@ export async function GET(req: NextRequest) {
     }
     if (from) q = q.gte('created_at', from);
     if (to) q = q.lte('created_at', to);
-    if (pending) q = q.in('delivery_status', ['pending', 'dispatched', 'cancelled']);
+    // Queue: pending/dispatched/cancelled. History: delivered + cancelled.
+    if (deliveryHistory) q = q.in('delivery_status', ['delivered', 'cancelled']);
+    else if (pending) q = q.in('delivery_status', ['pending', 'dispatched', 'cancelled']);
 
     const { data, error } = await q;
 
@@ -660,6 +663,7 @@ function shapeSales(rows: Array<Record<string, unknown>>) {
       qty: l.qty,
       lineTotal: Number(l.line_total ?? 0),
       imageUrl: l.product_image_url ?? null,
+      costPrice: Number(l.cost_price ?? 0),
     })),
   }));
 }

@@ -112,6 +112,8 @@ export interface TransactionItem {
   quantity: number;
   unitPrice: number;
   subtotal: number;
+  /** Cost per unit at time of sale (from sale_lines.cost_price). Use for COGS/profit when present. */
+  costPrice?: number;
 }
 
 export interface Payment {

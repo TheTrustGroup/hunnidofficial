@@ -2,11 +2,9 @@
 // DeliveriesPage.tsx
 // File: warehouse-pos/src/pages/DeliveriesPage.tsx
 //
-// Pending deliveries dashboard.
-//   - Counts: pending, dispatched, delivered today
-//   - List of pending + dispatched deliveries
-//   - Mark Dispatched / Mark Delivered actions
-//   - Filter: All / Pending / Dispatched / Overdue
+// Deliveries: Queue (pending/dispatched) + History (delivered/cancelled).
+//   - Queue: list, Mark Dispatched / Mark Delivered, filter pills
+//   - History: delivered and cancelled sales (read-only)
 //   - Tap to expand: line items, address, phone, notes
 // ============================================================
 
@@ -40,7 +38,7 @@ interface Delivery {
   voidedBy?:      string | null;
 }
 
-type Filter = 'all' | 'pending' | 'dispatched' | 'overdue' | 'cancelled';
+type Filter = 'all' | 'pending' | 'dispatched' | 'overdue' | 'cancelled' | 'delivered';
 
 interface DeliveriesPageProps {
   warehouseId?: string;
@@ -266,6 +264,8 @@ function DeliveryCard({
 export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: DeliveriesPageProps) {
   const base = apiBaseUrl ?? API_BASE_URL;
 
+  type ViewMode = 'queue' | 'history';
+  const [viewMode,       setViewMode]       = useState<ViewMode>('queue');
   const [deliveries,     setDeliveries]     = useState<Delivery[]>([]);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState<string | null>(null);
@@ -282,13 +282,16 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
     setTimeout(() => { if (isMounted.current) setToast(null); }, 3000);
   }
 
-  // ── Load all pending + dispatched deliveries ────────────────────────────
+  // ── Load: Queue (pending=true) or History (delivery_history=true) ─────────
 
-  const load = useCallback(async (silent = false) => {
+  const load = useCallback(async (silent = false, mode?: ViewMode) => {
+    const current = mode ?? viewMode;
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: '200', pending: 'true', include_voided: 'true' });
+      const params = new URLSearchParams({ limit: '200', include_voided: 'true' });
+      if (current === 'queue') params.set('pending', 'true');
+      else params.set('delivery_history', 'true');
       if (warehouseId && String(warehouseId).trim()) params.set('warehouse_id', String(warehouseId).trim());
       const url = `${base}/api/sales?${params.toString()}`;
       const res = await fetch(url, {
@@ -303,9 +306,9 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [warehouseId, base]);
+  }, [warehouseId, base, viewMode]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(false, viewMode); }, [viewMode, warehouseId]);
 
   // ── Action: mark dispatched / delivered / cancelled ─────────────────────
 
@@ -322,7 +325,7 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
         const j = await res.json().catch(() => ({}));
         throw new Error((j as { error?: string }).error ?? `HTTP ${res.status}`);
       }
-      // Optimistic update
+      // Optimistic update then refresh queue so counts stay correct
       setDeliveries(prev =>
         newStatus === 'delivered'
           ? prev.filter(d => d.id !== saleId)
@@ -330,6 +333,7 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
       );
       const msg = newStatus === 'delivered' ? '✓ Marked as delivered' : newStatus === 'dispatched' ? '✓ Marked as dispatched' : '✓ Delivery cancelled';
       showToast(msg, 'success');
+      load(true, 'queue');
     } catch (e: unknown) {
       showToast(e instanceof Error ? e.message : 'Action failed', 'error');
     } finally {
@@ -341,7 +345,8 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
 
   const pendingCount    = deliveries.filter(d => d.deliveryStatus === 'pending').length;
   const dispatchedCount = deliveries.filter(d => d.deliveryStatus === 'dispatched').length;
-  const cancelledCount   = deliveries.filter(d => d.deliveryStatus === 'cancelled').length;
+  const deliveredCount  = deliveries.filter(d => d.deliveryStatus === 'delivered').length;
+  const cancelledCount  = deliveries.filter(d => d.deliveryStatus === 'cancelled').length;
   const overdueCount    = deliveries.filter(isOverdue).length;
 
   // ── Filtered list ────────────────────────────────────────────────────────
@@ -352,7 +357,8 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
       filter === 'pending'    ? d.deliveryStatus === 'pending' :
       filter === 'dispatched' ? d.deliveryStatus === 'dispatched' :
       filter === 'overdue'    ? isOverdue(d) :
-      filter === 'cancelled'   ? d.deliveryStatus === 'cancelled' : true;
+      filter === 'cancelled'  ? d.deliveryStatus === 'cancelled' :
+      filter === 'delivered'  ? d.deliveryStatus === 'delivered' : true;
 
     if (!matchFilter) return false;
     if (!search.trim()) return true;
@@ -368,12 +374,17 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
 
   // ── Render ───────────────────────────────────────────────────────────────
 
-  const FILTER_PILLS: { label: string; count: number; color: string; active: boolean; key: Filter }[] = [
+  const FILTER_PILLS_QUEUE: { label: string; count: number; color: string; active: boolean; key: Filter }[] = [
     { label: 'Pending',    count: pendingCount,    color: 'bg-amber-100 text-amber-700',   active: filter === 'pending',    key: 'pending'    },
-    { label: 'Dispatched', count: dispatchedCount, color: 'bg-blue-100 text-blue-700',     active: filter === 'dispatched', key: 'dispatched' },
-    { label: 'Overdue',    count: overdueCount,    color: 'bg-red-100 text-red-600',       active: filter === 'overdue',    key: 'overdue'    },
-    { label: 'Cancelled',  count: cancelledCount,  color: 'bg-slate-100 text-slate-600',   active: filter === 'cancelled',   key: 'cancelled' },
+    { label: 'Dispatched', count: dispatchedCount,  color: 'bg-blue-100 text-blue-700',    active: filter === 'dispatched', key: 'dispatched' },
+    { label: 'Overdue',    count: overdueCount,    color: 'bg-red-100 text-red-600',      active: filter === 'overdue',    key: 'overdue'    },
+    { label: 'Cancelled',  count: cancelledCount,  color: 'bg-slate-100 text-slate-600',  active: filter === 'cancelled',   key: 'cancelled' },
   ];
+  const FILTER_PILLS_HISTORY: { label: string; count: number; color: string; active: boolean; key: Filter }[] = [
+    { label: 'Delivered', count: deliveredCount, color: 'bg-emerald-100 text-emerald-700', active: filter === 'delivered', key: 'delivered' },
+    { label: 'Cancelled', count: cancelledCount, color: 'bg-slate-100 text-slate-600',      active: filter === 'cancelled',  key: 'cancelled' },
+  ];
+  const FILTER_PILLS = viewMode === 'queue' ? FILTER_PILLS_QUEUE : FILTER_PILLS_HISTORY;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -391,12 +402,20 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
           <div>
             <h1 className="text-[20px] font-extrabold text-slate-900 tracking-tight">Deliveries</h1>
             <p className="text-[12px] text-slate-400 mt-0.5">
-              {pendingCount + dispatchedCount} active · {cancelledCount > 0 ? `${cancelledCount} cancelled` : ''} {overdueCount > 0 ? `· ${overdueCount} overdue` : ''}
+              {viewMode === 'queue'
+                ? `${pendingCount + dispatchedCount} active${cancelledCount > 0 ? ` · ${cancelledCount} cancelled` : ''}${overdueCount > 0 ? ` · ${overdueCount} overdue` : ''}`
+                : `${deliveredCount} delivered${cancelledCount > 0 ? ` · ${cancelledCount} cancelled` : ''}`}
             </p>
           </div>
-          <button type="button" onClick={() => load(true)} className="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors">
+          <button type="button" onClick={() => load(false, viewMode)} className="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors">
             <IconRefresh />
           </button>
+        </div>
+
+        {/* Queue / History tabs */}
+        <div className="flex rounded-xl bg-slate-100 p-1 mb-3">
+          <button type="button" onClick={() => { setViewMode('queue'); setFilter('all'); }} className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors ${viewMode === 'queue' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Queue</button>
+          <button type="button" onClick={() => { setViewMode('history'); setFilter('all'); }} className={`flex-1 py-2 rounded-lg text-[13px] font-bold transition-colors ${viewMode === 'history' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>History</button>
         </div>
 
         {/* Stat pills */}
@@ -433,7 +452,7 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
         {!loading && error && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-center">
             <p className="text-[13px] text-red-600 font-medium">{error}</p>
-            <button type="button" onClick={() => load()} className="mt-2 text-[12px] text-red-500 font-bold underline">Retry</button>
+            <button type="button" onClick={() => load(false, viewMode)} className="mt-2 text-[12px] text-red-500 font-bold underline">Retry</button>
           </div>
         )}
 
@@ -443,10 +462,14 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
               <IconTruck />
             </div>
             <p className="text-[15px] font-bold text-slate-700 mb-1">
-              {search ? 'No results' : filter === 'cancelled' ? 'No cancelled deliveries' : 'No pending deliveries'}
+              {search ? 'No results' : viewMode === 'history'
+                ? (filter === 'delivered' ? 'No delivered' : filter === 'cancelled' ? 'No cancelled' : 'No delivery history yet')
+                : (filter === 'cancelled' ? 'No cancelled deliveries' : 'No pending deliveries')}
             </p>
             <p className="text-[13px] text-slate-400">
-              {search ? 'Try a different search' : filter === 'cancelled' ? 'Cancelled deliveries will appear here' : 'Deliveries scheduled from the POS will appear here'}
+              {search ? 'Try a different search' : viewMode === 'history'
+                ? (filter === 'delivered' ? 'Delivered orders will appear here' : filter === 'cancelled' ? 'Cancelled deliveries will appear here' : 'Delivered and cancelled orders will appear here')
+                : (filter === 'cancelled' ? 'Cancelled deliveries will appear here' : 'Deliveries scheduled from the POS will appear here')}
             </p>
           </div>
         )}

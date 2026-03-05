@@ -368,6 +368,11 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
 
   const { error: insertProductError } = await db.from('warehouse_products').insert(productRow);
   if (insertProductError) {
+    if (insertProductError.code === '23505') {
+      const err = new Error('A product with this name, color, and SKU already exists.') as Error & { code?: string };
+      err.code = '23505';
+      throw err;
+    }
     throw new Error(normalizeDbConstraintError(insertProductError.message, 'create'));
   }
 
@@ -475,58 +480,75 @@ export async function updateWarehouseProduct(
     .update(updates)
     .eq('id', productId);
   if (updateError) {
+    if (updateError.code === '23505') {
+      const err = new Error('A product with this name, color, and SKU already exists.') as Error & { code?: string };
+      err.code = '23505';
+      throw err;
+    }
     throw new Error(normalizeDbConstraintError(updateError.message, 'update'));
   }
 
   const sizeKind = String(body.sizeKind ?? existing.sizeKind ?? 'na').toLowerCase();
-  // Preserve existing sizes when body.quantityBySize is undefined or explicitly empty (avoid accidental wipe)
   const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize : undefined;
-  const quantityBySize =
-    quantityBySizeRaw && quantityBySizeRaw.length > 0
-      ? (quantityBySizeRaw as Array<{ sizeCode: string; quantity: number }>)
-      : (existing.quantityBySize?.length
-          ? (existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
-          : []);
+  const quantityBySize = quantityBySizeRaw ?? (existing.quantityBySize?.length ? (existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>) : []);
   const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
-  const totalQty = isSized
-    ? quantityBySize.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
-    : Number(body.quantity ?? existing.quantity ?? 0);
+  const totalQty =
+    quantityBySizeRaw === undefined
+      ? (existing.quantityBySize?.length
+          ? (existing.quantityBySize as Array<{ quantity: number }>).reduce((s, r) => s + (Number(r.quantity) || 0), 0)
+          : Number(existing.quantity ?? 0))
+      : isSized
+        ? quantityBySize.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
+        : Number(body.quantity ?? existing.quantity ?? 0);
 
-  await db.from('warehouse_inventory_by_size').delete().eq('product_id', productId).eq('warehouse_id', warehouseId);
-  const { error: delInvErr } = await db
-    .from('warehouse_inventory')
-    .delete()
-    .eq('product_id', productId)
-    .eq('warehouse_id', warehouseId);
-  if (delInvErr) {
-    throw new Error(`Failed to clear warehouse inventory for update: ${delInvErr.message}`);
-  }
-  const { error: insertInvErr } = await db.from('warehouse_inventory').insert({
-    product_id: productId,
-    warehouse_id: warehouseId,
-    quantity: totalQty,
-  });
-  if (insertInvErr) {
-    throw new Error(`Failed to update warehouse inventory: ${insertInvErr.message}`);
+  if (quantityBySizeRaw === undefined) {
+    // Do not touch warehouse_inventory_by_size; only sync warehouse_inventory total
+    const { error: invErr } = await db
+      .from('warehouse_inventory')
+      .upsert(
+        { warehouse_id: warehouseId, product_id: productId, quantity: Math.max(0, totalQty), updated_at: now },
+        { onConflict: 'warehouse_id,product_id' }
+      );
+    if (invErr) throw new Error(`Failed to update warehouse inventory: ${invErr.message}`);
+    return getProductById(warehouseId, productId);
   }
 
-  if (isSized && quantityBySize.length > 0) {
-    const sizeRows = quantityBySize
+  if (quantityBySizeRaw.length === 0) {
+    await db.from('warehouse_inventory_by_size').delete().eq('product_id', productId).eq('warehouse_id', warehouseId);
+  } else {
+    const sizeRows = quantityBySizeRaw
       .filter((r) => String(r.sizeCode ?? '').trim())
       .map((r) => ({
         product_id: productId,
         warehouse_id: warehouseId,
         size_code: String(r.sizeCode).trim().toUpperCase(),
-        quantity: Number(r.quantity) || 0,
+        quantity: Math.max(0, Number(r.quantity) || 0),
       }));
     if (sizeRows.length > 0) {
-      const { error: insertSizeError } = await db.from('warehouse_inventory_by_size').insert(sizeRows);
-      if (insertSizeError) {
-        throw new Error(`Failed to update inventory by size: ${insertSizeError.message}`);
+      const { error: upsertErr } = await db.from('warehouse_inventory_by_size').upsert(sizeRows, {
+        onConflict: 'warehouse_id,product_id,size_code',
+      });
+      if (upsertErr) throw new Error(`Failed to update inventory by size: ${upsertErr.message}`);
+      const payloadCodes = sizeRows.map((r) => r.size_code);
+      const { data: existingRows } = await db
+        .from('warehouse_inventory_by_size')
+        .select('size_code')
+        .eq('warehouse_id', warehouseId)
+        .eq('product_id', productId);
+      const toRemove = (existingRows ?? []).filter((r: { size_code: string }) => !payloadCodes.includes(r.size_code)).map((r: { size_code: string }) => r.size_code);
+      if (toRemove.length > 0) {
+        await db.from('warehouse_inventory_by_size').delete().eq('warehouse_id', warehouseId).eq('product_id', productId).in('size_code', toRemove);
       }
     }
   }
 
+  const { error: invErr } = await db
+    .from('warehouse_inventory')
+    .upsert(
+      { warehouse_id: warehouseId, product_id: productId, quantity: Math.max(0, totalQty), updated_at: now },
+      { onConflict: 'warehouse_id,product_id' }
+    );
+  if (invErr) throw new Error(`Failed to update warehouse inventory: ${invErr.message}`);
   return getProductById(warehouseId, productId);
 }
 

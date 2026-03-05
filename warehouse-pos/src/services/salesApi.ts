@@ -15,6 +15,8 @@ export interface SaleLine {
   unitPrice: number;
   qty: number;
   lineTotal: number;
+  /** Cost per unit at time of sale (from sale_lines.cost_price). Used for COGS/profit in reports. */
+  costPrice?: number;
 }
 
 export interface SaleFromApi {
@@ -69,6 +71,7 @@ export function saleToTransaction(sale: SaleFromApi): Transaction {
       quantity: l.qty,
       unitPrice: l.unitPrice,
       subtotal: l.lineTotal,
+      costPrice: l.costPrice,
     })),
     subtotal: sale.subtotal,
     tax: 0,
@@ -118,4 +121,46 @@ export async function fetchSalesAsTransactions(
 ): Promise<{ data: Transaction[]; total: number }> {
   const { data, total } = await fetchSalesFromApi(baseUrl, params);
   return { data: data.map(saleToTransaction), total };
+}
+
+/** Response shape from GET /api/reports/sales (SQL aggregations, COGS from sale_lines.cost_price). */
+export interface SalesReportFromApi {
+  revenue: number;
+  cogs: number;
+  profit: number;
+  transactionCount: number;
+  totalItemsSold: number;
+  averageOrderValue: number;
+  totalVoided: number;
+  topProducts: Array<{ product_id: string; product_name: string; quantity_sold: number; revenue: number }>;
+  salesByDay: Array<{ date: string; revenue: number; transactions: number }>;
+  salesByCategory: Array<{ category: string; revenue: number; quantity: number }>;
+}
+
+export interface FetchSalesReportParams {
+  from: string;
+  to: string;
+  warehouse_id?: string;
+  include_voided?: boolean;
+}
+
+/**
+ * Fetch aggregated sales report from GET /api/reports/sales (server-side SQL, correct COGS/profit).
+ */
+export async function fetchSalesReportFromApi(
+  baseUrl: string,
+  params: FetchSalesReportParams
+): Promise<{ data: SalesReportFromApi }> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('from', params.from);
+  searchParams.set('to', params.to);
+  if (params.warehouse_id) searchParams.set('warehouse_id', params.warehouse_id);
+  if (params.include_voided) searchParams.set('include_voided', 'true');
+  const path = `/api/reports/sales?${searchParams.toString()}`;
+  const res = await apiGet<{ data?: SalesReportFromApi }>(baseUrl, path);
+  const data = res?.data;
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid report response');
+  }
+  return { data };
 }
