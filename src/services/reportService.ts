@@ -5,6 +5,8 @@ export interface SalesReport {
   totalRevenue: number;
   totalProfit: number;
   totalTransactions: number;
+  /** Count of voided transactions included in totalTransactions so reports depict every transaction. */
+  totalVoided: number;
   totalItemsSold: number;
   averageOrderValue: number;
   topSellingProducts: Array<{
@@ -82,18 +84,22 @@ export function generateSalesReport(
   startDate: Date,
   endDate: Date
 ): SalesReport {
-  // Filter transactions: date range, completed status, and exclude mock data
-  const filteredTransactions = transactions.filter(t => {
+  // All transactions in date range (include voided so reports depict every transaction)
+  const allInRange = transactions.filter(t => {
     const tDate = new Date(t.createdAt);
     const inDateRange = tDate >= startDate && tDate <= endDate;
-    const isCompleted = t.status === 'completed';
     const isRealData = !isMockTransaction(t);
-    
-    return inDateRange && isCompleted && isRealData;
+    return inDateRange && isRealData;
   });
+  const totalTransactions = allInRange.length;
+  const totalVoided = allInRange.filter(t => t.voidedAt != null && String(t.voidedAt).trim() !== '').length;
+
+  // Revenue, profit, and aggregates exclude voided (only completed, non-voided)
+  const filteredTransactions = allInRange.filter(t =>
+    t.status === 'completed' && (t.voidedAt == null || String(t.voidedAt).trim() === '')
+  );
 
   const totalRevenue = filteredTransactions.reduce((sum, t) => sum + t.total, 0);
-  const totalTransactions = filteredTransactions.length;
   const totalItemsSold = filteredTransactions.reduce(
     (sum, t) => sum + t.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
     0
@@ -194,6 +200,7 @@ export function generateSalesReport(
     totalRevenue,
     totalProfit,
     totalTransactions,
+    totalVoided,
     totalItemsSold,
     averageOrderValue,
     topSellingProducts,

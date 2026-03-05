@@ -100,6 +100,9 @@ export interface Transaction {
   storeId?: string | null;
   /** Optional (Phase 3). POS device id. */
   posId?: string | null;
+  /** Set when sale was voided (server POS). Reports include voided transactions when requested. */
+  voidedAt?: string | null;
+  voidedBy?: string | null;
 }
 
 export interface TransactionItem {

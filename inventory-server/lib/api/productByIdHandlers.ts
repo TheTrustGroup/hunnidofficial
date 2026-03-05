@@ -7,6 +7,7 @@ import {
 import type { Session } from '@/lib/auth/session';
 import type { PutProductBody } from '@/lib/data/warehouseProducts';
 import { toSafeError } from '@/lib/safeError';
+import { invalidateDashboardCacheForWarehouse } from '@/lib/cache/warehouseStatsCache';
 
 /** GET one product by query id + warehouse_id. Returns 200 with product (includes images) or 404. */
 export async function handleGetProductById(
@@ -33,6 +34,7 @@ export async function handlePutProductById(
     if (!updated) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
+    await invalidateDashboardCacheForWarehouse(warehouseId);
     return NextResponse.json(updated);
   } catch (e) {
     console.error('[API ERROR]', e);
@@ -49,6 +51,7 @@ export async function handleDeleteProductById(
 ): Promise<NextResponse> {
   try {
     await deleteWarehouseProduct(id, warehouseId);
+    await invalidateDashboardCacheForWarehouse(warehouseId);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error('[API ERROR]', e);

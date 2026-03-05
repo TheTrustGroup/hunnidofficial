@@ -1,20 +1,62 @@
 /**
- * Dashboard stats: one server-side aggregation so the client gets a small payload
- * instead of loading all products. Used by GET /api/dashboard.
+ * Dashboard stats: totals from DB (get_warehouse_stats RPC); low-stock list and category summary from product list.
+ * Used by GET /api/dashboard. Single source of truth for total_units and total_stock_value.
  */
 
 import { getWarehouseProducts, type ProductRecord } from '@/lib/data/warehouseProducts';
 import { getSupabase } from '@/lib/supabase';
 
 const LOW_STOCK_ALERTS_LIMIT = 10;
-/** Max products per warehouse for dashboard stats. If a warehouse has more, totalStockValue will be understated; consider DB-side aggregation (e.g. RPC) for very large catalogs. */
-const PRODUCTS_LIMIT = 2000;
+/** Max products to fetch for low-stock list and category summary only. Totals come from RPC. */
+const PRODUCTS_LIMIT_FOR_LIST = 2000;
 
 function getProductQty(p: ProductRecord): number {
   if (p.sizeKind === 'sized' && p.quantityBySize?.length > 0) {
     return p.quantityBySize.reduce((s, r) => s + (r.quantity ?? 0), 0);
   }
   return p.quantity ?? 0;
+}
+
+export interface WarehouseStatsFromDb {
+  total_units: number;
+  total_stock_value: number;
+  total_skus: number;
+  low_stock_count: number;
+  out_of_stock_count: number;
+}
+
+async function getWarehouseStatsFromDb(warehouseId: string): Promise<WarehouseStatsFromDb> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.rpc('get_warehouse_stats', {
+    p_warehouse_id: warehouseId,
+  });
+  if (error) {
+    console.error('[dashboardStats] get_warehouse_stats', error);
+    return {
+      total_units: 0,
+      total_stock_value: 0,
+      total_skus: 0,
+      low_stock_count: 0,
+      out_of_stock_count: 0,
+    };
+  }
+  const raw = data as Record<string, unknown> | null;
+  if (!raw || typeof raw !== 'object') {
+    return {
+      total_units: 0,
+      total_stock_value: 0,
+      total_skus: 0,
+      low_stock_count: 0,
+      out_of_stock_count: 0,
+    };
+  }
+  return {
+    total_units: Number(raw.total_units ?? 0) || 0,
+    total_stock_value: Number(raw.total_stock_value ?? 0) || 0,
+    total_skus: Number(raw.total_skus ?? 0) || 0,
+    low_stock_count: Number(raw.low_stock_count ?? 0) || 0,
+    out_of_stock_count: Number(raw.out_of_stock_count ?? 0) || 0,
+  };
 }
 
 export interface DashboardLowStockItem {
@@ -83,24 +125,20 @@ export async function getTodaySalesByWarehouse(
 }
 
 /**
- * Compute dashboard stats, low-stock list, and category summary for a warehouse.
- * Single products fetch on the server; response is small (no full product list to client).
+ * Compute dashboard stats: totals from DB (single source of truth); low-stock list and category summary from product list.
  */
 export async function getDashboardStats(
   warehouseId: string,
   options: { date?: string } = {}
 ): Promise<DashboardStatsResult> {
   const date = options.date ?? new Date().toISOString().split('T')[0];
-  const [productsResult, todaySales] = await Promise.all([
-    getWarehouseProducts(warehouseId, { limit: PRODUCTS_LIMIT }),
+  const [dbStats, productsResult, todaySales] = await Promise.all([
+    getWarehouseStatsFromDb(warehouseId),
+    getWarehouseProducts(warehouseId, { limit: PRODUCTS_LIMIT_FOR_LIST }),
     getTodaySalesTotal(warehouseId, date),
   ]);
-  const products = productsResult.data;
 
-  let totalStockValue = 0;
-  let totalUnits = 0;
-  let lowStockCount = 0;
-  let outOfStockCount = 0;
+  const products = productsResult.data;
   const categorySummary: DashboardCategorySummary = {};
   const lowStockCandidates: ProductRecord[] = [];
 
@@ -108,17 +146,12 @@ export async function getDashboardStats(
     const qty = getProductQty(p);
     const reorder = p.reorderLevel ?? 0;
     const cost = p.costPrice ?? 0;
-    // Cost-only: products with no cost contribute 0 to total (accurate, no inflation from selling price)
     const price = cost > 0 ? cost : 0;
-    totalUnits += qty;
-    totalStockValue += qty * price;
-    if (qty === 0) outOfStockCount++;
-    else if (qty <= reorder) lowStockCount++;
     if (qty <= reorder) lowStockCandidates.push(p);
     const cat = p.category?.trim() || 'Uncategorised';
     if (!categorySummary[cat]) categorySummary[cat] = { count: 0, value: 0 };
     categorySummary[cat].count++;
-    categorySummary[cat].value += qty * (cost > 0 ? cost : 0);
+    categorySummary[cat].value += qty * price;
   }
 
   const lowStockItems: DashboardLowStockItem[] = lowStockCandidates
@@ -134,11 +167,11 @@ export async function getDashboardStats(
     }));
 
   return {
-    totalStockValue,
-    totalUnits,
-    totalProducts: products.length,
-    lowStockCount,
-    outOfStockCount,
+    totalStockValue: dbStats.total_stock_value,
+    totalUnits: dbStats.total_units,
+    totalProducts: dbStats.total_skus,
+    lowStockCount: dbStats.low_stock_count,
+    outOfStockCount: dbStats.out_of_stock_count,
     todaySales,
     lowStockItems,
     categorySummary,

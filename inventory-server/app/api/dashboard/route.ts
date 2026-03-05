@@ -2,11 +2,13 @@
  * GET /api/dashboard?warehouse_id=...&date=YYYY-MM-DD
  * Returns dashboard stats for the given warehouse (stock value, low stock, today's sales, etc.).
  * Auth required.
+ * Cached 30s by warehouse_stats:{warehouseId}:{date}; invalidated on sale and product create/update/delete for that warehouse.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { corsHeaders } from '@/lib/cors';
 import { requireAuth } from '@/lib/auth/session';
 import { getDashboardStats } from '@/lib/data/dashboardStats';
+import { getCachedStats, setCachedStats } from '@/lib/cache/warehouseStatsCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +37,21 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const data = await getDashboardStats(warehouseId, { date });
+    let data: Awaited<ReturnType<typeof getDashboardStats>> | null = null;
+    try {
+      data = await getCachedStats(warehouseId, date);
+    } catch {
+      /* cache failure: fall back to DB */
+    }
+    if (data != null) {
+      return withCors(NextResponse.json(data), req);
+    }
+    data = await getDashboardStats(warehouseId, { date });
+    try {
+      await setCachedStats(warehouseId, date, data);
+    } catch {
+      /* cache write failure: response still correct */
+    }
     return withCors(NextResponse.json(data), req);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Internal error';

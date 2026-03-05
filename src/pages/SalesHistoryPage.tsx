@@ -52,6 +52,9 @@ interface Sale {
   deliveredAt:     string | null;
   /** When paymentMethod is Mix, breakdown from API. */
   paymentMixBreakdown?: { cash?: number; momo?: number; card?: number } | null;
+  /** Set when sale was voided (stock restored). Show Voided badge and disable Void button. */
+  voidedAt?: string | null;
+  voidedBy?: string | null;
 }
 
 type DateFilter = 'today' | 'week' | 'month' | 'all';
@@ -85,6 +88,29 @@ function startOf(filter: DateFilter): string | null {
     now.setDate(1);
     now.setHours(0, 0, 0, 0);
     return now.toISOString();
+  }
+  return null;
+}
+
+function endOf(filter: DateFilter): string | null {
+  const now = new Date();
+  if (filter === 'today') {
+    now.setHours(23, 59, 59, 999);
+    return now.toISOString();
+  }
+  if (filter === 'week') {
+    const day = now.getDay();
+    const start = new Date(now);
+    start.setDate(now.getDate() - day);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return end.toISOString();
+  }
+  if (filter === 'month') {
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    return end.toISOString();
   }
   return null;
 }
@@ -221,6 +247,11 @@ function SaleRow({
               <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold" title="POS / Warehouse">
                 {warehouseName}
               </span>
+              {sale.voidedAt ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" title={sale.voidedBy ? `Voided by ${sale.voidedBy}` : 'Voided'}>
+                  Voided
+                </span>
+              ) : null}
               <PayBadge method={sale.paymentMethod} mixBreakdown={sale.paymentMixBreakdown} />
               <DeliveryBadge status={sale.deliveryStatus ?? 'delivered'} expectedDate={sale.expectedDate} />
             </div>
@@ -293,15 +324,15 @@ function SaleRow({
             >
               <IconPrint /> Print receipt
             </button>
-            {onVoid && (
+            {!sale.voidedAt && onVoid && (
               <button
                 type="button"
-                onClick={() => onVoid(sale)}
                 disabled={isVoiding}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 hover:bg-red-200
-                           text-[12px] font-semibold text-red-700 transition-colors disabled:opacity-50"
+                onClick={() => onVoid(sale)}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-rose-100 hover:bg-rose-200
+                           text-[12px] font-semibold text-rose-700 transition-colors disabled:opacity-60"
               >
-                {isVoiding ? 'Voiding…' : 'Void sale'}
+                {isVoiding ? 'Voiding…' : 'Void (restore stock)'}
               </button>
             )}
           </div>
@@ -341,9 +372,12 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
     setError(null);
     try {
       const from = startOf(dateFilter);
+      const to = endOf(dateFilter);
       const params = new URLSearchParams({ limit: '500' });
+      params.set('include_voided', 'true');
       if (warehouseId) params.set('warehouse_id', warehouseId);
       if (from) params.set('from', from);
+      if (to) params.set('to', to);
 
       const res = await fetch(`${baseUrl}/api/sales?${params}`, {
         headers: new Headers(getApiHeaders()),
@@ -375,13 +409,14 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
 
   // ── Derived stats ─────────────────────────────────────────────────────────
 
-  const totalRevenue    = displayed.reduce((s, x) => s + x.total, 0);
-  const totalItems      = displayed.reduce((s, x) => s + x.itemCount, 0);
-  const cashTotal       = displayed.filter(s => s.paymentMethod === 'Cash').reduce((s, x) => s + x.total, 0);
-  const momoTotal       = displayed.filter(s => s.paymentMethod === 'MoMo').reduce((s, x) => s + x.total, 0);
-  const cardTotal       = displayed.filter(s => s.paymentMethod === 'Card').reduce((s, x) => s + x.total, 0);
-  const mixTotal        = displayed.filter(s => s.paymentMethod === 'Mix').reduce((s, x) => s + x.total, 0);
-  const avgSale         = displayed.length > 0 ? totalRevenue / displayed.length : 0;
+  const completedOnly   = displayed.filter(s => !s.voidedAt);
+  const totalRevenue    = completedOnly.reduce((s, x) => s + x.total, 0);
+  const totalItems      = completedOnly.reduce((s, x) => s + x.itemCount, 0);
+  const cashTotal       = completedOnly.filter(s => s.paymentMethod === 'Cash').reduce((s, x) => s + x.total, 0);
+  const momoTotal       = completedOnly.filter(s => s.paymentMethod === 'MoMo').reduce((s, x) => s + x.total, 0);
+  const cardTotal       = completedOnly.filter(s => s.paymentMethod === 'Card').reduce((s, x) => s + x.total, 0);
+  const mixTotal        = completedOnly.filter(s => s.paymentMethod === 'Mix').reduce((s, x) => s + x.total, 0);
+  const avgSale         = completedOnly.length > 0 ? totalRevenue / completedOnly.length : 0;
   const currentWh = warehouseId === ALL_WAREHOUSES_ID
     ? { id: ALL_WAREHOUSES_ID, name: 'All warehouses' }
     : WAREHOUSES.find(w => w.id === warehouseId) ?? WAREHOUSES[0];
@@ -410,9 +445,15 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status === 409 && (data?.error ?? '').toLowerCase().includes('already voided')) {
+          await fetchSales();
+          setError(null);
+          return;
+        }
         throw new Error(data?.error ?? `HTTP ${res.status}`);
       }
       await fetchSales();
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Void failed');
     } finally {

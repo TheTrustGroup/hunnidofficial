@@ -348,6 +348,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const searchDebounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchCategoryRef   = useRef({ search: '', category: 'all' as FilterKey, sizeCode: 'all' as string, color: 'all' as string });
   const skipSearchDebounceRef = useRef(true);
+  const lastVisibilityRefetchRef = useRef<number>(0);
   searchCategoryRef.current = { search, category, sizeCode: sizeFilter, color: colorFilter };
 
   const { toasts, show: showToast } = useToast();
@@ -514,14 +515,17 @@ export default function InventoryPage(_props: InventoryPageProps) {
   }
 
   // ── Warehouse-level stats (full totals so they don't drop with pagination/filter) ──
+  const statsRequestIdRef = useRef(0);
 
   const loadWarehouseStats = useCallback(() => {
     if (!warehouseId) return;
+    const myId = ++statsRequestIdRef.current;
     const date = new Date().toISOString().split('T')[0];
     apiFetch<{ totalStockValue?: number; totalUnits?: number }>(
       `/api/dashboard?warehouse_id=${encodeURIComponent(warehouseId)}&date=${date}`
     )
       .then((data) => {
+        if (myId !== statsRequestIdRef.current) return;
         if (data && typeof data.totalStockValue === 'number') {
           setWarehouseStats({
             totalStockValue: data.totalStockValue,
@@ -529,7 +533,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
           });
         }
       })
-      .catch(() => setWarehouseStats(null));
+      .catch(() => {
+        if (myId === statsRequestIdRef.current) setWarehouseStats(null);
+      });
   }, [warehouseId, apiFetch]);
 
   useEffect(() => {
@@ -537,24 +543,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
       setWarehouseStats(null);
       return;
     }
-    let cancelled = false;
-    const date = new Date().toISOString().split('T')[0];
-    apiFetch<{ totalStockValue?: number; totalUnits?: number }>(
-      `/api/dashboard?warehouse_id=${encodeURIComponent(warehouseId)}&date=${date}`
-    )
-      .then((data) => {
-        if (!cancelled && data && typeof data.totalStockValue === 'number') {
-          setWarehouseStats({
-            totalStockValue: data.totalStockValue,
-            ...(typeof data.totalUnits === 'number' ? { totalUnits: data.totalUnits } : {}),
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setWarehouseStats(null);
-      });
-    return () => { cancelled = true; };
-  }, [warehouseId, apiFetch]);
+    loadWarehouseStats();
+  }, [warehouseId, loadWarehouseStats]);
 
   // Refetch when inventory changes (e.g. POS sale, order deduct) so stock value and quantities update
   useEffect(() => {
@@ -586,11 +576,15 @@ export default function InventoryPage(_props: InventoryPageProps) {
     loadSizeCodes();
     const pollDelay = setTimeout(() => startPoll(), 5000);
 
+    const VISIBILITY_REFETCH_MS = 5000;
     const onVisible = () => {
       if (!didInitialLoad.current) return;
-      if (document.visibilityState === 'visible' && !modalOpenRef.current) {
-        loadProducts(0, false, true);
-      }
+      if (document.visibilityState !== 'visible' || modalOpenRef.current) return;
+      const now = Date.now();
+      if (now - lastVisibilityRefetchRef.current < VISIBILITY_REFETCH_MS) return;
+      lastVisibilityRefetchRef.current = now;
+      loadWarehouseStats();
+      loadProducts(0, false, true);
     };
     document.addEventListener('visibilitychange', onVisible);
     const initGate = setTimeout(() => { didInitialLoad.current = true; }, 500);
@@ -602,7 +596,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
       document.removeEventListener('visibilitychange', onVisible);
       loadAbortRef.current?.abort();
     };
-  }, [warehouseId, loadProducts]);
+  }, [warehouseId, loadProducts, loadWarehouseStats]);
 
   // ── Debounced server-side search when search or category changes ────────────
 

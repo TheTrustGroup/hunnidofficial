@@ -22,6 +22,7 @@ import {
 import type { PutProductBody } from '@/lib/data/warehouseProducts';
 import { corsHeaders } from '@/lib/cors';
 import { toSafeError } from '@/lib/safeError';
+import { invalidateDashboardCacheForWarehouse } from '@/lib/cache/warehouseStatsCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,6 +129,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       request_id: requestId,
       user_role: auth.role,
     });
+    if (typeof warehouseId === 'string' && warehouseId.trim())
+      await invalidateDashboardCacheForWarehouse(warehouseId.trim());
     return withCors(NextResponse.json(created, { status: 201 }), request);
   } catch (e) {
     const entityId = (body?.id && typeof body.id === 'string' ? body.id : '') || 'unknown';

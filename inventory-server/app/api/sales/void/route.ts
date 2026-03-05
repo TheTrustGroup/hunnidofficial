@@ -6,6 +6,7 @@ import { corsHeaders } from '@/lib/cors';
 import { requireAuth } from '@/lib/auth/session';
 import { getScopeForUser } from '@/lib/data/userScopes';
 import { toSafeError } from '@/lib/safeError';
+import { invalidateDashboardCacheForWarehouse } from '@/lib/cache/warehouseStatsCache';
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
@@ -72,6 +73,10 @@ export async function POST(req: NextRequest) {
       console.error('[API ERROR]', error);
       return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
     }
+
+    const { data: saleRow } = await db.from('sales').select('warehouse_id').eq('id', saleId).maybeSingle();
+    const whId = warehouseId || (saleRow as { warehouse_id?: string } | null)?.warehouse_id;
+    if (whId) await invalidateDashboardCacheForWarehouse(whId);
 
     return NextResponse.json({ success: true, saleId }, { headers: h });
   } catch (e: unknown) {

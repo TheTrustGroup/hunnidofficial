@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { invalidateDashboardCacheForWarehouse } from '@/lib/cache/warehouseStatsCache';
 
 function corsHeaders(req: NextRequest): Record<string, string> {
   const origin  = req.headers.get('origin') ?? '';
@@ -217,6 +218,8 @@ async function handleUpdate(req: NextRequest, ctx: RouteCtx) {
       updated.quantity = totalQty;
     }
 
+    await invalidateDashboardCacheForWarehouse(wid);
+
     return NextResponse.json(updated, { headers: h });
 
   } catch (e: unknown) {
@@ -258,6 +261,8 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx) {
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500, headers: h });
+
+    await invalidateDashboardCacheForWarehouse(wid);
 
     return NextResponse.json({ success: true, id }, { headers: h });
 

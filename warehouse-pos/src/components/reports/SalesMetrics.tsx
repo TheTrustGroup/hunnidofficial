@@ -22,7 +22,9 @@ export function SalesMetrics({ report }: SalesMetricsProps) {
     },
     {
       label: 'Transactions',
-      value: report.totalTransactions.toString(),
+      value: report.totalVoided > 0
+        ? `${report.totalTransactions} (${report.totalVoided} voided)`
+        : report.totalTransactions.toString(),
       icon: ShoppingBag,
       color: 'purple',
     },

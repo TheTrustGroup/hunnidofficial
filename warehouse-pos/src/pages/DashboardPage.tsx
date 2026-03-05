@@ -16,7 +16,7 @@
 //   Today's sales are fetched from /api/sales filtered by warehouse + date.
 // ============================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle } from 'lucide-react';
@@ -232,19 +232,27 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [todayByWarehouse, setTodayByWarehouse] = useState<Record<string, number> | null>(null);
+  const loadIdRef = useRef(0);
 
-  const loadData = useCallback(async (wid: string) => {
-    setLoading(true);
-    setError(null);
-    setDashboard(null);
+  const loadData = useCallback(async (wid: string, options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
+    const myId = ++loadIdRef.current;
+
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+      setDashboard(null);
+    }
 
     try {
       const today = new Date().toISOString().split('T')[0];
       const data = await apiFetch<DashboardData>(
         `/api/dashboard?warehouse_id=${encodeURIComponent(wid)}&date=${today}`
       );
+      if (myId !== loadIdRef.current) return;
       setDashboard(data);
     } catch (e: unknown) {
+      if (myId !== loadIdRef.current) return;
       const msg = e instanceof Error ? e.message : 'Failed to load dashboard data';
       if (msg === SESSION_EXPIRED_MSG) {
         if (typeof localStorage !== 'undefined') {
@@ -256,7 +264,7 @@ export default function DashboardPage() {
       }
       setError(msg);
     } finally {
-      setLoading(false);
+      if (myId === loadIdRef.current) setLoading(false);
     }
   }, [navigate]);
 
@@ -264,17 +272,23 @@ export default function DashboardPage() {
     loadData(warehouseId);
   }, [warehouseId, loadData]);
 
-  // Refetch when inventory changes (e.g. POS sale, order deduct) so stock value and counts stay correct
+  // Refetch when inventory changes (e.g. POS sale, order deduct). Silent = keep showing current digits until new data arrives.
   useEffect(() => {
-    const onInventoryUpdated = () => loadData(warehouseId);
+    const onInventoryUpdated = () => loadData(warehouseId, { silent: true });
     window.addEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
     return () => window.removeEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
   }, [warehouseId, loadData]);
 
-  // When user switches back to this tab (e.g. did a sale in another tab), refetch so units and stock value are correct
+  // When user switches back to this tab, refetch at most once per 5s. Silent = no flash of loading or old digits.
+  const lastVisibilityRefetchRef = useRef<number>(0);
+  const VISIBILITY_REFETCH_MS = 5000;
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') loadData(warehouseId);
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastVisibilityRefetchRef.current < VISIBILITY_REFETCH_MS) return;
+      lastVisibilityRefetchRef.current = now;
+      loadData(warehouseId, { silent: true });
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);

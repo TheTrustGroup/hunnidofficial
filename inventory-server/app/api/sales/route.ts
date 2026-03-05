@@ -12,6 +12,7 @@ import { corsHeaders } from '@/lib/cors';
 import { requireAuth, getEffectiveWarehouseId } from '@/lib/auth/session';
 import { getScopeForUser } from '@/lib/data/userScopes';
 import { toSafeError } from '@/lib/safeError';
+import { invalidateDashboardCacheForWarehouse } from '@/lib/cache/warehouseStatsCache';
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
     const db = getDb();
 
     // Try atomic RPC first. record_sale deducts stock (warehouse_inventory / warehouse_inventory_by_size)
-    // and inserts sale + sale_lines. Ensure migration 20250228170000_sales_sold_by_email.sql is applied.
+    // and inserts sale + sale_lines. Pass p_lines as array so PostgREST sends jsonb; string would be wrong type.
     const { data, error } = await db.rpc('record_sale', {
       p_warehouse_id: warehouseId,
       p_lines: normalizedLines,
@@ -190,12 +191,12 @@ export async function POST(req: NextRequest) {
           h,
         });
       }
-      console.error('[API ERROR]', error);
+      console.error('[POST /api/sales] record_sale RPC error', { code: error.code, message: error.message, details: error.details });
       return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
     }
 
     const result = typeof data === 'string' ? JSON.parse(data) : (data ?? {});
-    const saleId = result.id ?? result.saleId;
+    const saleId = result.id ?? result.saleId ?? null;
 
     // Patch delivery fields and/or mix breakdown onto the sale if needed
     if (saleId) {
@@ -218,15 +219,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    await invalidateDashboardCacheForWarehouse(warehouseId);
+
     return NextResponse.json(
       {
         id: saleId,
-        receiptId: result.receiptId ?? result.receipt_id,
+        receiptId: result.receiptId ?? result.receipt_id ?? `RCP-${saleId?.slice(0, 8) ?? 'unknown'}`,
         total,
         itemCount: normalizedLines.reduce((s, l) => s + l.qty, 0),
         status: 'completed',
         deliveryStatus: effectiveDeliveryStatus,
-        createdAt: result.createdAt ?? new Date().toISOString(),
+        createdAt: result.createdAt ?? result.created_at ?? new Date().toISOString(),
       },
       { status: 201, headers: h }
     );
@@ -398,6 +401,8 @@ async function manualSaleFallback(args: {
     }
   }
 
+  await invalidateDashboardCacheForWarehouse(warehouseId);
+
   return NextResponse.json(
     {
       id: saleId,
@@ -427,6 +432,7 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Number(sp.get('limit') ?? 100), 500);
   const offset = Number(sp.get('offset') ?? 0);
   const pending = sp.get('pending') === 'true';
+  const includeVoided = sp.get('include_voided') === 'true';
 
   // Enforce warehouse scope: Hunnid Main users must not see Main Jeff data and vice versa.
   const scope = await getScopeForUser(auth.email);
@@ -463,9 +469,9 @@ export async function GET(req: NextRequest) {
       )
     `
       )
-      .is('voided_at', null)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+    if (!includeVoided) q = q.is('voided_at', null);
 
     if (warehouseId) q = q.eq('warehouse_id', warehouseId);
     else if (hasScope && !isUnrestricted && allowedIds.length > 0) {
@@ -558,6 +564,10 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
     }
 
+    const { data: saleRow } = await db.from('sales').select('warehouse_id').eq('id', saleId).maybeSingle();
+    const whIdToInvalidate = warehouseId || (saleRow as { warehouse_id?: string } | null)?.warehouse_id;
+    if (whIdToInvalidate) await invalidateDashboardCacheForWarehouse(whIdToInvalidate);
+
     return NextResponse.json({ success: true, saleId, deliveryStatus }, { headers: h });
   } catch (e: unknown) {
     console.error('[API ERROR]', e);
@@ -631,6 +641,8 @@ function shapeSales(rows: Array<Record<string, unknown>>) {
     deliveredBy: s.delivered_by ?? null,
     soldBy: s.sold_by ?? null,
     soldByEmail: s.sold_by_email ?? null,
+    voidedAt: s.voided_at ?? null,
+    voidedBy: s.voided_by ?? null,
     createdAt: s.created_at,
     lines: ((s.sale_lines as Array<Record<string, unknown>>) ?? []).map((l: Record<string, unknown>) => ({
       id: l.id,

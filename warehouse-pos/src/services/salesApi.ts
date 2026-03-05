@@ -31,6 +31,8 @@ export interface SaleFromApi {
   soldBy: string | null;
   createdAt: string;
   lines: SaleLine[];
+  voidedAt?: string | null;
+  voidedBy?: string | null;
 }
 
 export interface FetchSalesParams {
@@ -38,6 +40,8 @@ export interface FetchSalesParams {
   to: string;
   warehouse_id?: string;
   limit?: number;
+  /** When true, include voided sales so reports depict every transaction. */
+  include_voided?: boolean;
 }
 
 function paymentMethodForReport(m: string): Payment['method'] {
@@ -53,6 +57,7 @@ function paymentMethodForReport(m: string): Payment['method'] {
  * Map a sale from GET /api/sales to Transaction for generateSalesReport.
  */
 export function saleToTransaction(sale: SaleFromApi): Transaction {
+  const voided = !!(sale.voidedAt != null && String(sale.voidedAt).trim() !== '');
   return {
     id: sale.id,
     transactionNumber: sale.receiptId ?? sale.id,
@@ -73,11 +78,13 @@ export function saleToTransaction(sale: SaleFromApi): Transaction {
     payments: [{ method: paymentMethodForReport(sale.paymentMethod), amount: sale.total }],
     cashier: sale.soldBy ?? '',
     customer: undefined,
-    status: 'completed',
+    status: voided ? 'cancelled' : 'completed',
     syncStatus: 'synced',
     createdAt: new Date(sale.createdAt),
     completedAt: new Date(sale.createdAt),
     warehouseId: sale.warehouseId,
+    voidedAt: sale.voidedAt ?? undefined,
+    voidedBy: sale.voidedBy ?? undefined,
   };
 }
 
@@ -93,6 +100,7 @@ export async function fetchSalesFromApi(
   searchParams.set('to', params.to);
   if (params.warehouse_id) searchParams.set('warehouse_id', params.warehouse_id);
   if (params.limit != null) searchParams.set('limit', String(params.limit));
+  if (params.include_voided) searchParams.set('include_voided', 'true');
 
   const path = `/api/sales?${searchParams.toString()}`;
   const res = await apiGet<{ data?: SaleFromApi[]; total?: number }>(baseUrl, path);

@@ -12,7 +12,7 @@ import { generateSalesReport, generateInventoryReport, exportToCSV, SalesReport,
 import { fetchSalesAsTransactions } from '../services/salesApi';
 import { fetchTransactionsFromApi } from '../services/transactionsApi';
 import { Transaction } from '../types';
-import { formatCurrency, getCategoryDisplay } from '../lib/utils';
+import { formatCurrency, getCategoryDisplay, formatDate } from '../lib/utils';
 import { getStoredData } from '../lib/storage';
 import { parseDate, validateDateRange } from '../lib/dateUtils';
 import { API_BASE_URL } from '../lib/api';
@@ -74,6 +74,7 @@ export function Reports() {
           to: toIso,
           warehouse_id: currentWarehouseId || undefined,
           limit: 2000,
+          include_voided: true,
         });
         setTransactions(data);
         setTransactionsSource('server');
@@ -124,15 +125,24 @@ export function Reports() {
   }, [reportType, startDate, endDate, transactions, products]);
 
   const handleExportSales = () => {
-    if (!salesReport) return;
-    
-    const exportData = salesReport.topSellingProducts.map(p => ({
-      'Product Name': p.productName,
-      'Quantity Sold': p.quantitySold,
-      'Revenue': p.revenue,
+    const start = parseDate(startDate);
+    const end = parseDate(endDate + 'T23:59:59');
+    if (!start || !end) return;
+    const inRange = transactions.filter(t => {
+      const d = new Date(t.createdAt);
+      return d >= start && d <= end;
+    });
+    const exportData = inRange.map(t => ({
+      Date: formatDate(t.createdAt),
+      'Receipt ID': t.transactionNumber,
+      Total: t.total,
+      Voided: t.voidedAt ? 'Yes' : 'No',
+      'Voided By': t.voidedBy ?? '',
+      Cashier: t.cashier ?? '',
+      'Payment Method': t.paymentMethod ?? '',
+      'Item Count': t.items?.reduce((s, i) => s + i.quantity, 0) ?? 0,
     }));
-    
-    exportToCSV(exportData, 'sales_report');
+    exportToCSV(exportData.length ? exportData : [{ Date: '', 'Receipt ID': '', Total: '', Voided: '', 'Voided By': '', Cashier: '', 'Payment Method': '', 'Item Count': '' }], 'sales_transactions');
   };
 
   const handleExportInventory = () => {
