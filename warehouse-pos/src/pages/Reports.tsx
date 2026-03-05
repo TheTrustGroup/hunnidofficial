@@ -15,7 +15,7 @@ import { Transaction } from '../types';
 import { formatCurrency, getCategoryDisplay, formatDate } from '../lib/utils';
 import { getStoredData } from '../lib/storage';
 import { parseDate, validateDateRange } from '../lib/dateUtils';
-import { API_BASE_URL } from '../lib/api';
+import { API_BASE_URL, getApiHeaders } from '../lib/api';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
 import { PERMISSIONS } from '../types/permissions';
@@ -39,6 +39,13 @@ export function Reports() {
   /** When set, sales metrics come from GET /api/reports/sales (SQL, correct COGS/profit). Otherwise from JS generateSalesReport. */
   const [salesReportFromApi, setSalesReportFromApi] = useState<SalesReport | null>(null);
   const [inventoryReport, setInventoryReport] = useState<InventoryReport | null>(null);
+  /** Dashboard totals (totalProducts, totalStockValue, etc.) so Reports matches Dashboard/Inventory. */
+  const [dashboardStats, setDashboardStats] = useState<{
+    totalProducts: number;
+    totalStockValue: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+  } | null>(null);
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsSource, setTransactionsSource] = useState<TransactionsSource>('local');
@@ -49,6 +56,17 @@ export function Reports() {
 
   /** When report API was used, use it (correct COGS/profit); else use JS-generated report. */
   const effectiveSalesReport = salesReportFromApi ?? salesReport;
+
+  /** Inventory report with totals from dashboard API when available (so Total Products etc. match Dashboard/App). */
+  const effectiveInventoryReport: InventoryReport | null = inventoryReport && (dashboardStats
+    ? {
+        ...inventoryReport,
+        totalProducts: dashboardStats.totalProducts,
+        totalStockValue: dashboardStats.totalStockValue,
+        lowStockItems: dashboardStats.lowStockCount,
+        outOfStockItems: dashboardStats.outOfStockCount,
+      }
+    : inventoryReport);
 
   function mapReportApiToSalesReport(data: SalesReportFromApi): SalesReport {
     return {
@@ -152,6 +170,29 @@ export function Reports() {
   useEffect(() => {
     loadSalesData();
   }, [loadSalesData]);
+
+  /** Fetch dashboard totals when on Inventory report so Total Products etc. match Dashboard/App. */
+  useEffect(() => {
+    if (reportType !== 'inventory' || !currentWarehouseId || !canFetchServerData) {
+      setDashboardStats(null);
+      return;
+    }
+    const date = new Date().toISOString().split('T')[0];
+    fetch(`${API_BASE_URL}/api/dashboard?warehouse_id=${encodeURIComponent(currentWarehouseId)}&date=${date}`, {
+      headers: getApiHeaders() as HeadersInit,
+      credentials: 'include',
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Dashboard failed'))))
+      .then((data: { totalProducts?: number; totalStockValue?: number; lowStockCount?: number; outOfStockCount?: number }) => {
+        setDashboardStats({
+          totalProducts: Number(data.totalProducts ?? 0),
+          totalStockValue: Number(data.totalStockValue ?? 0),
+          lowStockCount: Number(data.lowStockCount ?? 0),
+          outOfStockCount: Number(data.outOfStockCount ?? 0),
+        });
+      })
+      .catch(() => setDashboardStats(null));
+  }, [reportType, currentWarehouseId, canFetchServerData]);
 
   useEffect(() => {
     if (reportType === 'sales') {
@@ -340,9 +381,9 @@ export function Reports() {
       )}
 
       {/* Inventory Report */}
-      {reportType === 'inventory' && inventoryReport && (
+      {reportType === 'inventory' && effectiveInventoryReport && (
         <div className="space-y-6">
-          <InventoryMetrics report={inventoryReport} />
+          <InventoryMetrics report={effectiveInventoryReport} />
 
           {/* Top Value Products */}
           <div className="table-container">
@@ -357,7 +398,7 @@ export function Reports() {
                   </tr>
                 </thead>
                 <tbody>
-                  {inventoryReport.topValueProducts.map((product, idx) => (
+                  {effectiveInventoryReport.topValueProducts.map((product, idx) => (
                     <tr key={idx} className="table-row">
                       <td className="px-4 py-3 font-medium text-slate-900">{product.name}</td>
                       <td className="px-4 py-3 text-right text-slate-600">{product.quantity}</td>
@@ -385,7 +426,7 @@ export function Reports() {
                   </tr>
                 </thead>
                 <tbody>
-                  {inventoryReport.productsByCategory.map((cat, idx) => (
+                  {effectiveInventoryReport.productsByCategory.map((cat, idx) => (
                     <tr key={idx} className="table-row">
                       <td className="px-4 py-3 font-medium text-slate-900">{cat.category}</td>
                       <td className="px-4 py-3 text-right text-slate-600">{cat.count}</td>
@@ -393,7 +434,7 @@ export function Reports() {
                         {formatCurrency(cat.value)}
                       </td>
                       <td className="px-4 py-3 text-right text-slate-600">
-                        {inventoryReport.totalStockValue > 0 ? ((cat.value / inventoryReport.totalStockValue) * 100).toFixed(1) : '0.0'}%
+                        {effectiveInventoryReport.totalStockValue > 0 ? ((cat.value / effectiveInventoryReport.totalStockValue) * 100).toFixed(1) : '0.0'}%
                       </td>
                     </tr>
                   ))}
