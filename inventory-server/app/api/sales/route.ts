@@ -501,6 +501,7 @@ export async function GET(req: NextRequest) {
       )
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+    // When include_voided=true, voided sales are returned with full sale_lines so the list is complete and products (line items) are never missing.
     if (!includeVoided) q = q.is('voided_at', null);
 
     if (warehouseId) q = q.eq('warehouse_id', warehouseId);
@@ -608,6 +609,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 // ── Legacy fallback (old schema without delivery columns) ─────────────────
+// Does not select voided_at/voided_by so DBs that lack those columns still work; voided sales are returned with voidedAt: null.
 
 async function getSalesLegacy(
   db: ReturnType<typeof getDb>,

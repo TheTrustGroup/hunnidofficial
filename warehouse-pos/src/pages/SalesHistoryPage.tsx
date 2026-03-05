@@ -15,6 +15,7 @@ import { getApiHeaders, API_BASE_URL } from '../lib/api';
 import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
 import { notifyInventoryUpdated } from '../lib/inventoryEvents';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { PayIcon } from '../components/pos/PaymentIcons';
 
 interface SalesHistoryPageProps { apiBaseUrl?: string; }
@@ -356,6 +357,7 @@ const ALL_WAREHOUSES_ID = '';
 
 export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const baseUrl = apiBaseUrl ?? API_BASE_URL;
 
   const [sales, setSales]           = useState<Sale[]>([]);
@@ -387,7 +389,9 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setSales(Array.isArray(data) ? data : data.data ?? []);
+      const raw = Array.isArray(data) ? data : data.data ?? [];
+      // Ensure every sale has lines (voided sales must still return full line items so products aren't missing)
+      setSales(raw.map((s: Sale) => ({ ...s, lines: Array.isArray(s.lines) ? s.lines : [] })));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load sales');
     } finally {
@@ -448,13 +452,19 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 409) {
+          showToast('warning', 'Sale is already voided. List updated.');
           await fetchSales();
           setError(null);
           return;
         }
         throw new Error(data?.error ?? `HTTP ${res.status}`);
       }
-      notifyInventoryUpdated();
+      if (data.alreadyVoided) {
+        showToast('warning', 'Sale is already voided. List updated.');
+      } else {
+        showToast('success', 'Sale voided. Stock restored.');
+        notifyInventoryUpdated();
+      }
       await fetchSales();
       setError(null);
     } catch (e) {

@@ -67,8 +67,12 @@ export async function POST(req: NextRequest) {
       if (error.message?.includes('SALE_NOT_FOUND')) {
         return NextResponse.json({ error: 'Sale not found' }, { status: 404, headers: h });
       }
+      // Already voided: return 200 so the client can refetch and show correct state (avoids 409 on double-click or stale list)
       if (error.message?.includes('SALE_ALREADY_VOIDED')) {
-        return NextResponse.json({ error: 'Sale is already voided' }, { status: 409, headers: h });
+        const { data: saleRow } = await db.from('sales').select('warehouse_id').eq('id', saleId).maybeSingle();
+        const whId = warehouseId || (saleRow as { warehouse_id?: string } | null)?.warehouse_id;
+        if (whId) void invalidateDashboardCacheForWarehouse(whId);
+        return NextResponse.json({ success: true, saleId, alreadyVoided: true }, { headers: h });
       }
       console.error('[API ERROR]', error);
       return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
