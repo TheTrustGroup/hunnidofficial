@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from '../../types';
 import { formatCurrency } from '../../lib/utils';
+import { getStockStatus, getStockStatusLabel } from '../../lib/stockAlerts';
 import { ProductSizesFromProduct } from './ProductSizes';
 import { ProductSyncBadge } from '../ProductSyncBadge';
 import { InventoryCard } from './InventoryCard';
@@ -114,19 +115,19 @@ export function ProductGridView({
     );
   };
 
-  const getStockStatus = (product: Product) => {
-    const qty = Number(product.quantity ?? 0) || 0;
-    const reorder = Number(product.reorderLevel ?? 0) || 0;
-    if (qty === 0) return { label: 'Out of Stock', color: 'border-red-200 bg-red-50' };
-    if (qty <= reorder) return { label: 'Low Stock', color: 'border-amber-200 bg-amber-50' };
-    return { label: 'In Stock', color: 'border-green-200 bg-green-50' };
+  const getStockStatusDisplay = (product: Product) => {
+    const status = getStockStatus(product);
+    const label = getStockStatusLabel(status);
+    if (status === 'out_of_stock') return { label, color: 'border-red-200 bg-red-50' };
+    if (status === 'low_stock') return { label, color: 'border-amber-200 bg-amber-50' };
+    return { label, color: 'border-green-200 bg-green-50' };
   };
 
   /* Grid: consistent gap, fixed card structure (Apple-like: clear hierarchy, no overlap) */
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {products.map((product) => {
-        const status = getStockStatus(product);
+        const status = getStockStatusDisplay(product);
         const isSelected = selectedIds.includes(product.id);
 
         return (

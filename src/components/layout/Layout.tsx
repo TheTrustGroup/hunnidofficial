@@ -104,7 +104,8 @@ function LayoutContent() {
       {showDegradedBanner && (
         <div
           className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
-          role="status"
+          role="alert"
+          aria-live="assertive"
         >
           <span>Server temporarily unavailable. Last saved data — read-only. Add, edit, and sales disabled until server is back.</span>
           <Button

@@ -23,7 +23,7 @@ Diagnostics that look for "duplicate products" must use **(name, color, sku)** (
 **Preferred (all groups in one go):**
 
 1. **Detect:** Run query 10 in `supabase/scripts/phase2_diagnostic_queries.sql`. Any row with `product_count > 1` is a duplicate group.
-2. **Merge all:** Run `supabase/scripts/merge_all_true_duplicates.sql`. It finds every duplicate group, keeps the oldest product (by `created_at`) as keeper, and merges all others into it. No hardcoded IDs.
+2. **Merge all:** Run `supabase/scripts/merge_all_true_duplicates.sql`. It finds every duplicate group, keeps the oldest product (by `created_at`) as keeper, and merges all others into it. It updates every table that references `warehouse_products.id`: `transaction_items`, `stock_movements`, `warehouse_inventory`, `warehouse_inventory_by_size`, `sale_lines`, then deletes the duplicate product. No hardcoded IDs. Script is in a single transaction; use `ROLLBACK` to abort.
 3. **Verify:** Re-run query 10; expect 0 rows.
 4. **Apply constraint:** Run migration `20260306100000_unique_product_identity.sql` (or `npx supabase db push`). If it fails with "Key ... is duplicated", more duplicates exist — run step 2 again (e.g. new data was added), then step 4 again.
 
@@ -55,9 +55,9 @@ Diagnostics that look for "duplicate products" must use **(name, color, sku)** (
 
 ### 5. Cost at time of sale (sale_lines.cost_price)
 
-- **Migrations:** `20260306110000_sale_lines_cost_price.sql` (add column), `20260306120000_record_sale_cost_price.sql` (record_sale_impl sets it per line from warehouse_products).
-- **Behaviour:** Each sale line stores `cost_price` from the product at sale time. COGS and profit in reports must use `sale_lines.cost_price`, not current product cost.
-- **Backfill:** Run `supabase/scripts/backfill_sale_lines_cost_price.sql` once after adding the column to set `cost_price` for existing rows from current `warehouse_products.cost_price` (best estimate for legacy data).
+- **Migrations:** `20260306110000_sale_lines_cost_price.sql` (add column), `20260306120000_record_sale_cost_price.sql` (record_sale_impl sets it per line), `20260306170000_sale_lines_cost_price_constraint.sql` (CHECK cost_price >= 0 when not NULL).
+- **Behaviour:** Each sale line stores `cost_price` from the product at sale time. COGS and profit in reports must use `sale_lines.cost_price`, not current product cost. Negative cost is forbidden at the DB level.
+- **Backfill:** Run `supabase/scripts/backfill_sale_lines_cost_price.sql` once after adding the column. Script is transactional and idempotent; to abort, use `ROLLBACK` instead of `COMMIT`.
 - **GET /api/sales:** Returns `costPrice` per line when the column exists.
 - **GET /api/reports/sales:** Aggregated sales report from SQL (RPC `get_sales_report`): revenue, COGS (from `sale_lines.cost_price`), profit, AOV, top products, sales by day, by category. Query params: `from`, `to`, `warehouse_id`, `include_voided`. Reports UI prefers this endpoint when authenticated so profit and COGS are correct.
 
@@ -92,3 +92,10 @@ npx supabase db push
 ```
 
 Or run the SQL in `supabase/migrations/20250228150000_record_sale_atomic_stock.sql` in the Supabase SQL Editor.
+
+## Scripts: run order and safety
+
+- **Backfills** (`supabase/scripts/`): Each backfill runs in a single transaction. To roll back, run the script and before it completes replace `COMMIT` with `ROLLBACK` in the script, or run in a session where you issue `ROLLBACK` after the script (if the script leaves the transaction open). Prefer running backfills during a maintenance window; verify with the suggested diagnostic queries afterward.
+  - `backfill_sale_lines_cost_price.sql`: After `20260306110000_sale_lines_cost_price.sql`. Idempotent (only updates rows where `cost_price IS NULL`).
+  - `backfill_warehouse_inventory_from_by_size.sql`: After fixing or resyncing by_size data (e.g. following phase2 query 6/9). Idempotent.
+- **Merge** (`merge_all_true_duplicates.sql`): Run only after confirming true duplicates (phase2 query 10). Updates all FKs pointing to `warehouse_products` (including `transaction_items`, `stock_movements`) before deleting; skips those tables if they do not exist. Single transaction; use `ROLLBACK` to abort. Then run migration `20260306100000_unique_product_identity.sql`.

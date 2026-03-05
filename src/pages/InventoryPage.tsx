@@ -18,6 +18,7 @@ import ProductModal from '../components/inventory/ProductModal';
 import { type SizeCode } from '../components/inventory/SizesSection';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
 import { useWarehouse } from '../contexts/WarehouseContext';
+import { useApiStatus } from '../contexts/ApiStatusContext';
 import type { Warehouse } from '../types';
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ function computeStats(products: Product[]) {
 
   for (const p of products) {
     const qty     = getProductQty(p);
-    const reorder = p.reorderLevel ?? 3;
+    const reorder = Number(p.reorderLevel ?? 0) || 0;
     totalUnits += qty;
     totalValue += qty * (p.sellingPrice ?? 0);
     if (qty === 0) outCount++;
@@ -350,6 +351,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
   productsLengthRef.current = products.length;
 
   const { toasts, show: showToast } = useToast();
+  const { isDegraded } = useApiStatus();
 
   // Derived stats (memoised — recompute only when products change). Uses selling price for selection value.
   const stats = useMemo(() => computeStats(products), [products]);
@@ -1009,6 +1011,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
                   product={product}
                   onEditFull={openEditModal}
                   onDelete={handleDeleteProduct}
+                  disableDestructiveActions={isDegraded}
                 />
               ))}
             </div>

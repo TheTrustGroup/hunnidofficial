@@ -8,6 +8,7 @@
 // ============================================================
 
 import { useState, useRef, useCallback, memo } from 'react';
+import { getStockStatus as getStatusFromUtil } from '../../lib/stockAlerts';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -48,24 +49,18 @@ interface ProductCardProps {
   }) => Promise<void>;
   onEditFull: (product: Product) => void;
   onDelete?: (product: Product) => void;
+  /** When true (e.g. server degraded), disable delete and show tooltip. */
+  disableDestructiveActions?: boolean;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Helpers (use shared stock alert logic so Dashboard, Reports, and UI stay in sync) ────────
 
 type StockStatus = 'in' | 'low' | 'out';
 
-function getTotalQuantity(product: Product): number {
-  if (product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0) {
-    return (product.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
-  }
-  return product.quantity ?? 0;
-}
-
 function getStockStatus(product: Product): StockStatus {
-  const qty = getTotalQuantity(product);
-  if (qty === 0) return 'out';
-  if (product.reorderLevel != null && qty <= product.reorderLevel) return 'low';
-  if (qty <= 3) return 'low';
+  const s = getStatusFromUtil(product);
+  if (s === 'out_of_stock') return 'out';
+  if (s === 'low_stock') return 'low';
   return 'in';
 }
 
@@ -311,6 +306,7 @@ function ProductCardInner({
   onSaveStock,
   onEditFull,
   onDelete,
+  disableDestructiveActions = false,
 }: ProductCardProps) {
   const supportsInlineStock = typeof onSaveStock === 'function' && typeof onEditOpen === 'function' && typeof onEditClose === 'function';
   const editing = supportsInlineStock && isEditing;
@@ -420,10 +416,11 @@ function ProductCardInner({
           )}
           <button
             type="button"
-            onClick={() => onDelete?.(product)}
-            className="h-[30px] flex items-center justify-center text-[#424958] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors"
+            onClick={() => !disableDestructiveActions && onDelete?.(product)}
+            disabled={disableDestructiveActions}
+            className="h-[30px] flex items-center justify-center text-[#424958] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#424958]"
             aria-label="Delete product"
-            title="Delete product"
+            title={disableDestructiveActions ? 'Server unavailable' : 'Delete product'}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>

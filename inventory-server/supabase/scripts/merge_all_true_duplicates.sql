@@ -4,6 +4,11 @@
 -- all but the oldest product into the oldest (keeper).
 -- Run in Supabase SQL Editor. Then run migration
 -- 20260306100000_unique_product_identity.sql.
+--
+-- Data integrity: Updates all tables that reference warehouse_products.id
+-- (sale_lines, warehouse_inventory, warehouse_inventory_by_size,
+-- transaction_items, stock_movements) before deleting the duplicate.
+-- durability_log.entity_id is left as-is (audit trail; not a FK).
 -- ============================================================
 
 BEGIN;
@@ -37,7 +42,16 @@ BEGIN
         CONTINUE;
       END IF;
 
-      -- 1. Merge warehouse_inventory
+      -- 1. Point transaction_items and stock_movements to keeper (FK to warehouse_products)
+      --    Tables exist only if process_sale / Phase 2+ migrations were run; skip if absent.
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'transaction_items') THEN
+        UPDATE transaction_items SET product_id = keeper_uuid WHERE product_id = duplicate_uuid;
+      END IF;
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stock_movements') THEN
+        UPDATE stock_movements SET product_id = keeper_uuid WHERE product_id = duplicate_uuid;
+      END IF;
+
+      -- 2. Merge warehouse_inventory
       INSERT INTO warehouse_inventory (warehouse_id, product_id, quantity, updated_at)
       SELECT warehouse_id, keeper_uuid, quantity, now()
       FROM warehouse_inventory
@@ -47,7 +61,7 @@ BEGIN
         quantity = warehouse_inventory.quantity + EXCLUDED.quantity,
         updated_at = EXCLUDED.updated_at;
 
-      -- 2. Merge warehouse_inventory_by_size
+      -- 3. Merge warehouse_inventory_by_size
       INSERT INTO warehouse_inventory_by_size (warehouse_id, product_id, size_code, quantity, updated_at)
       SELECT warehouse_id, keeper_uuid, size_code, quantity, now()
       FROM warehouse_inventory_by_size
@@ -57,7 +71,7 @@ BEGIN
         quantity = warehouse_inventory_by_size.quantity + EXCLUDED.quantity,
         updated_at = EXCLUDED.updated_at;
 
-      -- 3. Sync warehouse_inventory from sum(by_size) for keeper if sized
+      -- 4. Sync warehouse_inventory from sum(by_size) for keeper if sized
       UPDATE warehouse_inventory wi
       SET quantity = (
         SELECT COALESCE(SUM(wis.quantity), 0)::int
@@ -71,10 +85,10 @@ BEGIN
           WHERE wp.id = keeper_uuid AND wp.size_kind = 'sized'
         );
 
-      -- 4. Point sale_lines to keeper
+      -- 5. Point sale_lines to keeper
       UPDATE sale_lines SET product_id = keeper_uuid WHERE product_id = duplicate_uuid;
 
-      -- 5. Remove duplicate's rows
+      -- 6. Remove duplicate's rows
       DELETE FROM warehouse_inventory_by_size WHERE product_id = duplicate_uuid;
       DELETE FROM warehouse_inventory WHERE product_id = duplicate_uuid;
       DELETE FROM warehouse_products WHERE id = duplicate_uuid;
