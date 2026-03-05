@@ -31,7 +31,7 @@ export function BottomNav() {
   return (
     <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch bg-white border-t border-[rgba(0,0,0,0.08)] safe-area-pb"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}
+      style={{ paddingBottom: 'max(var(--safe-bottom), var(--grid-8, 8px))' }}
       aria-label="Main navigation"
     >
       {visibleTabs.map((tab) => {
@@ -41,16 +41,15 @@ export function BottomNav() {
           <NavLink
             key={tab.to}
             to={tab.to}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] pt-2 text-[11px] font-medium transition-colors rounded-lg mx-0.5 my-1 ${
-              isActive ? 'text-[#E53935] bg-[#FFEBEE]' : 'text-[#424958]'
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[var(--touch-min,44px)] pt-2 text-[var(--text-meta,11px)] font-medium transition-colors rounded-[var(--radius-base,8px)] mx-0.5 my-1 ${
+              isActive ? 'text-[var(--blue)] bg-[var(--sidebar-active-bg)]' : 'text-slate-500'
             }`}
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
             <Icon
               className="w-5 h-5 flex-shrink-0"
               strokeWidth={2}
               aria-hidden
-              style={isActive ? { color: '#E53935' } : { color: '#424958' }}
+              style={isActive ? { color: 'var(--sidebar-active-icon)' } : { color: '#8892A0' }}
             />
             <span>{tab.name}</span>
           </NavLink>

@@ -20,7 +20,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle } from 'lucide-react';
-import { useWarehouse } from '../contexts/WarehouseContext';
+import { useWarehouse, KNOWN_WAREHOUSE_NAMES } from '../contexts/WarehouseContext';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
 
 // ── Types (match GET /api/dashboard response) ──────────────────────────────
@@ -207,24 +207,24 @@ function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   );
 }
 
-// ── Warehouse IDs/names for "today by location" (must match server) ───────
+// ── Warehouse IDs for "today by location" (match server). Names from same source as dropdown. ───────
 
 const WAREHOUSE_IDS_FOR_SUMMARY = [
   '00000000-0000-0000-0000-000000000001',
   '00000000-0000-0000-0000-000000000002',
 ] as const;
-const WAREHOUSE_NAME_BY_ID: Record<string, string> = {
-  [WAREHOUSE_IDS_FOR_SUMMARY[0]]: 'Main Store',
-  [WAREHOUSE_IDS_FOR_SUMMARY[1]]: 'Main Town',
-};
 
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { currentWarehouseId, currentWarehouse } = useWarehouse();
+  const { currentWarehouseId, currentWarehouse, warehouses } = useWarehouse();
   const warehouseId   = currentWarehouseId;
   const warehouseName = currentWarehouse?.name ?? 'Warehouse';
+
+  /** Name for "sales by location" — same source as sidebar/dropdown (warehouses from API, then KNOWN_WAREHOUSE_NAMES). */
+  const locationNameForId = (wid: string) =>
+    warehouses.find((w) => w.id === wid)?.name ?? KNOWN_WAREHOUSE_NAMES[wid] ?? wid;
 
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -336,7 +336,7 @@ export default function DashboardPage() {
             {WAREHOUSE_IDS_FOR_SUMMARY.map((wid) => (
               <div key={wid} className="flex items-center gap-2">
                 <span className="text-[13px] font-semibold text-slate-600">
-                  {WAREHOUSE_NAME_BY_ID[wid] ?? wid}
+                  {locationNameForId(wid)}
                 </span>
                 <span className="text-[15px] font-black tabular-nums text-slate-900">
                   {todayByWarehouse == null

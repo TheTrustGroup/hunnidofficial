@@ -1,46 +1,56 @@
 /**
- * Bottom tab bar for mobile (CHANGE 7): Orders | Inventory | POS | Sales | Reports.
- * Sidebar remains hidden on mobile; this is the primary nav. 44×44px tap targets, font ≥11px.
+ * Bottom tab bar (mobile): Dashboard | Inventory | Orders | POS | More.
+ * Uses design system tokens (--blue, --sidebar-active-bg). No side menu; excess items under More.
+ * 44×44px tap targets (--touch-min), font per design system.
  */
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWarehouse } from '../../contexts/WarehouseContext';
-import { BASE_NAVIGATION } from '../../config/navigation';
+import { BOTTOM_NAV_TABS } from '../../config/navigation';
 
-const BOTTOM_NAV_PATHS = ['/orders', '/inventory', '/pos', '/sales', '/reports'];
+const MORE_PATHS = ['/more', '/sales', '/deliveries', '/reports', '/users', '/settings'];
+
+function isTabActive(pathname: string, tabTo: string): boolean {
+  if (tabTo === '/more') return MORE_PATHS.includes(pathname);
+  if (tabTo === '/') return pathname === '/';
+  return pathname === tabTo;
+}
 
 export function BottomNav() {
-  const location = useLocation();
-  const { hasPermission, hasAnyPermission } = useAuth();
+  const { pathname } = useLocation();
+  const { hasPermission } = useAuth();
   const { isWarehouseBoundToSession } = useWarehouse();
 
-  const visibleTabs = BASE_NAVIGATION.filter((item) => {
-    if (!BOTTOM_NAV_PATHS.includes(item.to)) return false;
-    if (item.name === 'Inventory' && isWarehouseBoundToSession) return false;
-    if (item.permission != null) return hasPermission(item.permission);
-    if (item.anyPermissions != null) return hasAnyPermission(item.anyPermissions);
+  const visibleTabs = BOTTOM_NAV_TABS.filter((tab) => {
+    if (tab.name === 'More') return true;
+    if (tab.name === 'Inventory' && isWarehouseBoundToSession) return false;
+    if (tab.permission != null) return hasPermission(tab.permission);
     return true;
   });
 
   return (
     <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch bg-white border-t border-[rgba(0,0,0,0.08)] safe-area-pb"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}
+      style={{ paddingBottom: 'max(var(--safe-bottom), var(--grid-8))' }}
       aria-label="Main navigation"
     >
       {visibleTabs.map((tab) => {
-        const isActive = location.pathname === tab.to || (tab.to === '/' && location.pathname === '/');
         const Icon = tab.icon;
+        const isActive = isTabActive(pathname, tab.to);
         return (
           <NavLink
             key={tab.to}
             to={tab.to}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] pt-2 text-[11px] font-medium transition-colors ${
-              isActive ? 'text-[#5CACFA]' : 'text-[#8892A0]'
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[var(--touch-min)] pt-2 text-[var(--text-meta)] font-medium transition-colors rounded-[var(--radius-base)] mx-0.5 my-1 ${
+              isActive ? 'text-[var(--blue)] bg-[var(--sidebar-active-bg)]' : 'text-slate-500'
             }`}
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
-            <Icon className="w-5 h-5 flex-shrink-0" strokeWidth={2} aria-hidden />
+            <Icon
+              className="w-5 h-5 flex-shrink-0"
+              strokeWidth={2}
+              aria-hidden
+              style={isActive ? { color: 'var(--sidebar-active-icon)' } : { color: '#8892A0' }}
+            />
             <span>{tab.name}</span>
           </NavLink>
         );

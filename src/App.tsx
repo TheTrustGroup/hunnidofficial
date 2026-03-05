@@ -47,6 +47,7 @@ const DeliveriesPage = lazyWithRetry(() => import('./pages/DeliveriesPage').then
 const Orders = lazyWithRetry(() => import('./pages/Orders').then(m => ({ default: m.Orders })));
 const Reports = lazyWithRetry(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Settings = lazyWithRetry(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const MorePage = lazyWithRetry(() => import('./pages/MorePage').then(m => ({ default: m.MorePage })));
 const LoginPage = lazyWithRetry(() => import('./pages/LoginPage'));
 
 const Users = () => {
@@ -332,6 +333,14 @@ function App() {
                                 <Settings />
                               </RouteErrorBoundary>
                             </ProtectedRoute>
+                          }
+                        />
+                        <Route
+                          path="more"
+                          element={
+                            <RouteErrorBoundary routeName="More">
+                              <MorePage />
+                            </RouteErrorBoundary>
                           }
                         />
                       </Route>

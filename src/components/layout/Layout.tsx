@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { MobileMenu } from './MobileMenu';
 import { BottomNav } from './BottomNav';
 import { SyncStatusBar } from '../SyncStatusBar';
 import { ConflictModalContainer } from '../ConflictModalContainer';
@@ -78,7 +77,6 @@ function LayoutContent() {
       <div className="hidden lg:block">
         <Sidebar />
       </div>
-      <MobileMenu />
       <Header />
       {/* Slim hint while phase 2 (inventory, orders) syncs in background after login */}
       {isSyncingCriticalData && (
