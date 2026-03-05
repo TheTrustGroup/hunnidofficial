@@ -36,6 +36,8 @@ interface Delivery {
   total:          number;
   createdAt:      string;
   lines:          SaleLine[];
+  voidedAt?:      string | null;
+  voidedBy?:      string | null;
 }
 
 type Filter = 'all' | 'pending' | 'dispatched' | 'overdue' | 'cancelled';
@@ -110,6 +112,7 @@ function DeliveryCard({
   const loading = actionLoading === delivery.id;
   const displayName = delivery.recipientName ?? delivery.customerName ?? 'Unknown';
   const isCancelled = delivery.deliveryStatus === 'cancelled';
+  const isVoided = !!(delivery.voidedAt != null && String(delivery.voidedAt).trim() !== '');
 
   return (
     <div className={`bg-white rounded-2xl border-[1.5px] overflow-hidden transition-all duration-200 ${isCancelled ? 'border-slate-200 opacity-90' : overdue ? 'border-red-200 shadow-[0_0_0_3px_rgba(239,68,68,0.08)]' : 'border-slate-200'}`}>
@@ -127,7 +130,10 @@ function DeliveryCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <p className="text-[14px] font-bold text-slate-900 truncate">{displayName}</p>
-            <StatusBadge status={delivery.deliveryStatus} overdue={overdue} />
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {isVoided && <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">Voided</span>}
+              <StatusBadge status={delivery.deliveryStatus} overdue={overdue} />
+            </div>
           </div>
           <p className="text-[12px] text-slate-400 mt-0.5 font-medium">{delivery.receiptId}</p>
           <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
@@ -200,7 +206,7 @@ function DeliveryCard({
           </div>
 
           {/* Actions */}
-          {!isCancelled && delivery.deliveryStatus !== 'delivered' && (
+          {!isVoided && !isCancelled && delivery.deliveryStatus !== 'delivered' && (
             <div className="px-4 py-3 flex flex-wrap gap-2">
               {delivery.deliveryStatus === 'pending' && (
                 <button
@@ -282,7 +288,9 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const url = `${base}/api/sales?warehouse_id=${encodeURIComponent(warehouseId)}&limit=200&pending=true`;
+      const params = new URLSearchParams({ limit: '200', pending: 'true', include_voided: 'true' });
+      if (warehouseId && String(warehouseId).trim()) params.set('warehouse_id', String(warehouseId).trim());
+      const url = `${base}/api/sales?${params.toString()}`;
       const res = await fetch(url, {
         headers: getApiHeaders(),
         credentials: 'include',

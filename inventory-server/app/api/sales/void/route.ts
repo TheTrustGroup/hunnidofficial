@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     const { data: saleRow } = await db.from('sales').select('warehouse_id').eq('id', saleId).maybeSingle();
     const whId = warehouseId || (saleRow as { warehouse_id?: string } | null)?.warehouse_id;
-    if (whId) await invalidateDashboardCacheForWarehouse(whId);
+    if (whId) void invalidateDashboardCacheForWarehouse(whId);
 
     return NextResponse.json({ success: true, saleId }, { headers: h });
   } catch (e: unknown) {

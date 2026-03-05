@@ -447,7 +447,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (res.status === 409 && (data?.error ?? '').toLowerCase().includes('already voided')) {
+        if (res.status === 409) {
           await fetchSales();
           setError(null);
           return;
