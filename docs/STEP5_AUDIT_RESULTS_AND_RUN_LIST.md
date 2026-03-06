@@ -89,3 +89,10 @@ Optional later (if you want them):
   then 3–6 from EDK (trigger, view, receive_delivery, warehouses.admin_email).
 
 Confirm backup (Dashboard or count snapshot), then we can go through each migration one by one and run them.
+
+---
+
+## App usage (after migrations)
+
+- **Dashboard:** `inventory-server/lib/data/dashboardStats.ts` already uses **warehouse_dashboard_stats** view first, then **get_warehouse_inventory_stats** RPC as fallback. No code change needed; GET /api/dashboard will use the new objects automatically.
+- **receive_delivery:** The RPC is available for when you add a "receive delivery" flow (e.g. POST /api/deliveries/receive that calls `receive_delivery(p_warehouse_id, p_received_by, p_items)` with `p_items` as `[{ product_id, size_code, quantity }]`). DeliveriesPage currently lists pending/dispatched deliveries; wiring a "Mark as received" action to this RPC would update stock atomically.
