@@ -1,16 +1,14 @@
 /**
  * POST /api/auth/login — validate email/password, return { user, token }.
- * For POS emails in ALLOWED_POS_EMAILS: tries Supabase Auth first (each cashier's own password in Supabase).
- * If SUPABASE_ANON_KEY is not set, falls back to env POS_PASSWORD for those emails.
+ * Frontend also tries /admin/api/login first; both use same credential validation.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { corsHeaders } from '@/lib/cors';
 import { jsonError } from '@/lib/apiResponse';
 import { checkLoginRateLimit } from '@/lib/ratelimit';
-import { validateCredentials, getAllowedPosEmails, type ValidatedUser } from '@/lib/auth/credentials';
+import { validateCredentials } from '@/lib/auth/credentials';
 import { createSessionToken, setSessionCookieWithToken } from '@/lib/auth/session';
 import { getSingleWarehouseIdForUser } from '@/lib/data/userScopes';
-import { getSupabaseAnon } from '@/lib/supabase/anon';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 15;
@@ -40,28 +38,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!email || !password) {
       return withCors(jsonError(401, 'Email and password required', { headers: h }), req);
     }
-    const trimmedEmail = email.toLowerCase();
-    const allowedPos = getAllowedPosEmails();
-    let user: ValidatedUser | null = null;
-
-    if (allowedPos?.has(trimmedEmail)) {
-      const supabase = getSupabaseAnon();
-      if (supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: trimmedEmail,
-          password,
-        });
-        if (!error && data?.user?.email) {
-          user = { email: data.user.email, role: 'cashier' };
-        } else {
-          return withCors(jsonError(401, 'Invalid email or password', { headers: h }), req);
-        }
-      }
-    }
-
-    if (!user) {
-      user = validateCredentials(email, password);
-    }
+    const user = validateCredentials(email, password);
     const warehouseId = await getSingleWarehouseIdForUser(user.email);
     const token = await createSessionToken(user.email, user.role, warehouseId ? { warehouse_id: warehouseId } : undefined);
     const userPayload = {
