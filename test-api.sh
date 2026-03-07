@@ -3,7 +3,7 @@
 # Quick API Connectivity Test Script
 # Run this to test if your API is accessible
 
-API_URL="https://hunnidofficial.com/api"
+API_URL="https://extremedeptkidz.com/api"
 
 echo "🔍 Testing API Connectivity..."
 echo "================================"

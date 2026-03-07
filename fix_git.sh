@@ -21,8 +21,8 @@ if git init; then
     echo "✅ Git initialized successfully!"
     
     # Configure git
-    git config user.name "Hunnid Official"
-    git config user.email "dev@hunnidofficial.com"
+    git config user.name "Extreme Dept Kidz"
+    git config user.email "dev@extremedeptkidz.com"
     
     # Add files
     echo "Adding files..."

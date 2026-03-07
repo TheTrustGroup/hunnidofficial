@@ -179,7 +179,7 @@ export function PaymentPanel({ onComplete, disableComplete = false, isCompleting
       >
         {isCompleting ? (
           <>
-            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden />
+            <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0 border-2 border-white/30 border-t-white" style={{ animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />
             Processing…
           </>
         ) : (

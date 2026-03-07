@@ -1,29 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/session';
+import { corsHeaders } from '@/lib/cors';
 
 export const dynamic = 'force-dynamic';
 
-const NOT_IMPLEMENTED = {
-  error: 'Orders management is not implemented',
-  code: 'NOT_IMPLEMENTED',
-} as const;
+function withCors(res: NextResponse, req: NextRequest): NextResponse {
+  Object.entries(corsHeaders(req)).forEach(([k, v]) => res.headers.set(k, v));
+  return res;
+}
 
-/**
- * GET /api/orders — list orders (auth required).
- * Returns empty array when this backend does not store orders.
- */
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth as NextResponse;
-  return NextResponse.json({ data: [] });
+export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
 }
 
 /**
- * POST /api/orders — create order (stub).
- * Returns 501 until orders are implemented; frontend can fall back to local-only.
+ * GET /api/orders — list orders (auth required).
+ * Returns empty array when this backend does not store orders (e.g. orders live in external system).
+ * Prevents 405 when frontend calls this before/after login; additive, non-breaking.
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const auth = await requireAuth(request);
-  if (auth instanceof NextResponse) return auth as NextResponse;
-  return NextResponse.json(NOT_IMPLEMENTED, { status: 501 });
+  if (auth instanceof NextResponse) return withCors(auth, request);
+  return withCors(NextResponse.json({ data: [] }), request);
 }

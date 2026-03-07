@@ -87,6 +87,11 @@ export async function setSessionCookie(
   _binding?: SessionBinding | undefined
 ): Promise<void> {
   const token = await createSessionToken(_email, _role, _binding);
+  setSessionCookieWithToken(response, token);
+}
+
+/** Set session cookie using an existing token (e.g. when login returns token in JSON and cookie). */
+export function setSessionCookieWithToken(response: NextResponse, token: string): void {
   response.headers.append(
     'Set-Cookie',
     `${SESSION_COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}; Secure`
@@ -141,6 +146,7 @@ async function requireAuthAsync(req: NextRequest): Promise<Session | NextRespons
     return {
       email,
       role,
+      warehouse_id: typeof payload.warehouse_id === 'string' ? payload.warehouse_id : undefined,
       store_id: typeof payload.store_id === 'string' ? payload.store_id : undefined,
       device_id: typeof payload.device_id === 'string' ? payload.device_id : undefined,
     };

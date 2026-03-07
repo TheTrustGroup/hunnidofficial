@@ -3,34 +3,64 @@
  * Used for sneakers, clothing, kidswear; non-sized products use NA or OS.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getSupabase } from '@/lib/supabase';
 
 const TABLE = 'size_codes';
-
-const getSupabase = (): SupabaseClient => {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY required.');
-  }
-  return createClient(url, key, { auth: { persistSession: false } });
-};
 
 export interface SizeCodeRow {
   size_code: string;
   size_label: string;
-  size_order: number;
+  size_order?: number;
 }
 
-/** Get all size codes ordered by size_order. */
+function isMissingColumnError(err: { message?: string }): boolean {
+  const m = (err?.message ?? '').toLowerCase();
+  return m.includes('column') && (m.includes('does not exist') || m.includes('undefined'));
+}
+
+/** Get all size codes ordered by size_order (or size_code if size_order missing). Returns [] on DB/env error so callers never see 500. */
 export async function getSizeCodes(): Promise<SizeCodeRow[]> {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('size_code, size_label, size_order')
-    .order('size_order', { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as SizeCodeRow[];
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select('size_code, size_label, size_order')
+      .order('size_order', { ascending: true });
+    if (error) {
+      if (isMissingColumnError(error)) {
+        const fallback = await supabase
+          .from(TABLE)
+          .select('size_code, size_label')
+          .order('size_code', { ascending: true });
+        if (fallback.error) {
+          console.error('[getSizeCodes]', fallback.error.message);
+          return [];
+        }
+        return ((fallback.data ?? []) as SizeCodeRow[]).map((r) => ({ ...r, size_order: 0 }));
+      }
+      console.error('[getSizeCodes]', error.message);
+      return [];
+    }
+    return (data ?? []) as SizeCodeRow[];
+  } catch (e) {
+    const err = e as { message?: string };
+    if (isMissingColumnError(err)) {
+      try {
+        const supabase = getSupabase();
+        const fallback = await supabase
+          .from(TABLE)
+          .select('size_code, size_label')
+          .order('size_code', { ascending: true });
+        if (!fallback.error) {
+          return ((fallback.data ?? []) as SizeCodeRow[]).map((r) => ({ ...r, size_order: 0 }));
+        }
+      } catch {
+        // ignore
+      }
+    }
+    console.error('[getSizeCodes]', err?.message ?? e);
+    return [];
+  }
 }
 
 /** Get one size code by code. Returns null if not found. */
@@ -41,7 +71,19 @@ export async function getSizeCode(sizeCode: string): Promise<SizeCodeRow | null>
     .select('size_code, size_label, size_order')
     .eq('size_code', sizeCode)
     .maybeSingle();
-  if (error) throw error;
+  if (error) {
+    if (isMissingColumnError(error)) {
+      const fallback = await supabase
+        .from(TABLE)
+        .select('size_code, size_label')
+        .eq('size_code', sizeCode)
+        .maybeSingle();
+      if (fallback.error) throw fallback.error;
+      const row = fallback.data as SizeCodeRow | null;
+      return row ? { ...row, size_order: 0 } : null;
+    }
+    throw error;
+  }
   return data as SizeCodeRow | null;
 }
 

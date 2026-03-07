@@ -8,108 +8,87 @@ export interface UserScope {
 
 const EMPTY_SCOPE: UserScope = { allowedWarehouseIds: [], allowedStoreIds: [], allowedPosIds: [] };
 
+/** In-memory cache for scope by email (TTL 30s) so product-list and other routes avoid repeated Supabase round-trips. */
+const SCOPE_CACHE_TTL_MS = 30_000;
+const scopeCache = new Map<string, { scope: UserScope; ts: number }>();
+
+function getScopeFromCache(email: string): UserScope | null {
+  const entry = scopeCache.get(email);
+  if (!entry || Date.now() - entry.ts > SCOPE_CACHE_TTL_MS) return null;
+  return entry.scope;
+}
+
+function setScopeCache(email: string, scope: UserScope): void {
+  scopeCache.set(email, { scope, ts: Date.now() });
+  if (scopeCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of scopeCache.entries()) {
+      if (now - v.ts > SCOPE_CACHE_TTL_MS) scopeCache.delete(k);
+    }
+  }
+}
+
 /**
- * Resolve allowed warehouses, stores, and POS for a user from the user_scopes table.
- * - If the user has no rows in user_scopes: returns empty arrays (legacy = unrestricted for non-admin).
- * - If the user has rows: returns distinct ids from those rows.
- * - Env ALLOWED_WAREHOUSE_IDS (comma-separated) can still override/restrict when set.
+ * Resolve allowed warehouse IDs for a user. Reads user_scopes table when present; else env ALLOWED_WAREHOUSE_IDS.
+ * When user has exactly one warehouse in user_scopes, that single ID is returned (used to bind cashier to POS location).
+ * Results are cached per email for 30s to keep product fetch fast (Vercel serverless + Supabase).
+ *
+ * IMPORTANT: Uses getSupabase() which is the service-role client (supabaseAdmin). Service role bypasses RLS.
  */
 export async function getScopeForUser(email: string): Promise<UserScope> {
-  const normalizedEmail = email?.trim()?.toLowerCase();
-  if (!normalizedEmail) return EMPTY_SCOPE;
+  const trimmed = email?.trim().toLowerCase();
+  if (!trimmed) return EMPTY_SCOPE;
 
-  const envWarehouseIds = process.env.ALLOWED_WAREHOUSE_IDS?.trim();
-  if (envWarehouseIds) {
-    const allowedWarehouseIds = envWarehouseIds.split(',').map((id) => id.trim()).filter(Boolean);
-    return { ...EMPTY_SCOPE, allowedWarehouseIds };
-  }
+  const cached = getScopeFromCache(trimmed);
+  if (cached) return cached;
 
   try {
-    const supabase = getSupabase();
-    const { data: rows, error } = await supabase
+    const db = getSupabase();
+    const { data: rows, error } = await db
       .from('user_scopes')
-      .select('store_id, warehouse_id, pos_id')
-      .eq('user_email', normalizedEmail);
+      .select('warehouse_id, store_id')
+      .eq('user_email', trimmed)
+      .not('warehouse_id', 'is', null);
 
-    if (error) {
-      console.warn('[userScopes] getScopeForUser query failed:', error.message);
-      return EMPTY_SCOPE;
+    if (!error && Array.isArray(rows) && rows.length > 0) {
+      const warehouseIds = [...new Set((rows as { warehouse_id: string }[]).map((r) => String(r.warehouse_id)).filter(Boolean))];
+      const storeIds = [...new Set((rows as { store_id?: string }[]).map((r) => r.store_id).filter(Boolean))] as string[];
+      const scope = { allowedWarehouseIds: warehouseIds, allowedStoreIds: storeIds, allowedPosIds: [] };
+      setScopeCache(trimmed, scope);
+      return scope;
     }
-    if (!rows?.length) return EMPTY_SCOPE;
-
-    const allowedWarehouseIds = [...new Set(rows.map((r) => r.warehouse_id).filter(Boolean))].map(String);
-    const allowedStoreIds = [...new Set(rows.map((r) => r.store_id).filter(Boolean))].map(String);
-    const allowedPosIds = [...new Set(rows.map((r) => r.pos_id).filter(Boolean))].map(String);
-
-    return {
-      allowedWarehouseIds,
-      allowedStoreIds,
-      allowedPosIds,
-    };
-  } catch (e) {
-    console.warn('[userScopes] getScopeForUser error:', e);
-    return EMPTY_SCOPE;
-  }
-}
-
-/** POS assignment for user (from user_scopes). */
-export async function getAssignedPosForUser(email: string): Promise<{ posId?: string }> {
-  const scope = await getScopeForUser(email);
-  const posId = scope.allowedPosIds?.[0];
-  return posId ? { posId } : {};
-}
-
-/** List scope rows for a user (store/warehouse pairs). Used by admin GET /api/user-scopes. */
-export async function listScopesForEmail(email: string): Promise<Array<{ storeId: string; warehouseId: string }>> {
-  const normalizedEmail = email?.trim()?.toLowerCase();
-  if (!normalizedEmail) return [];
-
-  try {
-    const supabase = getSupabase();
-    const { data: rows, error } = await supabase
-      .from('user_scopes')
-      .select('store_id, warehouse_id')
-      .eq('user_email', normalizedEmail);
-
-    if (error || !rows?.length) return [];
-    return rows
-      .filter((r) => r.store_id != null && r.warehouse_id != null)
-      .map((r) => ({ storeId: String(r.store_id), warehouseId: String(r.warehouse_id) }));
   } catch {
-    return [];
+    /* table missing or query failed; fallback to env */
   }
+
+  const raw = process.env.ALLOWED_WAREHOUSE_IDS?.trim();
+  if (!raw) return EMPTY_SCOPE;
+  const allowedWarehouseIds = raw.split(',').map((id) => id.trim()).filter(Boolean);
+  const scope = { ...EMPTY_SCOPE, allowedWarehouseIds };
+  setScopeCache(trimmed, scope);
+  return scope;
 }
 
-/** Set scope rows for a user. Replaces all existing rows. Admin only via PUT /api/user-scopes. */
-export async function setScopesForUser(
-  email: string,
-  scopes: Array<{ storeId: string; warehouseId: string }>
-): Promise<void> {
-  const normalizedEmail = email?.trim()?.toLowerCase();
-  if (!normalizedEmail) return;
+/**
+ * When the user has exactly one warehouse in user_scopes, return it (for binding cashier to POS; skip "Select location").
+ */
+export async function getSingleWarehouseIdForUser(email: string): Promise<string | undefined> {
+  const scope = await getScopeForUser(email);
+  if (scope.allowedWarehouseIds.length !== 1) return undefined;
+  return scope.allowedWarehouseIds[0];
+}
 
-  const pairs = Array.isArray(scopes)
-    ? scopes.filter((s) => s && typeof s.storeId === 'string' && typeof s.warehouseId === 'string')
-    : [];
+/** Stub: POS assignment for user. Implement when needed. */
+export async function getAssignedPosForUser(_email: string): Promise<{ posId?: string }> {
+  return {};
+}
 
-  const supabase = getSupabase();
-  const { error: deleteErr } = await supabase.from('user_scopes').delete().eq('user_email', normalizedEmail);
-  if (deleteErr) {
-    console.error('[userScopes] setScopesForUser delete failed:', deleteErr);
-    throw new Error('Failed to clear existing scopes');
-  }
+/** Stub: list scopes. Implement when needed. */
+export async function listScopesForEmail(_email: string): Promise<UserScope> {
+  return EMPTY_SCOPE;
+}
 
-  if (pairs.length === 0) return;
-
-  const toInsert = pairs.map(({ storeId, warehouseId }) => ({
-    user_email: normalizedEmail,
-    store_id: String(storeId).trim() || null,
-    warehouse_id: String(warehouseId).trim() || null,
-  }));
-
-  const { error: insertErr } = await supabase.from('user_scopes').insert(toInsert);
-  if (insertErr) {
-    console.error('[userScopes] setScopesForUser insert failed:', insertErr);
-    throw new Error('Failed to save scopes');
-  }
+/** Stub: set scopes. Implement when needed. */
+export async function setScopesForUser(_email: string, _scopes: UserScope | Array<{ storeId: string; warehouseId: string }>): Promise<void> {
+  // no-op
 }

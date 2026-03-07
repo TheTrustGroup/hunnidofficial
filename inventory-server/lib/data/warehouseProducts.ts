@@ -14,6 +14,8 @@ export interface ListOptions {
   color?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
+  /** Optional abort signal for request cancellation (e.g. timeout). */
+  signal?: AbortSignal;
 }
 
 export interface ListResult {
@@ -94,8 +96,54 @@ function normalizeDbConstraintError(dbMessage: string, action: 'create' | 'updat
 const WAREHOUSE_PRODUCTS_SELECT =
   'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
 
-/** List products for a warehouse. Works when warehouse_products has no warehouse_id (one row per product).
- * When warehouseId is set, only returns products that have inventory at that warehouse (so Hunnid Main never shows Main Jeff products and vice versa). */
+/** Map quantity_by_size jsonb (object) from RPC to quantityBySize array for ListProduct. */
+function mapQuantityBySize(
+  quantityBySizeJson: Record<string, number> | null | undefined
+): Array<{ sizeCode: string; sizeLabel?: string; quantity: number }> {
+  if (!quantityBySizeJson || typeof quantityBySizeJson !== 'object') return [];
+  return Object.entries(quantityBySizeJson)
+    .filter(([code]) => String(code ?? '').trim())
+    .map(([code, qty]) => ({
+      sizeCode: code,
+      sizeLabel: code,
+      quantity: Number(qty ?? 0),
+    }))
+    .sort((a, b) => a.sizeCode.localeCompare(b.sizeCode, undefined, { numeric: true }));
+}
+
+/** Map one RPC row (snake_case + quantity_by_size object) to ListProduct. */
+function rpcRowToListProduct(
+  row: Record<string, unknown>,
+  warehouseId: string
+): ListProduct {
+  const quantityBySize = mapQuantityBySize(row.quantity_by_size as Record<string, number> | undefined);
+  const totalQuantity = Number(row.total_quantity ?? 0);
+  return {
+    id: String(row.id ?? ''),
+    warehouseId,
+    sku: String(row.sku ?? ''),
+    barcode: row.barcode != null ? String(row.barcode) : null,
+    name: String(row.name ?? ''),
+    description: row.description != null ? String(row.description) : null,
+    category: String(row.category ?? ''),
+    color: row.color != null ? String(row.color).trim() || null : null,
+    sizeKind: String(row.size_kind ?? 'na'),
+    sellingPrice: Number(row.selling_price ?? 0),
+    costPrice: Number(row.cost_price ?? 0),
+    reorderLevel: Number(row.reorder_level ?? 0),
+    quantity: totalQuantity,
+    quantityBySize,
+    location: row.location ?? null,
+    supplier: row.supplier ?? null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    images: Array.isArray(row.images) ? (row.images as string[]) : [],
+    version: Number(row.version ?? 0),
+    createdAt: String(row.created_at ?? ''),
+    updatedAt: String(row.updated_at ?? ''),
+  };
+}
+
+/** List products for a warehouse. Uses RPC that builds quantity_by_size and total_quantity in SQL (LEFT JOIN). */
 export async function getWarehouseProducts(
   warehouseId: string | undefined,
   options: ListOptions = {}
@@ -105,147 +153,35 @@ export async function getWarehouseProducts(
   const offset = Math.max(options.offset ?? 0, 0);
   const effectiveWarehouseId = warehouseId ?? '';
 
-  // Restrict to products that exist at this warehouse (warehouse_inventory or warehouse_inventory_by_size).
-  let warehouseProductIds: string[] | null = null;
-  if (effectiveWarehouseId) {
-    const { data: invRows } = await db
-      .from('warehouse_inventory')
-      .select('product_id')
-      .eq('warehouse_id', effectiveWarehouseId);
-    const { data: sizeRows } = await db
-      .from('warehouse_inventory_by_size')
-      .select('product_id')
-      .eq('warehouse_id', effectiveWarehouseId);
-    const fromInv = new Set((invRows ?? []).map((r: { product_id: string }) => r.product_id));
-    const fromSize = new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id));
-    warehouseProductIds = [...new Set([...fromInv, ...fromSize])];
-    if (warehouseProductIds.length === 0) {
-      return { data: [], total: 0 };
-    }
+  if (!effectiveWarehouseId) {
+    return { data: [], total: 0 };
   }
 
-  let query = db
-    .from('warehouse_products')
-    .select(WAREHOUSE_PRODUCTS_SELECT, { count: 'exact' })
-    .order('name')
-    .range(offset, offset + limit - 1);
-
-  if (warehouseProductIds !== null) {
-    query = query.in('id', warehouseProductIds);
-  }
-
-  if (options.q?.trim()) {
-    const raw = options.q.trim();
-    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
-  }
-  if (options.category?.trim()) {
-    query = query.eq('category', options.category.trim());
-  }
-  if (options.color?.trim()) {
-    const colorVal = options.color.trim();
-    if (colorVal.toLowerCase() === 'uncategorized') {
-      // Show products with no color set (existing products before color was added).
-      query = query.is('color', null);
-    } else {
-      // Case-insensitive: ilike with no wildcards matches exact string, any case (e.g. Black matches black).
-      query = query.ilike('color', colorVal);
-    }
-  }
-
-  // When filtering by size, restrict to product IDs that have this size in this warehouse.
-  let sizeFilterProductIds: string[] | null = null;
-  if (options.sizeCode?.trim() && effectiveWarehouseId) {
-    const { data: sizeRows } = await db
-      .from('warehouse_inventory_by_size')
-      .select('product_id')
-      .eq('warehouse_id', effectiveWarehouseId)
-      .eq('size_code', options.sizeCode.trim());
-    sizeFilterProductIds = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
-    if (sizeFilterProductIds.length === 0) {
-      return { data: [], total: 0 };
-    }
-    query = query.in('id', sizeFilterProductIds);
-  }
-
-  const { data: rows, error, count } = await query;
+  const { data: rpcRows, error } = await db.rpc('get_warehouse_products_page', {
+    p_warehouse_id: effectiveWarehouseId,
+    p_limit: limit,
+    p_offset: offset,
+    p_q: options.q?.trim() || null,
+    p_category: options.category?.trim() || null,
+    p_size_code: options.sizeCode?.trim() || null,
+    p_color: options.color?.trim() || null,
+    p_low_stock: options.lowStock ?? false,
+    p_out_of_stock: options.outOfStock ?? false,
+  });
 
   if (error) {
     throw new Error(`Failed to list products: ${error.message}`);
   }
 
-  const list = (rows ?? []) as Record<string, unknown>[];
-  const productIds = list.map((r) => r.id as string);
+  const row = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+  const totalCount = row?.total_count != null ? Number(row.total_count) : 0;
+  const pageData = (row?.page_data as unknown[] | null) ?? [];
 
-  const invMap: Record<string, number> = {};
-  const sizeMap: Record<string, Array<{ sizeCode: string; sizeLabel?: string; quantity: number }>> = {};
+  const data = (pageData as Record<string, unknown>[]).map((item) =>
+    rpcRowToListProduct(item, effectiveWarehouseId)
+  );
 
-  if (effectiveWarehouseId && productIds.length > 0) {
-    const { data: invRows } = await db
-      .from('warehouse_inventory')
-      .select('product_id, quantity')
-      .eq('warehouse_id', effectiveWarehouseId)
-      .in('product_id', productIds);
-    for (const inv of invRows ?? []) {
-      const r = inv as { product_id: string; quantity?: number };
-      invMap[r.product_id] = Number(r.quantity ?? 0);
-    }
-    const { data: sizeRows } = await db
-      .from('warehouse_inventory_by_size')
-      .select('product_id, size_code, quantity')
-      .eq('warehouse_id', effectiveWarehouseId)
-      .in('product_id', productIds);
-    const sizeList = (sizeRows ?? []) as Array<{ product_id: string; size_code: string; quantity: number }>;
-    for (const r of sizeList) {
-      if (!sizeMap[r.product_id]) sizeMap[r.product_id] = [];
-      const code = String(r.size_code ?? '').trim();
-      if (!code) continue;
-      sizeMap[r.product_id].push({
-        sizeCode: code,
-        sizeLabel: code,
-        quantity: Number(r.quantity ?? 0),
-      });
-    }
-  }
-
-  const data = list.map((row) => {
-    const sizes = (sizeMap[row.id as string] ?? []).sort((a, b) =>
-      a.sizeCode.localeCompare(b.sizeCode)
-    );
-    const isSized = (row.size_kind as string) === 'sized' && sizes.length > 0;
-    const quantity = isSized
-      ? sizes.reduce((s, r) => s + r.quantity, 0)
-      : invMap[row.id as string] ?? 0;
-
-    if (options.lowStock && quantity > (Number(row.reorder_level ?? 0) || 3)) return null;
-    if (options.outOfStock && quantity > 0) return null;
-
-    return {
-      id: String(row.id ?? ''),
-      warehouseId: effectiveWarehouseId,
-      sku: String(row.sku ?? ''),
-      barcode: row.barcode ?? null,
-      name: String(row.name ?? ''),
-      description: row.description ?? null,
-      category: String(row.category ?? ''),
-      color: row.color != null ? String(row.color).trim() || null : null,
-      sizeKind: String(row.size_kind ?? 'na'),
-      sellingPrice: Number(row.selling_price ?? 0),
-      costPrice: Number(row.cost_price ?? 0),
-      reorderLevel: Number(row.reorder_level ?? 0),
-      quantity,
-      quantityBySize: sizes,
-      location: row.location ?? null,
-      supplier: row.supplier ?? null,
-      tags: Array.isArray(row.tags) ? row.tags : [],
-      images: Array.isArray(row.images) ? (row.images as string[]) : [],
-      version: Number(row.version ?? 0),
-      createdAt: String(row.created_at ?? ''),
-      updatedAt: String(row.updated_at ?? ''),
-    };
-  }).filter((p) => p !== null) as ListProduct[];
-
-  return { data, total: count ?? data.length };
+  return { data, total: totalCount };
 }
 
 /** Get one product by id and warehouse (for GET ?id=). Works when warehouse_products has no warehouse_id. */

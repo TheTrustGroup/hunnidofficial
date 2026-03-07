@@ -6,8 +6,6 @@ import {
 } from '@/lib/data/warehouseProducts';
 import type { Session } from '@/lib/auth/session';
 import type { PutProductBody } from '@/lib/data/warehouseProducts';
-import { toSafeError } from '@/lib/safeError';
-import { invalidateDashboardCacheForWarehouse } from '@/lib/cache/warehouseStatsCache';
 
 /** GET one product by query id + warehouse_id. Returns 200 with product (includes images) or 404. */
 export async function handleGetProductById(
@@ -34,18 +32,11 @@ export async function handlePutProductById(
     if (!updated) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
-    await invalidateDashboardCacheForWarehouse(warehouseId);
     return NextResponse.json(updated);
   } catch (e) {
-    const err = e as Error & { code?: string };
-    if (err?.code === '23505') {
-      return NextResponse.json(
-        { error: 'A product with this name, color, and SKU already exists.' },
-        { status: 409 }
-      );
-    }
-    console.error('[API ERROR]', e);
-    return NextResponse.json({ message: toSafeError(e) }, { status: 400 });
+    console.error('[api/products PUT]', e);
+    const message = e instanceof Error ? e.message : 'Failed to update product';
+    return NextResponse.json({ message }, { status: 400 });
   }
 }
 
@@ -58,10 +49,10 @@ export async function handleDeleteProductById(
 ): Promise<NextResponse> {
   try {
     await deleteWarehouseProduct(id, warehouseId);
-    await invalidateDashboardCacheForWarehouse(warehouseId);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error('[API ERROR]', e);
-    return NextResponse.json({ message: toSafeError(e) }, { status: 400 });
+    console.error('[api/products DELETE]', e);
+    const message = e instanceof Error ? e.message : 'Failed to delete product';
+    return NextResponse.json({ message }, { status: 400 });
   }
 }

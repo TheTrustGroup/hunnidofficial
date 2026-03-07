@@ -86,6 +86,11 @@
   }
 }
 
+/* Loading spinner: match "Loading warehouse" ring style (gray ring + blue top, 0.8s). */
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
 @layer base {
   body {
     @apply bg-gradient-to-br from-slate-50 via-white to-slate-50 text-slate-900 antialiased;
@@ -100,6 +105,17 @@
 }
 
 @layer components {
+  /* Loading spinner ring: same as Loading warehouse (3px gray ring, blue top, 0.8s). Use .loading-spinner-ring, .loading-spinner-ring-sm, .loading-spinner-ring-md, .loading-spinner-ring-lg. */
+  .loading-spinner-ring {
+    border: 3px solid #2A2A2A;
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: loading-spin 0.8s linear infinite;
+  }
+  .loading-spinner-ring-sm { width: 1rem; height: 1rem; min-width: 1rem; min-height: 1rem; }
+  .loading-spinner-ring-md { width: 2rem; height: 2rem; min-width: 2rem; min-height: 2rem; }
+  .loading-spinner-ring-lg { width: 2.5rem; height: 2.5rem; min-width: 2.5rem; min-height: 2.5rem; }
+
   /* Primary action: one per screen; clear, no competing decoration. Height ≥44px (Phase 6). */
   .btn-primary {
     min-height: var(--touch-min);

@@ -85,7 +85,7 @@ function LayoutContent() {
           role="status"
           aria-live="polite"
         >
-          <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" aria-hidden />
+          <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-[#2A2A2A] border-t-[var(--blue)] shrink-0" style={{ animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />
           Syncing inventory & orders…
         </div>
       )}

@@ -1,75 +1,84 @@
+/**
+ * POST /api/auth/login — validate email/password, return { user, token }.
+ * For POS emails in ALLOWED_POS_EMAILS: tries Supabase Auth first (each cashier's own password in Supabase).
+ * If SUPABASE_ANON_KEY is not set, falls back to env POS_PASSWORD for those emails.
+ */
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  getRoleFromEmail,
-  setSessionCookie,
-  sessionUserToJson,
-  createSessionToken,
-} from '@/lib/auth/session';
-import { isPosRestrictedEmail, verifyPosPassword, getWarehouseIdForPosEmail } from '@/lib/auth/posPasswords';
 import { corsHeaders } from '@/lib/cors';
+import { jsonError } from '@/lib/apiResponse';
+import { checkLoginRateLimit } from '@/lib/ratelimit';
+import { validateCredentials, getAllowedPosEmails, type ValidatedUser } from '@/lib/auth/credentials';
+import { createSessionToken, setSessionCookieWithToken } from '@/lib/auth/session';
+import { getSingleWarehouseIdForUser } from '@/lib/data/userScopes';
+import { getSupabaseAnon } from '@/lib/supabase/anon';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 15;
 
-export async function OPTIONS(request: NextRequest) {
-  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
+function withCors(res: NextResponse, req: NextRequest): NextResponse {
+  Object.entries(corsHeaders(req)).forEach(([k, v]) => res.headers.set(k, v));
+  return res;
 }
 
-/** Login: validate email (and POS password when applicable). Derive role from email (server-side). */
-export async function POST(request: NextRequest) {
-  const addCors = (res: NextResponse) => {
-    Object.entries(corsHeaders(request)).forEach(([k, v]) => res.headers.set(k, v));
-    return res;
-  };
-  try {
-    const body = await request.json().catch(() => ({}));
-    const email = (body.email || body.username || '').trim().toLowerCase();
-    const password = typeof body.password === 'string' ? body.password : '';
-    if (!email) {
-      return addCors(NextResponse.json({ error: 'Email is required' }, { status: 400 }));
-    }
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
+}
 
-    if (isPosRestrictedEmail(email)) {
-      if (!verifyPosPassword(email, password)) {
-        return addCors(
-          NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
-        );
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  const h = corsHeaders(req);
+  const rateLimit = await checkLoginRateLimit(req);
+  if (rateLimit.limited) {
+    return withCors(
+      jsonError(429, 'Too many login attempts. Please try again later.', { code: 'RATE_LIMITED', headers: h }),
+      req
+    );
+  }
+  try {
+    const body = await req.json().catch(() => ({}));
+    const email = typeof body.email === 'string' ? body.email.trim() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!email || !password) {
+      return withCors(jsonError(401, 'Email and password required', { headers: h }), req);
+    }
+    const trimmedEmail = email.toLowerCase();
+    const allowedPos = getAllowedPosEmails();
+    let user: ValidatedUser | null = null;
+
+    if (allowedPos?.has(trimmedEmail)) {
+      const supabase = getSupabaseAnon();
+      if (supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        });
+        if (!error && data?.user?.email) {
+          user = { email: data.user.email, role: 'cashier' };
+        } else {
+          return withCors(jsonError(401, 'Invalid email or password', { headers: h }), req);
+        }
       }
     }
 
-    const role = getRoleFromEmail(email);
-    // POS users: bind warehouse_id by email so frontend skips warehouse selector (Main Store / Main Town).
-    const posWarehouseId = getWarehouseIdForPosEmail(email);
-    const binding =
-      posWarehouseId != null ||
-      body.warehouse_id != null ||
-      body.store_id !== undefined ||
-      body.device_id != null
-        ? {
-            warehouse_id: posWarehouseId ?? (body.warehouse_id != null ? String(body.warehouse_id).trim() : undefined),
-            store_id: body.store_id !== undefined ? body.store_id : undefined,
-            device_id: body.device_id != null ? String(body.device_id).trim() : undefined,
-          }
-        : undefined;
-    const sessionPayload = { email, role, exp: 0, ...binding };
-    const sessionToken = await createSessionToken(email, role, binding);
-    const response = NextResponse.json({
-      user: sessionUserToJson(sessionPayload as import('@/lib/auth/session').Session),
-      token: sessionToken,
-    });
-    await setSessionCookie(response, email, role, binding);
-    return addCors(response);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : '';
-    if (process.env.NODE_ENV === 'production' && msg.includes('SESSION_SECRET')) {
-      console.error('[auth] Login failed: SESSION_SECRET not set in production.');
-      return addCors(
-        NextResponse.json(
-          { error: 'Server configuration error. Please contact the administrator.' },
-          { status: 503 }
-        )
-      );
+    if (!user) {
+      user = validateCredentials(email, password);
     }
-    console.error('[auth] Login failed:', err);
-    return addCors(NextResponse.json({ error: 'Login failed' }, { status: 400 }));
+    const warehouseId = await getSingleWarehouseIdForUser(user.email);
+    const token = await createSessionToken(user.email, user.role, warehouseId ? { warehouse_id: warehouseId } : undefined);
+    const userPayload = {
+      id: 'api-session-user',
+      email: user.email,
+      username: user.email.split('@')[0] ?? 'user',
+      role: user.role,
+      warehouse_id: warehouseId ?? undefined,
+    };
+    const response = NextResponse.json(
+      { user: userPayload, token },
+      { status: 200, headers: h }
+    );
+    setSessionCookieWithToken(response, token);
+    return withCors(response, req);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Invalid email or password';
+    return withCors(jsonError(401, message, { headers: h }), req);
   }
 }

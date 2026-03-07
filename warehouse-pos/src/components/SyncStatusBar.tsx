@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Loader2, CloudOff, AlertTriangle } from 'lucide-react';
+import { Check, CloudOff, AlertTriangle } from 'lucide-react';
 import { useNetworkStatusContext } from '../contexts/NetworkStatusContext';
 import { syncService } from '../services/syncService';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -74,7 +74,7 @@ export function SyncStatusBar() {
     variant = 'syncing';
     const n = total || 1;
     label = `Syncing ${n} item${n !== 1 ? 's' : ''}...`;
-    icon = <Loader2 className="w-5 h-5 animate-spin shrink-0" strokeWidth={2} aria-hidden />;
+    icon = <span className="loading-spinner-ring loading-spinner-ring-md inline-block shrink-0 border-2 border-white/30 border-t-white" style={{ animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />;
     barClass = 'bg-blue-600 text-white';
   } else if (total === 0 && isOnline) {
     variant = 'synced';

@@ -15,8 +15,8 @@ export interface CurrentWarehouse {
 }
 
 interface CurrentWarehouseResponse {
-  id: string;
-  name: string;
+  id: string | null;
+  name: string | null;
 }
 
 export function useCurrentWarehouse(): CurrentWarehouse {

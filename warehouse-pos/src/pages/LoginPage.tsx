@@ -391,11 +391,7 @@ export default function LoginPage() {
               >
                 {loading ? (
                   <>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                         style={{ animation: 'spin 0.7s linear infinite' }}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
+                    <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0 border-2 border-white/30 border-t-white" style={{ animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />
                     Signing in…
                   </>
                 ) : (

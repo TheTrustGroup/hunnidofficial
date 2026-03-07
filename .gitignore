@@ -1,31 +1,30 @@
 # Dependencies
-node_modules/
+node_modules
 
-# Env and secrets (never commit)
+# Build
+dist
+
+# Env (keep .env.example committed)
 .env
 .env.local
 .env.*.local
-.env.production
-.env.development
-
-# Build and deploy
-dist/
-.vercel/
-.next/
 
 # IDE / OS
-.idea/
-.vscode/
-.cursor/
+.idea
+.vscode
+.cursor
 .DS_Store
 *.log
 npm-debug.log*
 
 # Test / E2E
-playwright-report/
-test-results/
-coverage/
+playwright-report
+test-results
+coverage
 
-# Supabase
-.supabase/
+# Deploy
 .vercel
+
+# Supabase CLI temp (root and inventory-server)
+supabase/.temp
+inventory-server/supabase/.temp

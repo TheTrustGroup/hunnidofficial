@@ -1,13 +1,9 @@
+/** Ring spinner matching "Loading warehouse" style: gray ring + blue top, 0.8s. */
 export function LoadingSpinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-  };
-
+  const sizeClass = size === 'sm' ? 'loading-spinner-ring-sm' : size === 'lg' ? 'loading-spinner-ring-lg' : 'loading-spinner-ring-md';
   return (
     <div className="flex items-center justify-center">
-      <div className={`${sizeClasses[size]} border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin`}></div>
+      <div className={`loading-spinner-ring ${sizeClass}`} aria-hidden />
     </div>
   );
 }
@@ -17,7 +13,7 @@ export function PageLoader() {
     <div className="fixed inset-0 solid-overlay flex items-center justify-center z-50">
       <div className="solid-card rounded-2xl p-8 text-center">
         <LoadingSpinner size="lg" />
-        <p className="mt-4 text-slate-600 dark:text-slate-300 font-medium">Loading...</p>
+        <p className="mt-4 text-slate-600 dark:text-slate-300 font-medium">Loading…</p>
       </div>
     </div>
   );

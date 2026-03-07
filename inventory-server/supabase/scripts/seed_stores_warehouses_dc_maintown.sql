@@ -1,70 +1,66 @@
--- Seed: Main Jeff (store + one warehouse "Main Jeff", code MAIN); Hunnid Main (store + warehouse).
--- Post-merge: one Hunnid Main; one warehouse for Main Jeff location (MAIN only; DC removed).
+-- Seed: Main Store (store + one warehouse "Main Store", code MAIN); Main Town (store + warehouse).
+-- Post-merge: one Main Town; one warehouse for Main Store location (MAIN only; DC removed).
 -- POS logins (see POS_CREDENTIALS.md):
---   Main Jeff:  jcashier@hunnidofficial.com
---   Hunnid Main: hcashier@hunnidofficial.com
+--   Main Store: cashier@extremedeptkidz.com
+--   Main Town:  maintown_cashier@extremedeptkidz.com
 -- Run in Supabase SQL Editor. Safe to run multiple times.
 
--- 1. Ensure store "Main Jeff" exists
+-- 1. Ensure store "Main Store" exists
 INSERT INTO stores (id, name, status, created_at, updated_at)
-SELECT gen_random_uuid(), 'Main Jeff', 'active', now(), now()
-WHERE NOT EXISTS (SELECT 1 FROM stores WHERE name = 'Main Jeff');
+SELECT gen_random_uuid(), 'Main Store', 'active', now(), now()
+WHERE NOT EXISTS (SELECT 1 FROM stores WHERE name = 'Main Store');
 
--- 2. Warehouse "Main Jeff" (code MAIN) — single warehouse for Main Jeff location
+-- 2. Warehouse "Main Store" (code MAIN) — single warehouse for Main Store location
 INSERT INTO warehouses (id, name, code, created_at, updated_at)
-SELECT gen_random_uuid(), 'Main Jeff', 'MAIN', now(), now()
+SELECT gen_random_uuid(), 'Main Store', 'MAIN', now(), now()
 WHERE NOT EXISTS (SELECT 1 FROM warehouses WHERE code = 'MAIN');
 
 UPDATE warehouses
-SET store_id = (SELECT id FROM stores WHERE name = 'Main Jeff' LIMIT 1)
+SET store_id = (SELECT id FROM stores WHERE name = 'Main Store' LIMIT 1)
 WHERE code = 'MAIN';
 
--- 3. Store "Hunnid Main"
+-- 3. Store "Main Town"
 INSERT INTO stores (id, name, status, created_at, updated_at)
-SELECT gen_random_uuid(), 'Hunnid Main', 'active', now(), now()
-WHERE NOT EXISTS (SELECT 1 FROM stores WHERE name = 'Hunnid Main');
+SELECT gen_random_uuid(), 'Main Town', 'active', now(), now()
+WHERE NOT EXISTS (SELECT 1 FROM stores WHERE name = 'Main Town');
 
--- 4. Warehouse "Hunnid Main" (code MAINTOWN)
+-- 4. Warehouse "Main Town" (code MAINTOWN)
 INSERT INTO warehouses (id, name, code, created_at, updated_at)
-SELECT gen_random_uuid(), 'Hunnid Main', 'MAINTOWN', now(), now()
+SELECT gen_random_uuid(), 'Main Town', 'MAINTOWN', now(), now()
 WHERE NOT EXISTS (SELECT 1 FROM warehouses WHERE code = 'MAINTOWN');
 
 UPDATE warehouses
-SET store_id = (SELECT id FROM stores WHERE name = 'Hunnid Main' LIMIT 1)
+SET store_id = (SELECT id FROM stores WHERE name = 'Main Town' LIMIT 1)
 WHERE code = 'MAINTOWN';
 
--- 5. User scope: Main Jeff POS — jcashier@hunnidofficial.com (warehouse MAIN only)
+-- 5. User scope: Main Store POS — cashier@extremedeptkidz.com (warehouse MAIN only)
 INSERT INTO user_scopes (user_email, store_id, warehouse_id, created_at)
 SELECT
-  'jcashier@hunnidofficial.com',
+  'cashier@extremedeptkidz.com',
   s.id,
   w.id,
   now()
 FROM stores s
 JOIN warehouses w ON w.store_id = s.id AND w.code = 'MAIN'
-WHERE s.name = 'Main Jeff'
+WHERE s.name = 'Main Store'
   AND NOT EXISTS (
     SELECT 1 FROM user_scopes us
-    WHERE us.user_email = 'jcashier@hunnidofficial.com'
+    WHERE us.user_email = 'cashier@extremedeptkidz.com'
       AND us.warehouse_id = w.id
   );
 
--- 6. User scope: Hunnid Main POS — hcashier@hunnidofficial.com
+-- 6. User scope: Main Town POS — maintown_cashier@extremedeptkidz.com
 INSERT INTO user_scopes (user_email, store_id, warehouse_id, created_at)
 SELECT
-  'hcashier@hunnidofficial.com',
+  'maintown_cashier@extremedeptkidz.com',
   s.id,
   w.id,
   now()
 FROM stores s
 JOIN warehouses w ON w.code = 'MAINTOWN' AND w.store_id = s.id
-WHERE s.name = 'Hunnid Main'
+WHERE s.name = 'Main Town'
   AND NOT EXISTS (
     SELECT 1 FROM user_scopes us
-    WHERE us.user_email = 'hcashier@hunnidofficial.com'
+    WHERE us.user_email = 'maintown_cashier@extremedeptkidz.com'
       AND us.warehouse_id = w.id
   );
-
--- 7. Enforce display names: warehouse name must match POS location (Main Jeff / Hunnid Main)
-UPDATE warehouses SET name = 'Main Jeff' WHERE code = 'MAIN';
-UPDATE warehouses SET name = 'Hunnid Main' WHERE code = 'MAINTOWN';

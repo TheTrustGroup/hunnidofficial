@@ -355,7 +355,10 @@ export default function DashboardPage() {
             <span className="text-slate-900 font-black">{warehouseName}</span>
           </p>
           {loading && (
-            <span className="text-[12px] text-slate-400 animate-pulse">Loading…</span>
+            <span className="flex items-center gap-2 text-[12px] text-slate-400">
+              <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
+              Loading…
+            </span>
           )}
         </div>
 

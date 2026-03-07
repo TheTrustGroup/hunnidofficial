@@ -96,12 +96,7 @@ const IconImage = () => (
   </svg>
 );
 
-const IconSpinner = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-    style={{ animation: 'card-spin 0.8s linear infinite' }}>
-    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-  </svg>
-);
+const IconSpinner = () => <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0" aria-hidden />;
 
 // ── Stock Status Badge ─────────────────────────────────────────────────────
 

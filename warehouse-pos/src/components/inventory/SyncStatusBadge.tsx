@@ -1,4 +1,4 @@
-import { Loader2, Check, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 type SyncStatus = 'synced' | 'pending' | 'error';
@@ -28,7 +28,7 @@ export function SyncStatusBadge({ status, syncErrorMessage, onRetry, className =
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-medium ${className}`}
         title="Syncing to server…"
       >
-        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+        <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0 w-3.5 h-3.5 min-w-[14px] min-h-[14px]" aria-hidden />
         Syncing…
       </span>
     );

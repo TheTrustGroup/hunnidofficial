@@ -1,14 +1,14 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-let client: SupabaseClient | null = null;
+/**
+ * Server Supabase access. All API routes use the same singleton to avoid connection pool exhaustion.
+ * @see lib/supabase/admin.ts for the single createClient() instantiation.
+ */
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase/admin';
 
 export function getSupabase(): SupabaseClient {
-  if (client) return client;
-  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
-  }
-  client = createClient(url, key, { auth: { persistSession: false } });
-  return client;
+  return getSupabaseAdmin();
+}
+
+export function getServiceSupabase(): SupabaseClient {
+  return getSupabaseAdmin();
 }
