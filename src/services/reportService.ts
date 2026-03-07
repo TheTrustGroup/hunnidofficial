@@ -61,7 +61,10 @@ export interface SalesReport {
 
 export interface InventoryReport {
   totalProducts: number;
+  /** Stock value at selling price (qty × selling_price). */
   totalStockValue: number;
+  /** Stock value at cost (qty × cost_price). From API when available. */
+  stockValueAtCost?: number;
   lowStockItems: number;
   outOfStockItems: number;
   productsByCategory: Array<{

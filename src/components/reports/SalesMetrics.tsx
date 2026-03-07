@@ -1,4 +1,4 @@
-import { TrendingUp, DollarSign, ShoppingBag, Package, CreditCard } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingBag, Package, CreditCard, Info } from 'lucide-react';
 import { SalesReport } from '../../services/reportService';
 import { formatCurrency } from '../../lib/utils';
 
@@ -15,10 +15,13 @@ const variantStyles: Record<MetricVariant, { bg: string; accent: string }> = {
   default: { bg: 'var(--elevated)', accent: 'var(--text-2)' },
 };
 
+const netProfitTooltip = 'Profit from sales after cost of goods (Revenue − COGS). Full net profit would also subtract operating expenses, taxes, etc., when tracked.';
+
 export function SalesMetrics({ report }: SalesMetricsProps) {
-  const metrics: Array<{ label: string; value: string; icon: typeof DollarSign; variant: MetricVariant }> = [
+  const metrics: Array<{ label: string; value: string; icon: typeof DollarSign; variant: MetricVariant; tooltip?: string }> = [
     { label: 'Total Revenue', value: formatCurrency(report.totalRevenue), icon: DollarSign, variant: 'primary' },
     { label: 'Total Profit', value: formatCurrency(report.totalProfit), icon: TrendingUp, variant: 'green' },
+    { label: 'Net profit', value: formatCurrency(report.totalProfit), icon: TrendingUp, variant: 'green', tooltip: netProfitTooltip },
     {
       label: 'Transactions',
       value: (report.totalVoided ?? 0) > 0
@@ -54,8 +57,13 @@ export function SalesMetrics({ report }: SalesMetricsProps) {
           >
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-3)', fontFamily: 'var(--font-b)' }}>
+                <p className="text-sm font-medium mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-3)', fontFamily: 'var(--font-b)' }}>
                   {metric.label}
+                  {metric.tooltip && (
+                    <span className="inline-flex text-slate-400 hover:text-slate-600" title={metric.tooltip} aria-label="Metric description">
+                      <Info className="w-3.5 h-3.5" strokeWidth={2} />
+                    </span>
+                  )}
                 </p>
                 <p className="text-2xl font-semibold tracking-tight tabular-nums" style={{ color: 'var(--text)', fontFamily: 'var(--font-m)' }}>
                   {metric.value}

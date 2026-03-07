@@ -1,61 +1,24 @@
 /**
- * Dashboard stats: totals from DB (get_warehouse_stats RPC); low-stock list and category summary from product list.
- * Used by GET /api/dashboard. Single source of truth for total_units and total_stock_value. Cost-only for value.
+ * Dashboard stats: one server-side aggregation so the client gets a small payload
+ * instead of loading all products. Used by GET /api/dashboard.
+ * Cached for 30s (today only) via Upstash Redis when configured; invalidate on inventory change.
  */
 
 import { getWarehouseProducts, type ProductRecord } from '@/lib/data/warehouseProducts';
 import { getSupabase } from '@/lib/supabase';
+import { getCached, setCached } from '@/lib/cache/dashboardStatsCache';
 
 const LOW_STOCK_ALERTS_LIMIT = 10;
-const PRODUCTS_LIMIT_FOR_LIST = 2000;
+/** When we have view stats we only need products for lowStockItems + categorySummary; smaller fetch finishes under timeout. */
+const DASHBOARD_PRODUCTS_LIMIT = 100;
 
+/** Derive quantity from actual data: sum of quantityBySize when present, else quantity. */
 function getProductQty(p: ProductRecord): number {
-  if (p.sizeKind === 'sized' && p.quantityBySize?.length > 0) {
-    return p.quantityBySize.reduce((s, r) => s + (r.quantity ?? 0), 0);
+  const qtyBySize = Array.isArray(p.quantityBySize) ? p.quantityBySize : [];
+  if (qtyBySize.length > 0) {
+    return qtyBySize.reduce((s, r) => s + (r.quantity ?? 0), 0);
   }
   return p.quantity ?? 0;
-}
-
-export interface WarehouseStatsFromDb {
-  total_units: number;
-  total_stock_value: number;
-  total_skus: number;
-  low_stock_count: number;
-  out_of_stock_count: number;
-}
-
-async function getWarehouseStatsFromDb(warehouseId: string): Promise<WarehouseStatsFromDb> {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.rpc('get_warehouse_stats', {
-    p_warehouse_id: warehouseId,
-  });
-  if (error) {
-    console.error('[dashboardStats] get_warehouse_stats', error);
-    return {
-      total_units: 0,
-      total_stock_value: 0,
-      total_skus: 0,
-      low_stock_count: 0,
-      out_of_stock_count: 0,
-    };
-  }
-  const raw = data as Record<string, unknown> | null;
-  if (!raw || typeof raw !== 'object') {
-    return {
-      total_units: 0,
-      total_stock_value: 0,
-      total_skus: 0,
-      low_stock_count: 0,
-      out_of_stock_count: 0,
-    };
-  }
-  return {
-    total_units: Number(raw.total_units ?? 0) || 0,
-    total_stock_value: Number(raw.total_stock_value ?? 0) || 0,
-    total_skus: Number(raw.total_skus ?? 0) || 0,
-    low_stock_count: Number(raw.low_stock_count ?? 0) || 0,
-    out_of_stock_count: Number(raw.out_of_stock_count ?? 0) || 0,
-  };
 }
 
 export interface DashboardLowStockItem {
@@ -72,9 +35,12 @@ export interface DashboardCategorySummary {
 }
 
 export interface DashboardStatsResult {
+  /** Stock value at selling price (qty × selling_price). */
   totalStockValue: number;
-  totalUnits: number;
+  /** Stock value at cost (qty × cost_price). Present when RPC returns it. */
+  stockValueAtCost?: number;
   totalProducts: number;
+  totalUnits: number;
   lowStockCount: number;
   outOfStockCount: number;
   todaySales: number;
@@ -82,11 +48,67 @@ export interface DashboardStatsResult {
   categorySummary: DashboardCategorySummary;
 }
 
-/** Warehouse IDs used for "today by warehouse" summary (match frontend Main Store / Main Town). */
-const DEFAULT_WAREHOUSE_IDS = [
-  '00000000-0000-0000-0000-000000000001',
-  '00000000-0000-0000-0000-000000000002',
-];
+/** Row returned by get_warehouse_inventory_stats RPC (after 20260307120000: includes stock_value_at_cost). */
+interface WarehouseStatsRow {
+  stock_value_at_cost?: number;
+  total_stock_value: number;
+  total_products: number;
+  total_units: number;
+  low_stock_count: number;
+  out_of_stock_count: number;
+}
+
+/**
+ * Fetch warehouse-level stats from warehouse_dashboard_stats view (one query, instant).
+ * Returns null if view is unavailable (e.g. migration not applied).
+ */
+async function getWarehouseStatsFromView(warehouseId: string): Promise<WarehouseStatsRow | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('warehouse_dashboard_stats')
+    .select('total_stock_value, total_products, total_units, low_stock_count, out_of_stock_count')
+    .eq('warehouse_id', warehouseId)
+    .maybeSingle();
+  if (error) {
+    console.warn('[dashboardStats] warehouse_dashboard_stats view failed, trying RPC:', error.message);
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  const row = data as Record<string, unknown>;
+  return {
+    total_stock_value: Number(row.total_stock_value ?? 0),
+    total_products: Number(row.total_products ?? 0),
+    total_units: Number(row.total_units ?? 0),
+    low_stock_count: Number(row.low_stock_count ?? 0),
+    out_of_stock_count: Number(row.out_of_stock_count ?? 0),
+  };
+}
+
+/**
+ * Fetch accurate warehouse-level stats from DB (all products, no limit).
+ * Prefers warehouse_dashboard_stats view; falls back to RPC then product sample.
+ */
+async function getWarehouseStatsFromRpc(warehouseId: string): Promise<WarehouseStatsRow | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.rpc('get_warehouse_inventory_stats', {
+    p_warehouse_id: warehouseId,
+  });
+  if (error) {
+    console.warn('[dashboardStats] get_warehouse_inventory_stats RPC failed, using product sample:', error.message);
+    return null;
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== 'object') return null;
+  const r = row as Record<string, unknown>;
+  return {
+    stock_value_at_cost: r.stock_value_at_cost != null ? Number(r.stock_value_at_cost) : undefined,
+    total_stock_value: Number(r.total_stock_value ?? 0),
+    total_products: Number(r.total_products ?? 0),
+    total_units: Number(r.total_units ?? 0),
+    low_stock_count: Number(r.low_stock_count ?? 0),
+    out_of_stock_count: Number(r.out_of_stock_count ?? 0),
+  };
+}
 
 /**
  * Fetch today's sales total for a warehouse (sum of sale totals for the given date).
@@ -99,7 +121,6 @@ async function getTodaySalesTotal(warehouseId: string, date: string): Promise<nu
     .from('sales')
     .select('total')
     .eq('warehouse_id', warehouseId)
-    .is('voided_at', null)
     .gte('created_at', start)
     .lt('created_at', end);
   if (error) {
@@ -111,42 +132,171 @@ async function getTodaySalesTotal(warehouseId: string, date: string): Promise<nu
 }
 
 /**
- * Today's sales total per warehouse (for super-admin "sales by location" summary).
- * Uses DEFAULT_WAREHOUSE_IDS; returns a map warehouseId -> total.
+ * Fetch today's sales total per warehouse for a given date.
+ * Returns { [warehouseId]: number } for Admin Control Panel "Today's sales by location".
  */
-export async function getTodaySalesByWarehouse(
-  date: string
-): Promise<Record<string, number>> {
-  const totals = await Promise.all(
-    DEFAULT_WAREHOUSE_IDS.map(async (id) => ({ id, total: await getTodaySalesTotal(id, date) }))
+export async function getTodaySalesByWarehouse(date: string): Promise<Record<string, number>> {
+  const supabase = getSupabase();
+  // Prefer SQL aggregation (fast + low bandwidth). Fallback is row-scan (can be slow on big tables).
+  const { data: agg, error: aggError } = await supabase.rpc('get_today_sales_by_warehouse', {
+    p_date: date,
+  });
+
+  if (!aggError && Array.isArray(agg)) {
+    const out: Record<string, number> = {};
+    for (const row of agg as Array<{ warehouse_id?: string; revenue?: number | string }>) {
+      const wid = row.warehouse_id ?? '';
+      const revenue = Number(row.revenue ?? 0);
+      if (wid) out[wid] = revenue;
+    }
+    return out;
+  }
+
+  if (aggError) {
+    console.warn('[dashboardStats] get_today_sales_by_warehouse RPC failed, falling back:', aggError.message);
+  }
+
+  const start = `${date}T00:00:00.000Z`;
+  const end = `${date}T23:59:59.999Z`;
+  const { data, error } = await supabase
+    .from('sales')
+    .select('warehouse_id, total')
+    .gte('created_at', start)
+    .lt('created_at', end);
+  if (error) {
+    console.error('[dashboardStats] getTodaySalesByWarehouse', error);
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const wid = (row as { warehouse_id?: string }).warehouse_id ?? '';
+    const t = Number((row as { total?: number }).total ?? 0);
+    if (wid) out[wid] = (out[wid] ?? 0) + t;
+  }
+  return out;
+}
+
+function isToday(date: string): boolean {
+  return date === new Date().toISOString().split('T')[0];
+}
+
+function isDashboardStatsResult(v: unknown): v is DashboardStatsResult {
+  if (v == null || typeof v !== 'object') return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.totalStockValue === 'number' &&
+    typeof o.totalProducts === 'number' &&
+    typeof o.totalUnits === 'number' &&
+    typeof o.lowStockCount === 'number' &&
+    typeof o.outOfStockCount === 'number' &&
+    typeof o.todaySales === 'number' &&
+    Array.isArray(o.lowStockItems) &&
+    typeof o.categorySummary === 'object'
   );
-  return Object.fromEntries(totals.map(({ id, total }) => [id, total]));
 }
 
 /**
- * Compute dashboard stats: totals from DB (single source of truth); low-stock list and category summary from product list.
- * Stock value is cost-only; null/0 cost contributes 0.
+ * Compute only the low-stock alerts list from a fresh product fetch.
+ * Used when serving from cache so Stock Alerts always reflect current inventory (data integrity).
  */
-export async function getDashboardStats(
+async function computeLowStockItemsFresh(
   warehouseId: string,
-  options: { date?: string } = {}
-): Promise<DashboardStatsResult> {
-  const date = options.date ?? new Date().toISOString().split('T')[0];
-  const [dbStats, productsResult, todaySales] = await Promise.all([
-    getWarehouseStatsFromDb(warehouseId),
-    getWarehouseProducts(warehouseId, { limit: PRODUCTS_LIMIT_FOR_LIST }),
-    getTodaySalesTotal(warehouseId, date),
-  ]);
-
+  signal?: AbortSignal | null
+): Promise<DashboardLowStockItem[]> {
+  const productsResult = await getWarehouseProducts(warehouseId, {
+    limit: DASHBOARD_PRODUCTS_LIMIT,
+    signal: signal ?? undefined,
+  });
   const products = productsResult.data;
-  const categorySummary: DashboardCategorySummary = {};
   const lowStockCandidates: ProductRecord[] = [];
-
   for (const p of products) {
     const qty = getProductQty(p);
     const reorder = p.reorderLevel ?? 0;
-    const cost = p.costPrice ?? 0;
-    const price = cost > 0 ? cost : 0;
+    if (qty <= reorder) lowStockCandidates.push(p);
+  }
+  return lowStockCandidates
+    .sort((a, b) => getProductQty(a) - getProductQty(b))
+    .slice(0, LOW_STOCK_ALERTS_LIMIT)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      category: p.category?.trim() || 'Uncategorised',
+      quantity: getProductQty(p),
+      quantityBySize: (p.quantityBySize ?? []).map((s) => ({ sizeCode: s.sizeCode, quantity: s.quantity })),
+      reorderLevel: p.reorderLevel ?? 0,
+    }));
+}
+
+/**
+ * Compute dashboard stats from DB (no cache). Used on cache miss or when date !== today.
+ */
+async function computeDashboardStatsUncached(
+  warehouseId: string,
+  date: string,
+  signal?: AbortSignal | null
+): Promise<DashboardStatsResult> {
+  const [viewStats, productsResult, todaySales] = await Promise.all([
+    getWarehouseStatsFromView(warehouseId),
+    getWarehouseProducts(warehouseId, { limit: DASHBOARD_PRODUCTS_LIMIT, signal: signal ?? undefined }),
+    getTodaySalesTotal(warehouseId, date),
+  ]);
+  const products = productsResult.data;
+
+  let totalStockValue: number;
+  let stockValueAtCost: number | undefined;
+  let totalProducts: number;
+  let totalUnits: number;
+  let lowStockCount: number;
+  let outOfStockCount: number;
+
+  if (viewStats) {
+    totalStockValue = viewStats.total_stock_value;
+    stockValueAtCost = undefined;
+    totalProducts = viewStats.total_products;
+    totalUnits = viewStats.total_units;
+    lowStockCount = viewStats.low_stock_count;
+    outOfStockCount = viewStats.out_of_stock_count;
+  } else {
+    const rpcStats = await getWarehouseStatsFromRpc(warehouseId);
+    if (rpcStats) {
+      totalStockValue = rpcStats.total_stock_value;
+      stockValueAtCost = rpcStats.stock_value_at_cost;
+      totalProducts = rpcStats.total_products;
+      totalUnits = rpcStats.total_units;
+      lowStockCount = rpcStats.low_stock_count;
+      outOfStockCount = rpcStats.out_of_stock_count;
+    } else {
+    let valueSelling = 0;
+    let valueCost = 0;
+    let low = 0;
+    let out = 0;
+    let units = 0;
+    for (const p of products) {
+      const qty = getProductQty(p);
+      const reorder = p.reorderLevel ?? 0;
+      const selling = p.sellingPrice ?? 0;
+      const cost = p.costPrice ?? 0;
+      units += qty;
+      valueSelling += qty * selling;
+      valueCost += qty * cost;
+      if (qty === 0) out++;
+      else if (qty <= reorder) low++;
+    }
+    totalStockValue = valueSelling;
+    stockValueAtCost = valueCost;
+    totalProducts = products.length;
+    totalUnits = units;
+    lowStockCount = low;
+    outOfStockCount = out;
+    }
+  }
+
+  const categorySummary: DashboardCategorySummary = {};
+  const lowStockCandidates: ProductRecord[] = [];
+  for (const p of products) {
+    const qty = getProductQty(p);
+    const reorder = p.reorderLevel ?? 0;
+    const price = p.sellingPrice ?? 0;
     if (qty <= reorder) lowStockCandidates.push(p);
     const cat = p.category?.trim() || 'Uncategorised';
     if (!categorySummary[cat]) categorySummary[cat] = { count: 0, value: 0 };
@@ -167,13 +317,42 @@ export async function getDashboardStats(
     }));
 
   return {
-    totalStockValue: dbStats.total_stock_value,
-    totalUnits: dbStats.total_units,
-    totalProducts: dbStats.total_skus,
-    lowStockCount: dbStats.low_stock_count,
-    outOfStockCount: dbStats.out_of_stock_count,
+    totalStockValue,
+    ...(stockValueAtCost !== undefined && { stockValueAtCost }),
+    totalProducts,
+    totalUnits,
+    lowStockCount,
+    outOfStockCount,
     todaySales,
     lowStockItems,
     categorySummary,
   };
+}
+
+/**
+ * Compute dashboard stats for a warehouse. Cached 30s for today only when Redis is configured.
+ * Stock Alerts (lowStockItems) are always computed fresh so they reflect current inventory
+ * even when serving from cache — avoids stale alerts after product edits.
+ */
+export async function getDashboardStats(
+  warehouseId: string,
+  options: { date?: string; signal?: AbortSignal | null } = {}
+): Promise<DashboardStatsResult> {
+  const date = options.date ?? new Date().toISOString().split('T')[0];
+  const signal = options.signal ?? null;
+  const useCache = isToday(date);
+
+  if (useCache) {
+    const cached = await getCached(warehouseId);
+    if (isDashboardStatsResult(cached)) {
+      const lowStockItems = await computeLowStockItemsFresh(warehouseId, signal);
+      return { ...cached, lowStockItems };
+    }
+  }
+
+  const result = await computeDashboardStatsUncached(warehouseId, date, signal);
+  if (useCache) {
+    await setCached(warehouseId, result);
+  }
+  return result;
 }

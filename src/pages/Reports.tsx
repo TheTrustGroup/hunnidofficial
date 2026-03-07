@@ -41,6 +41,7 @@ export function Reports() {
   const [dashboardStats, setDashboardStats] = useState<{
     totalProducts: number;
     totalStockValue: number;
+    stockValueAtCost?: number;
     lowStockCount: number;
     outOfStockCount: number;
   } | null>(null);
@@ -57,6 +58,7 @@ export function Reports() {
         ...inventoryReport,
         totalProducts: dashboardStats.totalProducts,
         totalStockValue: dashboardStats.totalStockValue,
+        stockValueAtCost: dashboardStats.stockValueAtCost,
         lowStockItems: dashboardStats.lowStockCount,
         outOfStockItems: dashboardStats.outOfStockCount,
       }
@@ -133,10 +135,11 @@ export function Reports() {
       credentials: 'include',
     })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('Dashboard failed'))))
-      .then((data: { totalProducts?: number; totalStockValue?: number; lowStockCount?: number; outOfStockCount?: number }) => {
+      .then((data: { totalProducts?: number; totalStockValue?: number; stockValueAtCost?: number; lowStockCount?: number; outOfStockCount?: number }) => {
         setDashboardStats({
           totalProducts: Number(data.totalProducts ?? 0),
           totalStockValue: Number(data.totalStockValue ?? 0),
+          stockValueAtCost: data.stockValueAtCost != null ? Number(data.stockValueAtCost) : undefined,
           lowStockCount: Number(data.lowStockCount ?? 0),
           outOfStockCount: Number(data.outOfStockCount ?? 0),
         });
