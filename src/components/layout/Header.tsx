@@ -80,12 +80,12 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 left-0 lg:left-[244px] right-0 h-14 flex items-center gap-3 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-5 pt-[var(--safe-top)] z-50 border-b shadow-[var(--shadow-sm)]"
+      className="sticky top-0 left-0 lg:left-[244px] right-0 h-12 flex items-center gap-2 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] lg:px-4 pt-[var(--safe-top)] z-50 border-b shadow-[var(--shadow-sm)]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
-      {/* Left: breadcrumb — Inter 500 13px */}
+      {/* Left: breadcrumb */}
       <nav className="flex-shrink-0 min-w-0" aria-label="Breadcrumb">
-        <ol className="flex items-center gap-1.5 text-[13px] font-medium truncate" style={{ fontFamily: 'var(--font-b)' }}>
+        <ol className="flex items-center gap-1.5 text-[12px] font-medium truncate" style={{ fontFamily: 'var(--font-b)' }}>
           {breadcrumb.parent != null ? (
             <>
               <li>
@@ -104,7 +104,7 @@ export function Header() {
       <div className="flex-1 max-w-[540px] min-w-0 flex justify-center">
         <form onSubmit={handleSearchSubmit} className="relative w-full max-w-[380px] group">
           <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
             style={{ color: 'var(--text-3)' }}
             strokeWidth={2}
             strokeLinecap="round"
@@ -115,12 +115,12 @@ export function Header() {
             value={searchValue}
             onChange={(e) => handleSearchInput(e.target.value)}
             placeholder="Search products, SKU, or barcode…"
-            className="w-full h-11 pl-10 pr-14 rounded-[10px] border outline-none transition-[duration-150] focus:border-[var(--blue)] focus:shadow-[0_0_0_3px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
+            className="w-full h-9 pl-9 pr-12 rounded-lg border outline-none transition-[duration-150] focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
             style={{
               background: 'var(--elevated)',
               borderColor: 'var(--border)',
               color: 'var(--text)',
-              fontSize: '13px',
+              fontSize: '12px',
               fontFamily: 'var(--font-b)',
             }}
             onMouseEnter={(e) => {
@@ -144,7 +144,7 @@ export function Header() {
       <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
         {/* Status pill */}
         <span
-          className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[11px] font-bold uppercase shrink-0"
+          className="flex items-center gap-1.5 h-7 px-2 rounded-md border text-[10px] font-bold uppercase shrink-0"
           style={{
             fontFamily: 'var(--font-d)',
             ...(isDegraded
@@ -158,7 +158,7 @@ export function Header() {
 
         <button
           type="button"
-          className="relative w-11 h-11 rounded-[9px] border flex items-center justify-center transition-colors min-w-[44px] min-h-[44px] shrink-0"
+          className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors min-w-[36px] min-h-[36px] shrink-0"
           style={{
             background: 'var(--elevated)',
             borderColor: 'var(--border)',
@@ -168,7 +168,7 @@ export function Header() {
           title="Notifications"
           disabled
         >
-          <Bell className="w-[18px] h-[18px]" strokeWidth={2} />
+          <Bell className="w-4 h-4" strokeWidth={2} />
           <span
             className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--surface)]"
             style={{ background: 'var(--red-status)' }}
@@ -178,7 +178,7 @@ export function Header() {
 
         <Link
           to="/pos"
-          className="flex items-center justify-center gap-1.5 h-11 px-4 rounded-[10px] text-white text-[13px] font-semibold transition-all duration-200 hover:-translate-y-px min-h-[44px] shrink-0"
+          className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg text-white text-[12px] font-semibold transition-all duration-200 hover:-translate-y-px min-h-[36px] shrink-0"
           style={{
             background: 'var(--blue)',
             boxShadow: '0 2px 8px var(--blue-glow)',
@@ -190,7 +190,7 @@ export function Header() {
             e.currentTarget.style.background = 'var(--blue)';
           }}
         >
-          <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
+          <ShoppingCart className="w-4 h-4" strokeWidth={2} />
           <span className="hidden sm:inline">New Sale</span>
         </Link>
 
@@ -198,18 +198,18 @@ export function Header() {
           type="button"
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="flex items-center justify-center gap-1.5 h-11 px-3 rounded-[10px] border transition-colors min-h-[44px] shrink-0"
+          className="flex items-center justify-center gap-1.5 h-9 px-2.5 rounded-lg border transition-colors min-h-[36px] shrink-0"
           style={{
             background: 'var(--elevated)',
             borderColor: 'var(--border)',
             color: 'var(--text-2)',
             fontFamily: 'var(--font-b)',
-            fontSize: '12px',
+            fontSize: '11px',
           }}
           title="Log out"
           aria-label="Log out"
         >
-          <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
+          <LogOut className="w-4 h-4" strokeWidth={2} />
           <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
         </button>
       </div>

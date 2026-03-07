@@ -42,18 +42,18 @@ export function BottomNav() {
   return (
     <nav
       className="lg:hidden fixed bottom-0 left-0 right-0 z-[200]"
-      style={{ paddingBottom: 'max(10px, var(--safe-bottom))' }}
+      style={{ paddingBottom: 'max(8px, var(--safe-bottom))' }}
       aria-label="Main navigation"
     >
       <div
-        className="mx-3 mb-2 rounded-[20px] border grid gap-0"
+        className="mx-2.5 mb-1.5 rounded-2xl border grid gap-0"
         style={{
           background: 'rgba(255,255,255,0.92)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           borderColor: 'var(--border)',
           boxShadow: 'var(--shadow-lg)',
-          padding: '8px 6px',
+          padding: '6px 5px',
           gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)`,
           alignItems: 'end',
         }}
@@ -67,27 +67,27 @@ export function BottomNav() {
             return (
               <div
                 key={tab.to}
-                className="flex flex-col items-center gap-1"
-                style={{ marginTop: '-22px' }}
+                className="flex flex-col items-center gap-0.5"
+                style={{ marginTop: '-18px' }}
               >
                 <NavLink
                   to={tab.to}
-                  className="flex items-center justify-center rounded-[18px] transition-all duration-200 hover:scale-105 active:scale-105 min-w-[56px] min-h-[56px] w-14 h-14"
+                  className="flex items-center justify-center rounded-2xl transition-all duration-200 hover:scale-105 active:scale-105 min-w-[48px] min-h-[48px] w-12 h-12"
                   style={{
                     background: 'var(--blue)',
-                    border: '3px solid var(--bg)',
-                    boxShadow: '0 6px 20px var(--blue-glow), 0 2px 8px rgba(0,0,0,0.1)',
+                    border: '2px solid var(--bg)',
+                    boxShadow: '0 4px 14px var(--blue-glow), 0 2px 6px rgba(0,0,0,0.08)',
                   }}
                   aria-label="POS"
                 >
                   <ShoppingCart
-                    className="w-6 h-6 text-white flex-shrink-0"
+                    className="w-5 h-5 text-white flex-shrink-0"
                     strokeWidth={2.5}
                     aria-hidden
                   />
                 </NavLink>
                 <span
-                  className="text-[10px] font-semibold"
+                  className="text-[9px] font-semibold"
                   style={{ fontFamily: 'var(--font-b)', color: 'var(--blue)' }}
                 >
                   POS
@@ -100,22 +100,22 @@ export function BottomNav() {
             <NavLink
               key={tab.to}
               to={tab.to}
-              className="flex flex-col items-center gap-1 py-1.5 px-0 rounded-xl transition-all duration-200 min-h-[44px] min-w-[44px] justify-end"
-              style={{ paddingTop: 6, paddingBottom: 6 }}
+              className="flex flex-col items-center gap-0.5 py-1 px-0 rounded-lg transition-all duration-200 min-h-[44px] min-w-[44px] justify-end"
+              style={{ paddingTop: 4, paddingBottom: 4 }}
             >
               <span
-                className="flex items-center justify-center rounded-[12px] w-10 h-10 flex-shrink-0 transition-colors"
+                className="flex items-center justify-center rounded-lg w-9 h-9 flex-shrink-0 transition-colors"
                 style={{ background: isActive ? 'var(--blue-soft)' : 'transparent' }}
               >
                 <Icon
-                  className="w-5 h-5 flex-shrink-0"
+                  className="w-4 h-4 flex-shrink-0"
                   strokeWidth={2}
                   aria-hidden
                   style={{ color: isActive ? 'var(--blue)' : 'var(--text-3)' }}
                 />
               </span>
               <span
-                className="text-[10px] font-medium"
+                className="text-[9px] font-medium"
                 style={{
                   fontFamily: 'var(--font-b)',
                   color: isActive ? 'var(--blue)' : 'var(--text-3)',

@@ -174,32 +174,32 @@ function StatCard({
 
   return (
     <div
-      className="flex flex-col justify-between p-6 rounded-[14px] border transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5"
+      className="flex flex-col justify-between p-3 rounded-xl border transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5"
       style={{
         background: isPrimary ? 'var(--blue)' : 'var(--surface)',
         borderColor: isPrimary ? 'var(--blue)' : 'var(--border)',
         boxShadow: 'var(--shadow-sm)',
       }}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-1.5">
         <span
-          className="text-[13px] font-semibold"
+          className="text-[10px] font-semibold uppercase tracking-wider"
           style={{ color: isPrimary ? 'rgba(255,255,255,0.9)' : 'var(--text-2)' }}
         >
           {label}
         </span>
         <span
-          className="w-10 h-10 rounded-[10px] flex items-center justify-center flex-shrink-0"
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{ background: iconWrapBg }}
         >
-          <Icon size={22} style={{ color: iconColor }} aria-hidden />
+          <Icon size={18} style={{ color: iconColor }} aria-hidden />
         </span>
       </div>
       <p
         className="tabular-nums leading-none min-w-0 truncate"
         style={{
           fontFamily: 'var(--font-m)',
-          fontSize: '24px',
+          fontSize: '20px',
           fontWeight: 600,
           color: valColor,
         }}
@@ -216,9 +216,9 @@ function StatCard({
 function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="flex items-center gap-3 py-6 px-4" style={{ color: 'var(--green)' }}>
-        <CheckCircle className="w-6 h-6 flex-shrink-0" aria-hidden />
-        <span className="text-[14px] font-semibold">All products are sufficiently stocked</span>
+      <div className="flex items-center gap-2 py-4 px-3" style={{ color: 'var(--green)' }}>
+        <CheckCircle className="w-5 h-5 flex-shrink-0" aria-hidden />
+        <span className="text-[13px] font-semibold">All products are sufficiently stocked</span>
       </div>
     );
   }
@@ -230,11 +230,11 @@ function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
         return (
           <div
             key={p.id}
-            className="flex items-center justify-between py-3.5 px-4 transition-colors hover:bg-[var(--elevated)]"
+            className="flex items-center justify-between py-2.5 px-3 transition-colors hover:bg-[var(--elevated)]"
           >
             <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-bold truncate" style={{ color: 'var(--text)' }}>{p.name}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--text-3)' }}>{p.category || 'Uncategorised'}</p>
+              <p className="text-[13px] font-bold truncate" style={{ color: 'var(--text)' }}>{p.name}</p>
+              <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--text-3)' }}>{p.category || 'Uncategorised'}</p>
             </div>
             <div className="flex items-center gap-3 ml-4">
               <div
@@ -366,44 +366,44 @@ export default function DashboardPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--bg)' }}>
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="min-h-screen p-3 sm:p-4" style={{ background: 'var(--bg)' }}>
+      <div className="max-w-5xl mx-auto space-y-4">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-[24px] font-black tracking-tight" style={{ color: 'var(--text)' }}>
+            <div className="flex items-center gap-2 mb-0.5">
+              <h1 className="text-[18px] font-bold tracking-tight" style={{ color: 'var(--text)' }}>
                 Admin Control Panel
               </h1>
               <span
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider"
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
                 style={{ background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid rgba(22,163,74,0.2)' }}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]"/>
                 Super Admin
               </span>
             </div>
-            <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
+            <p className="text-[12px]" style={{ color: 'var(--text-2)' }}>
               Full system access — inventory, POS, reports, users &amp; settings.
             </p>
           </div>
 
           <a
             href="/pos"
-            className="flex items-center gap-2 h-10 px-5 rounded-xl text-white text-[14px] font-bold transition-all hover:-translate-y-px"
+            className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-white text-[13px] font-bold transition-all hover:-translate-y-px"
             style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
           >
-            <ShoppingCart className="w-5 h-5" aria-hidden />
+            <ShoppingCart className="w-4 h-4" aria-hidden />
             New sale
           </a>
         </div>
 
         {/* ── Warehouse label + Recalculate ── */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[var(--green)]"/>
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]"/>
+            <p className="text-[12px] font-semibold" style={{ color: 'var(--text-2)' }}>
               Inventory stats for:{' '}
               <span className="font-black" style={{ color: 'var(--text)' }}>{warehouseName}</span>
             </p>
@@ -418,31 +418,31 @@ export default function DashboardPage() {
             type="button"
             onClick={() => loadData(warehouseId, { refresh: true })}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors disabled:opacity-50"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-2)' }}
             title="Recalculate totals from database (bypasses cache)"
           >
-            <RefreshCw className="w-3.5 h-3.5" aria-hidden />
+            <RefreshCw className="w-3 h-3" aria-hidden />
             Recalculate stats
           </button>
         </div>
 
         {/* ── Today's sales by location ── */}
         <div
-          className="rounded-[14px] border p-5 shadow-[var(--shadow-sm)]"
+          className="rounded-xl border p-4 shadow-[var(--shadow-sm)]"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <h2 className="text-[12px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
+          <h2 className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-3)' }}>
             Today&apos;s sales by location
           </h2>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-3">
             {WAREHOUSE_IDS_FOR_SUMMARY.map((wid) => (
               <div key={wid} className="flex items-center gap-2">
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--text-2)' }}>
                   {locationNameForId(wid)}
                 </span>
                 <span
-                  className="text-[15px] font-black tabular-nums"
+                  className="text-[14px] font-semibold tabular-nums"
                   style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}
                 >
                   {todayByWarehouse == null
@@ -457,13 +457,13 @@ export default function DashboardPage() {
         {/* ── Error ── */}
         {error && !loading && (
           <div
-            className="flex items-center gap-3 p-4 rounded-[14px] border"
+            className="flex items-center gap-2 p-3 rounded-xl border"
             style={{ background: 'var(--red-dim)', borderColor: 'rgba(220,38,38,0.2)' }}
           >
-            <AlertTriangle className="w-6 h-6 flex-shrink-0" style={{ color: 'var(--red-status)' }} aria-hidden />
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--red-status)' }} aria-hidden />
             <div>
-              <p className="text-[14px] font-bold" style={{ color: 'var(--red-status)' }}>Failed to load data</p>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--red-status)' }}>{error}</p>
+              <p className="text-[13px] font-bold" style={{ color: 'var(--red-status)' }}>Failed to load data</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--red-status)' }}>{error}</p>
             </div>
             <button
               onClick={() => loadData(warehouseId)}
@@ -476,7 +476,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
             label="Total Stock Value"
             value={loading || !stats ? '—' : formatGHCCompact(stats.totalStockValue)}
@@ -504,22 +504,22 @@ export default function DashboardPage() {
 
         {/* ── Low stock alerts ── */}
         <div
-          className="rounded-[14px] border overflow-hidden shadow-[var(--shadow-sm)]"
+          className="rounded-xl border overflow-hidden shadow-[var(--shadow-sm)]"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           <div
-            className="flex items-center justify-between px-5 py-4 border-b"
+            className="flex items-center justify-between px-4 py-3 border-b"
             style={{ borderColor: 'var(--border)' }}
           >
             <div>
-              <h2 className="text-[15px] font-black" style={{ color: 'var(--text)' }}>Stock Alerts</h2>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>
+              <h2 className="text-[14px] font-bold" style={{ color: 'var(--text)' }}>Stock Alerts</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>
                 {warehouseName} — products at or below reorder level
               </p>
             </div>
             {stats && stats.outOfStockCount > 0 && (
               <span
-                className="px-3 py-1 rounded-full text-[12px] font-bold border"
+                className="px-2.5 py-0.5 rounded-full text-[11px] font-bold border"
                 style={{ background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }}
               >
                 {stats.outOfStockCount} out of stock
@@ -527,9 +527,9 @@ export default function DashboardPage() {
             )}
           </div>
           {loading ? (
-            <div className="p-6 space-y-3">
+            <div className="p-4 space-y-2">
               {[1,2,3].map(i => (
-                <div key={i} className="h-10 rounded-xl animate-pulse" style={{ background: 'var(--overlay)' }}/>
+                <div key={i} className="h-8 rounded-lg animate-pulse" style={{ background: 'var(--overlay)' }}/>
               ))}
             </div>
           ) : (
@@ -540,25 +540,25 @@ export default function DashboardPage() {
         {/* ── Category breakdown ── */}
         {!loading && dashboard && Object.keys(dashboard.categorySummary).length > 0 && (
           <div
-            className="rounded-[14px] border overflow-hidden shadow-[var(--shadow-sm)]"
+            className="rounded-xl border overflow-hidden shadow-[var(--shadow-sm)]"
             style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
-            <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-              <h2 className="text-[15px] font-black" style={{ color: 'var(--text)' }}>By Category</h2>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>{warehouseName}</p>
+            <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h2 className="text-[14px] font-bold" style={{ color: 'var(--text)' }}>By Category</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>{warehouseName}</p>
             </div>
-            <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(dashboard.categorySummary)
                 .sort((a, b) => b[1].value - a[1].value)
                 .map(([cat, { count, value }]) => (
                   <div
                     key={cat}
-                    className="flex flex-col gap-1 p-3.5 rounded-xl border"
+                    className="flex flex-col gap-0.5 p-3 rounded-lg border"
                     style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}
                   >
-                    <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>{cat}</span>
-                    <span className="text-[18px] font-black" style={{ color: 'var(--text)' }}>{count} SKUs</span>
-                    <span className="text-[11px] font-medium" style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}>{formatGHC(value)}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>{cat}</span>
+                    <span className="text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{count} SKUs</span>
+                    <span className="text-[10px] font-medium" style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}>{formatGHC(value)}</span>
                   </div>
                 ))}
             </div>

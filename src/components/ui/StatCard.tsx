@@ -54,32 +54,32 @@ export function StatCard({
       style={{
         background: variant === 'primary' ? `linear-gradient(135deg, var(--surface) 0%, var(--blue-dim) 100%)` : style.bg,
         borderColor: 'var(--border)',
-        boxShadow: variant === 'primary' ? '0 4px 14px var(--blue-glow)' : undefined,
+        boxShadow: variant === 'primary' ? '0 2px 10px var(--blue-glow)' : undefined,
       }}
     >
-      <div className="p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-2">
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-1.5">
           <p
-            className="text-sm font-medium tracking-wide uppercase"
+            className="text-[10px] font-medium tracking-wide uppercase"
             style={{ color: 'var(--text-3)', fontFamily: 'var(--font-b)' }}
           >
             {label}
           </p>
           {Icon && (
             <span style={{ color: style.accent }}>
-              <Icon className="w-5 h-5" strokeWidth={2} aria-hidden />
+              <Icon className="w-4 h-4" strokeWidth={2} aria-hidden />
             </span>
           )}
         </div>
         {loading ? (
           <div
-            className="mt-2 h-8 w-24 rounded skeleton-shimmer"
-            style={{ minHeight: 32 }}
+            className="mt-1.5 h-6 w-20 rounded skeleton-shimmer"
+            style={{ minHeight: 24 }}
             aria-hidden
           />
         ) : (
           <p
-            className="mt-2 text-2xl font-semibold tabular-nums sm:text-3xl"
+            className="mt-1 text-xl font-semibold tabular-nums sm:text-2xl"
             style={{ color: style.valueColor, fontFamily: 'var(--font-m)' }}
           >
             {value}
