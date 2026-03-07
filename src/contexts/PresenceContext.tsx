@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getSupabaseClient } from '../lib/supabase';
+import { getSupabaseClientAsync } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const CHANNEL_NAME = 'warehouse-pos-presence';
@@ -152,42 +152,46 @@ export function PresenceProvider({
       return;
     }
 
-    const supabase = getSupabaseClient();
-    if (!supabase) return;
+    let cancelled = false;
+    getSupabaseClientAsync().then((supabase) => {
+      if (cancelled || !supabase) return;
 
-    const ch = supabase.channel(CHANNEL_NAME, {
-      config: { presence: { key: currentUserEmail.trim().toLowerCase() } },
+      const ch = supabase.channel(CHANNEL_NAME, {
+        config: { presence: { key: currentUserEmail.trim().toLowerCase() } },
+      });
+      channelRef.current = ch;
+
+      ch.on('presence', { event: 'sync' }, () => {
+        setPresenceState(ch.presenceState() as Record<string, PresencePayload[]>);
+      })
+        .on('presence', { event: 'join' }, () => {
+          setPresenceState(ch.presenceState() as Record<string, PresencePayload[]>);
+        })
+        .on('presence', { event: 'leave' }, () => {
+          setPresenceState(ch.presenceState() as Record<string, PresencePayload[]>);
+        })
+        .on('broadcast', { event: 'low_stock_alert' }, (msg: unknown) => {
+          const payload = (msg as { payload?: LowStockAlertPayload })?.payload;
+          if (!payload || typeof payload !== 'object') return;
+          const sender = (payload as LowStockAlertPayload).senderEmail?.trim().toLowerCase();
+          if (sender && sender === selfEmailRef.current) return;
+          const id = `alert-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+          setReceivedLowStockAlerts((prev) => [...prev.slice(-4), { ...(payload as LowStockAlertPayload), id, at: Date.now() }]);
+        })
+        .subscribe((status: string) => {
+          setIsSubscribed(status === 'SUBSCRIBED');
+          if (status === 'SUBSCRIBED') ch.track(payloadRef.current);
+        });
     });
 
-    ch.on('presence', { event: 'sync' }, () => {
-      setPresenceState(ch.presenceState() as Record<string, PresencePayload[]>);
-    })
-      .on('presence', { event: 'join' }, () => {
-        setPresenceState(ch.presenceState() as Record<string, PresencePayload[]>);
-      })
-      .on('presence', { event: 'leave' }, () => {
-        setPresenceState(ch.presenceState() as Record<string, PresencePayload[]>);
-      })
-      .on('broadcast', { event: 'low_stock_alert' }, (msg: unknown) => {
-        const payload = (msg as { payload?: LowStockAlertPayload })?.payload;
-        if (!payload || typeof payload !== 'object') return;
-        const sender = (payload as LowStockAlertPayload).senderEmail?.trim().toLowerCase();
-        if (sender && sender === selfEmailRef.current) return;
-        const id = `alert-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        setReceivedLowStockAlerts((prev) => [...prev.slice(-4), { ...(payload as LowStockAlertPayload), id, at: Date.now() }]);
-      })
-      .subscribe((status: string) => {
-        setIsSubscribed(status === 'SUBSCRIBED');
-        if (status === 'SUBSCRIBED') {
-          channelRef.current = ch;
-          ch.track(payloadRef.current);
-        }
-      });
-
     return () => {
-      ch.untrack();
-      ch.unsubscribe();
-      channelRef.current = null;
+      cancelled = true;
+      const ch = channelRef.current;
+      if (ch) {
+        ch.untrack();
+        ch.unsubscribe();
+        channelRef.current = null;
+      }
       setPresenceState({});
       setIsSubscribed(false);
       setReceivedLowStockAlerts([]);

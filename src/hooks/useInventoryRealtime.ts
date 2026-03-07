@@ -8,7 +8,8 @@
 
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getSupabaseClient } from '../lib/supabase';
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import { getSupabaseClientAsync } from '../lib/supabase';
 import { queryKeys } from '../lib/queryKeys';
 import { isValidWarehouseId } from '../lib/warehouseId';
 import { useRealtimeContext } from '../contexts/RealtimeContext';
@@ -19,6 +20,7 @@ export function useInventoryRealtime(warehouseId: string | null | undefined): vo
   const realtimeContext = useRealtimeContext();
   const setStatusRef = useRef(realtimeContext?.setStatus);
   setStatusRef.current = realtimeContext?.setStatus;
+  const channelRef = useRef<{ supabase: SupabaseClient; channel: RealtimeChannel } | null>(null);
 
   useEffect(() => {
     const setStatus = (s: RealtimeStatus) => setStatusRef.current?.(s);
@@ -28,21 +30,23 @@ export function useInventoryRealtime(warehouseId: string | null | undefined): vo
       return;
     }
 
-    const supabase = getSupabaseClient();
-    if (!supabase) {
-      if (typeof console !== 'undefined' && !(window as unknown as { __realtimeConfigWarned?: boolean }).__realtimeConfigWarned) {
-        (window as unknown as { __realtimeConfigWarned?: boolean }).__realtimeConfigWarned = true;
-        console.warn(
-          '[Realtime] Not configured: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY at build time (e.g. in Vercel env) and redeploy. See docs/REALTIME_OFFLINE.md.'
-        );
-      }
-      setStatus('disconnected');
-      return;
-    }
-
     setStatus('connecting');
 
-    const channel = supabase
+    let cancelled = false;
+    getSupabaseClientAsync().then((supabase) => {
+      if (cancelled) return;
+      if (!supabase) {
+        if (typeof console !== 'undefined' && !(window as unknown as { __realtimeConfigWarned?: boolean }).__realtimeConfigWarned) {
+          (window as unknown as { __realtimeConfigWarned?: boolean }).__realtimeConfigWarned = true;
+          console.warn(
+            '[Realtime] Not configured: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY at build time (e.g. in Vercel env) and redeploy. See docs/REALTIME_OFFLINE.md.'
+          );
+        }
+        setStatus('disconnected');
+        return;
+      }
+
+      const channel = supabase
       .channel('warehouse-inventory-' + warehouseId)
       .on(
         'postgres_changes',
@@ -124,8 +128,16 @@ export function useInventoryRealtime(warehouseId: string | null | undefined): vo
         if (subscriptionStatus === 'TIMED_OUT') setStatus('connecting');
       });
 
+      channelRef.current = { supabase, channel };
+    });
+
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      const ref = channelRef.current;
+      if (ref) {
+        ref.supabase.removeChannel(ref.channel);
+        channelRef.current = null;
+      }
       setStatus('disconnected');
     };
   }, [warehouseId, queryClient]);
