@@ -168,7 +168,8 @@ export function PresenceProvider({
       .on('presence', { event: 'leave' }, () => {
         setPresenceState(ch.presenceState() as Record<string, PresencePayload[]>);
       })
-      .on('broadcast', { event: 'low_stock_alert' }, ({ payload }: { payload: LowStockAlertPayload }) => {
+      .on('broadcast', { event: 'low_stock_alert' }, (msg: unknown) => {
+        const payload = (msg as { payload?: LowStockAlertPayload })?.payload;
         if (!payload || typeof payload !== 'object') return;
         const sender = (payload as LowStockAlertPayload).senderEmail?.trim().toLowerCase();
         if (sender && sender === selfEmailRef.current) return;
