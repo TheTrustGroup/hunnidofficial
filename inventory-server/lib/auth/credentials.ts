@@ -3,7 +3,7 @@
  * Used by POST /api/auth/login and POST /admin/api/login.
  *
  * POS logins:
- * - If ALLOWED_POS_EMAILS is set: any email in that list (and not admin) validates with POS_PASSWORD.
+ * - When ALLOWED_POS_EMAILS is set, the login route may validate via Supabase Auth first (each cashier's own password). If anon key not set, env POS_PASSWORD is used for those emails.
  * - Else: only hardcoded EDK emails (cashier@…, maintown_cashier@…) with POS_PASSWORD_CASHIER_MAIN_STORE / POS_PASSWORD_MAIN_TOWN.
  */
 
@@ -30,7 +30,7 @@ function getAdminEmails(): Set<string> {
   return new Set(list);
 }
 
-function getAllowedPosEmails(): Set<string> | null {
+export function getAllowedPosEmails(): Set<string> | null {
   const raw = process.env[ALLOWED_POS_EMAILS_ENV]?.trim();
   if (!raw) return null;
   const list = raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -64,8 +64,8 @@ export function validateCredentials(email: string, password: string): ValidatedU
   const allowedPos = getAllowedPosEmails();
   if (allowedPos?.has(trimmedEmail)) {
     const expected = process.env[POS_PASSWORD_ENV]?.trim();
-    if (!expected || expected !== trimmedPassword) throw new Error('Invalid email or password');
-    return { email: trimmedEmail, role: 'cashier' };
+    if (expected && expected === trimmedPassword) return { email: trimmedEmail, role: 'cashier' };
+    throw new Error('Invalid email or password');
   }
 
   if (!allowedPos) {

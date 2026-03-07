@@ -34,15 +34,18 @@ If you don’t set this, **`info@extremedeptkidz.com`** is still treated as admi
 
 **Option A — Hunnid / custom stores (recommended when using your own cashier emails):**
 
-Set a comma-separated list of POS cashier emails and one shared password. Each email must have a row in `user_scopes` with one warehouse so the app can bind the session to that store.
+Set a comma-separated list of POS cashier emails. Each email must have a row in `user_scopes` with one warehouse so the app can bind the session to that store.
+
+**Per-user passwords (recommended):** Create each cashier in Supabase Auth with their own password. Set the anon key so the server validates against Supabase:
 
 ```env
 ALLOWED_POS_EMAILS=hcashier@hunnidofficial.com,jcashier@hunnidofficial.com
-POS_PASSWORD=YourSharedPosPassword
+SUPABASE_ANON_KEY=your_supabase_anon_key
+# or NEXT_PUBLIC_SUPABASE_ANON_KEY
 ```
 
-- Any email in `ALLOWED_POS_EMAILS` (and not in `ALLOWED_ADMIN_EMAILS`) can log in with `POS_PASSWORD` and gets role `cashier`.
-- Warehouse is resolved from the `user_scopes` table (one warehouse per cashier = auto-bound to that store).
+- The login API calls Supabase `signInWithPassword` for emails in `ALLOWED_POS_EMAILS`. Each cashier uses the password you set for them in Supabase Auth.
+- **Fallback:** If you do not set `SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`, set `POS_PASSWORD` and all listed POS emails will use that single shared password.
 
 **Option B — EDK default (when ALLOWED_POS_EMAILS is not set):**
 
@@ -71,7 +74,8 @@ In the project’s environment variables, add:
 | `SESSION_SECRET`                 | Output of `openssl rand -hex 24`           | Required in production                                  |
 | `ALLOWED_ADMIN_EMAILS`           | Your admin email(s), comma-separated       | Required for admin role                                  |
 | `ALLOWED_POS_EMAILS`             | POS cashier emails, comma-separated        | For Hunnid/custom stores (e.g. hcashier@…, jcashier@…)   |
-| `POS_PASSWORD`                   | Shared password for ALLOWED_POS_EMAILS     | Required when using ALLOWED_POS_EMAILS                   |
+| `SUPABASE_ANON_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key | When set, POS logins use each cashier’s Supabase Auth password |
+| `POS_PASSWORD`                   | Shared password for ALLOWED_POS_EMAILS     | Fallback when anon key is not set                        |
 | `POS_PASSWORD_CASHIER_MAIN_STORE`| Password for cashier@… (Main Store/DC)     | EDK default when ALLOWED_POS_EMAILS not set             |
 | `POS_PASSWORD_MAIN_TOWN`        | Password for maintown_cashier@… (Main Town) | EDK default when ALLOWED_POS_EMAILS not set              |
 
