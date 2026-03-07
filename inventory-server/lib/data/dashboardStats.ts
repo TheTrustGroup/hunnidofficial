@@ -205,7 +205,6 @@ async function computeLowStockItemsFresh(
 ): Promise<DashboardLowStockItem[]> {
   const productsResult = await getWarehouseProducts(warehouseId, {
     limit: DASHBOARD_PRODUCTS_LIMIT,
-    signal: signal ?? undefined,
   });
   const products = productsResult.data;
   const lowStockCandidates: ProductRecord[] = [];
@@ -237,7 +236,7 @@ async function computeDashboardStatsUncached(
 ): Promise<DashboardStatsResult> {
   const [viewStats, productsResult, todaySales] = await Promise.all([
     getWarehouseStatsFromView(warehouseId),
-    getWarehouseProducts(warehouseId, { limit: DASHBOARD_PRODUCTS_LIMIT, signal: signal ?? undefined }),
+    getWarehouseProducts(warehouseId, { limit: DASHBOARD_PRODUCTS_LIMIT }),
     getTodaySalesTotal(warehouseId, date),
   ]);
   const products = productsResult.data;
