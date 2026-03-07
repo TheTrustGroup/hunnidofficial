@@ -59,20 +59,23 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 w-[var(--sidebar-w)] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20 border-r border-[var(--border)] shadow-[var(--shadow-sm)]"
+      className="fixed left-0 top-0 w-[var(--sidebar-w)] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20 border-r border-[var(--border)] shadow-[var(--shadow-sm)] overflow-visible"
       style={{ background: 'var(--surface)' }}
     >
-      {/* Logo: blue H mark + wordmark */}
-      <div className="flex items-center gap-[11px] px-4 pt-[17px] pb-[15px] border-b border-[var(--border)] flex-shrink-0 bg-[var(--surface)]">
+      {/* Logo: blue H mark + wordmark — always visible, never clipped */}
+      <div
+        className="flex items-center gap-3 px-4 pt-[max(17px,var(--safe-top))] pb-4 border-b border-[var(--border)] flex-shrink-0 bg-[var(--surface)] min-h-[4.5rem]"
+        style={{ overflow: 'visible' }}
+      >
         <div
           className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0"
           style={{ background: 'var(--blue)' }}
         >
           <LogoMark />
         </div>
-        <div className="flex flex-col leading-none gap-0.5 min-w-0">
+        <div className="flex flex-col leading-none gap-0.5 min-w-0 flex-1 overflow-hidden">
           <span
-            className="font-extrabold uppercase truncate"
+            className="font-extrabold uppercase truncate block"
             style={{
               fontFamily: 'var(--font-d)',
               fontSize: '14px',
@@ -83,7 +86,7 @@ export function Sidebar() {
             Hunnid
           </span>
           <span
-            className="font-normal uppercase truncate"
+            className="font-normal uppercase truncate block"
             style={{
               fontFamily: 'var(--font-b)',
               fontSize: '10px',
