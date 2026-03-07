@@ -55,7 +55,7 @@ export function Button({
     >
       {loading && (
         <span
-          className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0"
+          className="loading-spinner-ring loading-spinner-ring-sm shrink-0"
           aria-hidden
         />
       )}

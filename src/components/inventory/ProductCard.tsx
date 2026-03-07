@@ -471,9 +471,6 @@ function ProductCardInner({
         </div>
       )}
 
-      <style>{`
-        @keyframes card-spin { to { transform: rotate(360deg); } }
-      `}</style>
     </article>
   );
 }

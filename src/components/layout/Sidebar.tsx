@@ -62,9 +62,9 @@ export function Sidebar() {
       className="fixed left-0 top-0 w-[var(--sidebar-w)] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20 border-r border-[var(--border)] shadow-[var(--shadow-sm)] overflow-visible"
       style={{ background: 'var(--surface)' }}
     >
-      {/* Logo: blue H mark + wordmark — always visible, never clipped */}
+      {/* Logo: blue H mark + wordmark — clear of browser chrome (tabs/url bar) */}
       <div
-        className="flex items-center gap-3 px-4 pt-[max(17px,var(--safe-top))] pb-4 border-b border-[var(--border)] flex-shrink-0 bg-[var(--surface)] min-h-[4.5rem]"
+        className="flex items-center gap-3 px-4 pt-[max(3.25rem,calc(var(--safe-top)+1.25rem))] pb-4 border-b border-[var(--border)] flex-shrink-0 bg-[var(--surface)] min-h-[5rem]"
         style={{ overflow: 'visible' }}
       >
         <div

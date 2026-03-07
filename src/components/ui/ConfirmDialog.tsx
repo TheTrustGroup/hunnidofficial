@@ -80,7 +80,7 @@ export function ConfirmDialog({
           >
             {isConfirming ? (
               <>
-                <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" aria-hidden />
+                <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
                 Confirming…
               </>
             ) : (

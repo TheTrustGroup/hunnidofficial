@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   FileJson,
   Database,
-  Loader2,
   Archive,
   Upload,
 } from 'lucide-react';
@@ -240,7 +239,7 @@ export function AdminDashboard() {
   if (loading && !queueStatus) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+        <span className="loading-spinner-ring loading-spinner-ring-md" aria-hidden />
       </div>
     );
   }
@@ -310,7 +309,7 @@ export function AdminDashboard() {
             className="flex items-center gap-2"
           >
             {syncing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
             ) : (
               <RefreshCw className="w-4 h-4" />
             )}

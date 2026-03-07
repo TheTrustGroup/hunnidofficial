@@ -108,7 +108,7 @@ export function SyncQueueModal({ isOpen, onClose }: SyncQueueModalProps) {
             disabled={retryingAll || list.length === 0}
             className="inline-flex items-center gap-2"
           >
-            <RefreshCw className={`w-4 h-4 ${retryingAll ? 'animate-spin' : ''}`} />
+            {retryingAll ? <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden /> : <RefreshCw className="w-4 h-4" />}
             Retry all
           </Button>
           {isAdmin && failedCount > 0 && (
@@ -165,7 +165,7 @@ export function SyncQueueModal({ isOpen, onClose }: SyncQueueModalProps) {
                             className="p-2 min-h-0"
                             title="Retry this item"
                           >
-                            <RefreshCw className={`w-4 h-4 ${retryingId === item.id ? 'animate-spin' : ''}`} />
+                            {retryingId === item.id ? <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden /> : <RefreshCw className="w-4 h-4" />}
                           </Button>
                         )}
                         <button

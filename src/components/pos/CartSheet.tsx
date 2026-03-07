@@ -350,7 +350,6 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
           </div>
         )}
       </div>
-      <style>{`@keyframes cart-spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }

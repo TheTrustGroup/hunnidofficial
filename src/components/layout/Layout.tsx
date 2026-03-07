@@ -107,7 +107,7 @@ function LayoutContent() {
           role="status"
           aria-live="polite"
         >
-          <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" aria-hidden />
+          <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0 inline-block" aria-hidden />
           Syncing inventory & orders…
         </div>
       )}

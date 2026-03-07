@@ -154,7 +154,7 @@ function ProtectedRoutes() {
     return (
       <div className="min-h-[var(--min-h-viewport)] flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <span className="loading-spinner-ring loading-spinner-ring-lg block mx-auto mb-4" aria-hidden />
           <p className="text-slate-600">Loading...</p>
         </div>
       </div>
@@ -175,7 +175,7 @@ function ProtectedRoutes() {
     return (
       <div className="min-h-[var(--min-h-viewport)] flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <span className="loading-spinner-ring loading-spinner-ring-lg block mx-auto mb-4" aria-hidden />
           <p className="text-slate-600">Loading...</p>
         </div>
       </div>
