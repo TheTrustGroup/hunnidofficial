@@ -56,6 +56,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const { searchParams } = new URL(request.url);
       const warehouseId = searchParams.get('warehouse_id') ?? undefined;
       const date = searchParams.get('date') ?? undefined;
+      const refresh = searchParams.get('refresh') === '1' || searchParams.get('refresh') === 'true';
 
       if (!warehouseId?.trim()) {
         return withCors(
@@ -77,6 +78,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const statsPromise = getDashboardStats(warehouseId.trim(), {
         date: date || undefined,
         signal: controller.signal,
+        refresh,
       }).finally(() => clearTimeout(timeoutId));
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('DASHBOARD_TIMEOUT')), DASHBOARD_STATS_TIMEOUT_MS);

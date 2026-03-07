@@ -332,14 +332,15 @@ async function computeDashboardStatsUncached(
  * Compute dashboard stats for a warehouse. Cached 30s for today only when Redis is configured.
  * Stock Alerts (lowStockItems) are always computed fresh so they reflect current inventory
  * even when serving from cache — avoids stale alerts after product edits.
+ * Pass refresh: true to bypass cache and recalculate from DB (e.g. after fixing inventory data).
  */
 export async function getDashboardStats(
   warehouseId: string,
-  options: { date?: string; signal?: AbortSignal | null } = {}
+  options: { date?: string; signal?: AbortSignal | null; refresh?: boolean } = {}
 ): Promise<DashboardStatsResult> {
   const date = options.date ?? new Date().toISOString().split('T')[0];
   const signal = options.signal ?? null;
-  const useCache = isToday(date);
+  const useCache = isToday(date) && !options.refresh;
 
   if (useCache) {
     const cached = await getCached(warehouseId);

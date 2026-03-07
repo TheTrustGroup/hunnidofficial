@@ -19,7 +19,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle } from 'lucide-react';
+import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle, RefreshCw } from 'lucide-react';
 import { useWarehouse, KNOWN_WAREHOUSE_NAMES } from '../contexts/WarehouseContext';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
 import { INVENTORY_UPDATED_EVENT } from '../lib/inventoryEvents';
@@ -281,8 +281,9 @@ export default function DashboardPage() {
   const [todayByWarehouse, setTodayByWarehouse] = useState<Record<string, number> | null>(null);
   const loadIdRef = useRef(0);
 
-  const loadData = useCallback(async (wid: string, options?: { silent?: boolean }) => {
+  const loadData = useCallback(async (wid: string, options?: { silent?: boolean; refresh?: boolean }) => {
     const silent = options?.silent === true;
+    const refresh = options?.refresh === true;
     const myId = ++loadIdRef.current;
 
     if (!silent) {
@@ -293,8 +294,9 @@ export default function DashboardPage() {
 
     try {
       const today = new Date().toISOString().split('T')[0];
+      const qs = `warehouse_id=${encodeURIComponent(wid)}&date=${today}${refresh ? '&refresh=1' : ''}`;
       const data = await apiFetch<DashboardData>(
-        `/api/dashboard?warehouse_id=${encodeURIComponent(wid)}&date=${today}`
+        `/api/dashboard?${qs}`
       );
       if (myId !== loadIdRef.current) return;
       setDashboard(data);
@@ -397,19 +399,32 @@ export default function DashboardPage() {
           </a>
         </div>
 
-        {/* ── Warehouse label ── */}
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[var(--green)]"/>
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
-            Inventory stats for:{' '}
-            <span className="font-black" style={{ color: 'var(--text)' }}>{warehouseName}</span>
-          </p>
-          {loading && (
-            <span className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-3)' }}>
-              <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
-              Loading…
-            </span>
-          )}
+        {/* ── Warehouse label + Recalculate ── */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--green)]"/>
+            <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
+              Inventory stats for:{' '}
+              <span className="font-black" style={{ color: 'var(--text)' }}>{warehouseName}</span>
+            </p>
+            {loading && (
+              <span className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-3)' }}>
+                <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
+                Loading…
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => loadData(warehouseId, { refresh: true })}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors disabled:opacity-50"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-2)' }}
+            title="Recalculate totals from database (bypasses cache)"
+          >
+            <RefreshCw className="w-3.5 h-3.5" aria-hidden />
+            Recalculate stats
+          </button>
         </div>
 
         {/* ── Today's sales by location ── */}
