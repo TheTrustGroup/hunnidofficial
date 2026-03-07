@@ -175,7 +175,7 @@ export function PresenceProvider({
         const id = `alert-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
         setReceivedLowStockAlerts((prev) => [...prev.slice(-4), { ...(payload as LowStockAlertPayload), id, at: Date.now() }]);
       })
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         setIsSubscribed(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED') {
           channelRef.current = ch;
