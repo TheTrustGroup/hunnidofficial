@@ -64,17 +64,17 @@ export function Header() {
       {/* Single topbar search: flex-1 max-w-[540px], placeholder per spec, ⌘K badge, blue focus ring */}
       <div className="flex-1 max-w-[540px] min-w-0">
         <form onSubmit={handleSearchSubmit} className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[14px] h-[14px] text-[#8892A0] pointer-events-none" strokeWidth={2} strokeLinecap="round" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#8892A0] pointer-events-none" strokeWidth={2} strokeLinecap="round" />
           <input
             type="search"
             inputMode="search"
             value={searchValue}
             onChange={(e) => handleSearchInput(e.target.value)}
             placeholder="Search products, SKU, or barcode…"
-            className="w-full h-9 pl-9 pr-14 rounded-lg bg-[#F4F6F9] border border-[rgba(0,0,0,0.11)] text-[13px] text-[#0D1117] placeholder:text-[#8892A0] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[rgba(92,172,250,0.35)] focus:shadow-[0_0_0_3px_rgba(92,172,250,0.10)]"
+            className="w-full h-11 pl-10 pr-14 rounded-[var(--radius-search)] bg-[#F4F6F9] border border-[rgba(0,0,0,0.11)] text-[13px] text-[#0D1117] placeholder:text-[#8892A0] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[rgba(92,172,250,0.35)] focus:shadow-[0_0_0_3px_rgba(92,172,250,0.10)]"
             aria-label="Search products, SKU, or barcode"
           />
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] text-[#8892A0] font-medium tracking-wide">⌘K</span>
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] text-[#8892A0] font-medium tracking-wide">⌘K</span>
         </form>
       </div>
 
@@ -82,23 +82,23 @@ export function Header() {
       <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
         <button
           type="button"
-          className="relative w-9 h-9 rounded-lg border border-[rgba(0,0,0,0.11)] bg-white flex items-center justify-center text-[#424958] hover:bg-[#F4F6F9] transition-colors min-w-[35px] min-h-[35px]"
+          className="relative w-11 h-11 rounded-[var(--radius-search)] border border-[rgba(0,0,0,0.11)] bg-white flex items-center justify-center text-[#424958] hover:bg-[#F4F6F9] transition-colors min-w-[44px] min-h-[44px]"
           aria-label="View notifications"
           title="Notifications"
           disabled
         >
-          <Bell className="w-[15px] h-[15px]" strokeWidth={2} />
+          <Bell className="w-[18px] h-[18px]" strokeWidth={2} />
           <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#5CACFA] rounded-full border-[1.5px] border-white" aria-hidden />
         </button>
         <button
           type="button"
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] hover:bg-[#F4F6F9] transition-colors min-h-[35px]"
+          className="flex items-center justify-center gap-1.5 h-11 px-3 rounded-[var(--radius-search)] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] hover:bg-[#F4F6F9] transition-colors min-h-[44px]"
           title="Log out"
           aria-label="Log out"
         >
-          <LogOut className="w-[13px] h-[13px]" strokeWidth={2} />
+          <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
           <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
         </button>
       </div>

@@ -30,7 +30,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch bg-white border-t border-[rgba(0,0,0,0.08)] safe-area-pb"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch rounded-t-[var(--radius-card)] bg-white border-t border-[rgba(0,0,0,0.08)] shadow-[0_-2px_10px_rgba(0,0,0,0.06)] safe-area-pb"
       style={{ paddingBottom: 'max(var(--safe-bottom), var(--grid-8, 8px))' }}
       aria-label="Main navigation"
     >

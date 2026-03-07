@@ -161,7 +161,7 @@ function StatCard({
                               'text-slate-400';
 
   return (
-    <div className={`flex flex-col justify-between p-6 rounded-2xl border ${bg} shadow-sm`}>
+    <div className={`flex flex-col justify-between p-6 rounded-2xl border ${bg} shadow-[var(--card-shadow)]`}>
       <div className="flex items-center justify-between mb-4">
         <span className="text-[13px] font-semibold text-slate-500">{label}</span>
         <Icon className={iconColor} size={28} aria-hidden />
@@ -360,7 +360,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Today's sales by location (both POS/warehouses at a glance) ── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[var(--card-shadow)]">
           <h2 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
             Today&apos;s sales by location
           </h2>
@@ -422,7 +422,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Low stock alerts ── */}
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-[var(--card-shadow)]">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <div>
               <h2 className="text-[15px] font-black text-slate-900">Stock Alerts</h2>
@@ -449,7 +449,7 @@ export default function DashboardPage() {
 
         {/* ── Category breakdown ── */}
         {!loading && dashboard && Object.keys(dashboard.categorySummary).length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-[var(--card-shadow)]">
             <div className="px-5 py-4 border-b border-slate-100">
               <h2 className="text-[15px] font-black text-slate-900">By Category</h2>
               <p className="text-[12px] text-slate-400 mt-0.5">{warehouseName}</p>
