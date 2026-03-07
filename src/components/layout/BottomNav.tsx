@@ -1,8 +1,9 @@
 /**
- * Phase 4: Mobile bottom nav — Dashboard | Inventory | POS | Sales | More.
- * POS tab: elevated #5CACFA circle. Active: #5CACFA icon + label.
+ * Mobile bottom nav: frosted pill with 5 items — Dashboard | Inventory | POS (center hero) | Orders | More.
+ * POS is a raised solid blue button; others are icon+label with blue-soft active state.
  */
 import { NavLink, useLocation } from 'react-router-dom';
+import { ShoppingCart } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWarehouse } from '../../contexts/WarehouseContext';
 import { BOTTOM_NAV_TABS } from '../../config/navigation';
@@ -15,82 +16,118 @@ function isTabActive(pathname: string, tabTo: string): boolean {
   return pathname === tabTo;
 }
 
+/** Reorder so POS is always at index 2 (center). */
+function orderTabsWithPosCenter(tabs: typeof BOTTOM_NAV_TABS): (typeof BOTTOM_NAV_TABS)[number][] {
+  const pos = tabs.find((t) => t.to === '/pos');
+  const rest = tabs.filter((t) => t.to !== '/pos');
+  if (!pos) return rest;
+  const left = rest.slice(0, 2);
+  const right = rest.slice(2);
+  return [...left, pos, ...right];
+}
+
 export function BottomNav() {
   const { pathname } = useLocation();
   const { hasPermission } = useAuth();
   const { isWarehouseBoundToSession } = useWarehouse();
 
-  const visibleTabs = BOTTOM_NAV_TABS.filter((tab) => {
+  const filtered = BOTTOM_NAV_TABS.filter((tab) => {
     if (tab.name === 'More') return true;
     if (tab.name === 'Inventory' && isWarehouseBoundToSession) return false;
     if (tab.permission != null) return hasPermission(tab.permission);
     return true;
   });
+  const visibleTabs = orderTabsWithPosCenter(filtered);
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch bg-white/95 backdrop-blur-sm border-t border-slate-200/80 safe-area-pb"
-      style={{ paddingBottom: 'max(var(--safe-bottom), 6px)', paddingTop: 6 }}
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-[200]"
+      style={{ paddingBottom: 'max(10px, var(--safe-bottom))' }}
       aria-label="Main navigation"
     >
-      {visibleTabs.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = isTabActive(pathname, tab.to);
-        const isPosTab = tab.to === '/pos';
-        const activeColor = isActive ? 'var(--blue)' : '#64748b';
+      <div
+        className="mx-3 mb-2 rounded-[20px] border grid gap-0"
+        style={{
+          background: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderColor: 'var(--border)',
+          boxShadow: 'var(--shadow-lg)',
+          padding: '8px 6px',
+          gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)`,
+          alignItems: 'end',
+        }}
+      >
+        {visibleTabs.map((tab) => {
+          const isPos = tab.to === '/pos';
+          const isActive = isTabActive(pathname, tab.to);
+          const Icon = tab.icon;
 
-        if (isPosTab) {
+          if (isPos) {
+            return (
+              <div
+                key={tab.to}
+                className="flex flex-col items-center gap-1"
+                style={{ marginTop: '-22px' }}
+              >
+                <NavLink
+                  to={tab.to}
+                  className="flex items-center justify-center rounded-[18px] transition-all duration-200 hover:scale-105 active:scale-105 min-w-[56px] min-h-[56px] w-14 h-14"
+                  style={{
+                    background: 'var(--blue)',
+                    border: '3px solid var(--bg)',
+                    boxShadow: '0 6px 20px var(--blue-glow), 0 2px 8px rgba(0,0,0,0.1)',
+                  }}
+                  aria-label="POS"
+                >
+                  <ShoppingCart
+                    className="w-6 h-6 text-white flex-shrink-0"
+                    strokeWidth={2.5}
+                    aria-hidden
+                  />
+                </NavLink>
+                <span
+                  className="text-[10px] font-semibold"
+                  style={{ fontFamily: 'var(--font-b)', color: 'var(--blue)' }}
+                >
+                  POS
+                </span>
+              </div>
+            );
+          }
+
           return (
             <NavLink
               key={tab.to}
               to={tab.to}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] min-w-[44px] py-1.5 touch-manipulation"
+              className="flex flex-col items-center gap-1 py-1.5 px-0 rounded-xl transition-all duration-200 min-h-[44px] min-w-[44px] justify-end"
+              style={{ paddingTop: 6, paddingBottom: 6 }}
             >
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center -mt-4 shadow-lg border-2 border-white"
-                style={{
-                  background: isActive ? 'var(--blue)' : 'var(--blue-dim)',
-                  borderColor: 'white',
-                  boxShadow: isActive ? '0 4px 14px var(--blue-glow)' : '0 2px 8px rgba(0,0,0,0.08)',
-                }}
+              <span
+                className="flex items-center justify-center rounded-[12px] w-10 h-10 flex-shrink-0 transition-colors"
+                style={{ background: isActive ? 'var(--blue-soft)' : 'transparent' }}
               >
                 <Icon
-                  className="w-6 h-6 flex-shrink-0"
+                  className="w-5 h-5 flex-shrink-0"
                   strokeWidth={2}
                   aria-hidden
-                  style={{ color: isActive ? '#000' : 'var(--blue)' }}
+                  style={{ color: isActive ? 'var(--blue)' : 'var(--text-3)' }}
                 />
-              </div>
+              </span>
               <span
-                className="text-[11px] font-medium leading-tight"
-                style={{ color: activeColor, fontFamily: 'var(--font-d)' }}
+                className="text-[10px] font-medium"
+                style={{
+                  fontFamily: 'var(--font-b)',
+                  color: isActive ? 'var(--blue)' : 'var(--text-3)',
+                  fontWeight: isActive ? 600 : 500,
+                }}
               >
                 {tab.name}
               </span>
             </NavLink>
           );
-        }
-
-        return (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] min-w-[44px] py-1.5 px-2 text-[11px] font-medium transition-colors rounded-lg mx-0.5 ${
-              isActive ? 'bg-[var(--blue-dim)]' : ''
-            }`}
-          >
-            <Icon
-              className="w-6 h-6 flex-shrink-0"
-              strokeWidth={2}
-              aria-hidden
-              style={{ color: activeColor }}
-            />
-            <span className="leading-tight" style={{ color: activeColor, fontFamily: 'var(--font-d)' }}>
-              {tab.name}
-            </span>
-          </NavLink>
-        );
-      })}
+        })}
+      </div>
     </nav>
   );
 }

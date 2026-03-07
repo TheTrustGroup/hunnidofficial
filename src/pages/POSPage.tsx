@@ -34,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import type { InfiniteData } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
+import { notifyInventoryUpdated } from '../lib/inventoryEvents';
 import { useProductsQuery, productsQueryKey } from '../hooks/useProductsQuery';
 import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from '../contexts/WarehouseContext';
@@ -165,7 +166,11 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       clearTimeout(timeout);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message ?? body.error ?? `HTTP ${res.status}`);
+        const msg = body.message ?? body.error ?? `HTTP ${res.status}`;
+        if (res.status === 401 && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        }
+        throw new Error(msg);
       }
       const text = await res.text();
       return (text ? JSON.parse(text) : {}) as T;
@@ -287,9 +292,13 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         }),
       });
 
-      serverSaleId    = result.id;
-      serverReceiptId = result.receiptId;
-      completedAt     = result.createdAt ?? new Date().toISOString();
+      const saleId = result.id ?? (result as { saleId?: string }).saleId;
+      if (!saleId || typeof saleId !== 'string') {
+        throw new Error('Invalid response: server did not return a sale id');
+      }
+      serverSaleId    = saleId;
+      serverReceiptId = result.receiptId ?? (result as { receipt_id?: string }).receipt_id ?? saleId;
+      completedAt     = result.createdAt ?? (result as { created_at?: string }).created_at ?? new Date().toISOString();
 
     } catch (apiErr: unknown) {
       const msg = apiErr instanceof Error ? apiErr.message : 'API error';
@@ -301,6 +310,18 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       if (isInsufficientStock) {
         insufficientStockShown = true;
         showToast('Insufficient stock for one or more items. Reduce quantity or remove items and try again.', 'err');
+      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
+        insufficientStockShown = true;
+        showToast('Please log in again. Your session may have expired.', 'err');
+      } else if (msg.includes('503') || msg.toLowerCase().includes('unavailable')) {
+        insufficientStockShown = true;
+        showToast('Sale service unavailable. Contact support or ensure the record_sale migration is applied in Supabase.', 'err');
+      } else if (msg.includes('403') || msg.toLowerCase().includes('forbidden')) {
+        insufficientStockShown = true;
+        showToast('You don’t have access to record sales for this warehouse.', 'err');
+      } else if (msg.includes('400') || msg.includes('warehouseId')) {
+        insufficientStockShown = true;
+        showToast(msg.length > 80 ? 'Invalid sale data. Check warehouse and try again.' : msg, 'err');
       }
     }
 
@@ -365,6 +386,8 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       completedAt,
       deliveryStatus: payload.deliveryStatus ?? 'delivered',
     });
+    // So Dashboard and Inventory refetch and show updated stock value / quantities
+    notifyInventoryUpdated();
   }
 
   // ── New sale ──────────────────────────────────────────────────────────────
@@ -422,7 +445,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] flex flex-col lg:flex-row overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden" style={{ background: 'var(--bg)' }}>
 
       {!isWarehouseBoundToSession && (
         <SessionScreen

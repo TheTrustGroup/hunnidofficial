@@ -10,7 +10,6 @@
 
 import { memo } from 'react';
 import { safeProductImageUrl, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
-import { getProductQtyForAlert, getStockStatus as getStockStatusFromUtil } from '../../lib/stockAlerts';
 import { type POSProduct } from './SizePickerSheet';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -22,13 +21,19 @@ interface POSProductCardProps {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-type StockStatusUI = 'in' | 'low' | 'out';
+type StockStatus = 'in' | 'low' | 'out';
 
-function toUIStatus(
-  status: 'in_stock' | 'low_stock' | 'out_of_stock'
-): StockStatusUI {
-  if (status === 'out_of_stock') return 'out';
-  if (status === 'low_stock') return 'low';
+function getTotalQuantity(product: POSProduct): number {
+  if (product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0) {
+    return (product.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
+  }
+  return product.quantity ?? 0;
+}
+
+function getStockStatus(product: POSProduct): StockStatus {
+  const qty = getTotalQuantity(product);
+  if (qty === 0) return 'out';
+  if (qty <= 3) return 'low';
   return 'in';
 }
 
@@ -39,20 +44,14 @@ function formatPrice(n: number): string {
   })}`;
 }
 
-// ── Stock Badge (out of stock / low stock) ──────────────────────────────────
+// ── Stock Badge ────────────────────────────────────────────────────────────
 
-function StockBadge({ status, qty }: { status: StockStatusUI; qty: number }) {
+function StockBadge({ status, qty }: { status: StockStatus; qty: number }) {
   if (status === 'in') return null;
-  const label = status === 'low' ? `${qty} left` : 'Out of stock';
-  const isOut = status === 'out';
+  const label = status === 'low' ? `${qty} left` : 'Out';
   return (
     <span
-      className={`absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide shadow-sm ${
-        isOut
-          ? 'bg-red-500 text-white'
-          : 'bg-amber-500 text-white'
-      }`}
-      aria-live="polite"
+      className={`absolute top-2 right-2 text-[10px] font-semibold ${status === 'low' ? 'text-[#D97706]' : 'text-[#DC2626]'}`}
     >
       {label}
     </span>
@@ -64,8 +63,8 @@ function StockBadge({ status, qty }: { status: StockStatusUI; qty: number }) {
 function ImagePlaceholder() {
   return (
     <div
-      className="absolute inset-0 flex items-center justify-center text-[#A8B4C4]"
-      style={{ background: 'linear-gradient(135deg, #EEF1F6 0%, #E0E6F0 100%)' }}
+      className="absolute inset-0 flex items-center justify-center"
+      style={{ background: 'var(--elevated)', color: 'var(--text-3)' }}
     >
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -79,8 +78,8 @@ function ImagePlaceholder() {
 // ── Main Component ─────────────────────────────────────────────────────────
 
 function POSProductCard({ product, onSelect }: POSProductCardProps) {
-  const totalQty = getProductQtyForAlert(product);
-  const status = toUIStatus(getStockStatusFromUtil(product));
+  const totalQty = getTotalQuantity(product);
+  const status = getStockStatus(product);
   const isOut = status === 'out';
   const firstImage = (product.images ?? [])[0];
   const safeSrc = firstImage ? safeProductImageUrl(firstImage) : '';
@@ -88,7 +87,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
 
   const stockLabel =
     status === 'out'
-      ? 'Out of stock'
+      ? 'Out'
       : status === 'low'
         ? `${totalQty} left`
         : `${totalQty} in stock`;
@@ -106,21 +105,30 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
       type="button"
       disabled={isOut}
       onClick={() => onSelect(product)}
-      aria-label={isOut ? `${product.name}, out of stock` : product.name}
-      className={`group w-full text-left rounded-[10px] overflow-hidden border transition-all duration-150
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5CACFA]
-        ${isOut
-          ? 'bg-slate-50 border-slate-200 opacity-75 cursor-not-allowed'
-          : 'bg-white border-[rgba(0,0,0,0.07)] shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)] hover:shadow-[0_4px_16px_rgba(13,17,23,0.09)] hover:-translate-y-0.5 active:scale-[0.97]'
-        }`}
+      className="group w-full text-left rounded-[12px] overflow-hidden border transition-all duration-200
+        hover:shadow-[0_0_0_2px_var(--blue-dim)] active:scale-[0.98]
+        disabled:opacity-45 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:transform-none disabled:hover:shadow-none
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
+      style={{
+        background: 'var(--surface)',
+        borderColor: 'var(--border)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+      onMouseEnter={(e) => {
+        if (!isOut) {
+          e.currentTarget.style.borderColor = 'var(--blue)';
+          e.currentTarget.style.boxShadow = '0 0 0 2px var(--blue-dim)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+      }}
     >
-      {/* Image: 1:1 square; out-of-stock overlay */}
-      <div className="relative w-full aspect-square overflow-hidden bg-[#EEF1F6]">
-        {isOut && (
-          <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center z-10" aria-hidden>
-            <span className="text-white text-xs font-bold uppercase tracking-wider">Out of stock</span>
-          </div>
-        )}
+      <div
+        className="relative w-full aspect-square overflow-hidden"
+        style={{ background: 'var(--elevated)' }}
+      >
         {hasImage ? (
           <img
             src={safeSrc}
@@ -136,26 +144,27 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
 
       <div className="px-2.5 pt-2 pb-2.5">
         <p
-          className="text-[12px] font-semibold text-[#0D1117] truncate leading-snug mb-1"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
+          className="text-[12px] font-semibold truncate leading-snug mb-1"
+          style={{ fontFamily: 'var(--font-b)', color: 'var(--text)' }}
         >
           {product.name}
         </p>
         <div className="flex items-end justify-between gap-1">
           <span
             className="text-[14px] font-extrabold leading-none"
-            style={{ fontFamily: 'Syne, sans-serif', color: '#5CACFA' }}
+            style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
           >
             {formatPrice(product.sellingPrice)}
           </span>
           <span
-            className={`text-[10px] flex-shrink-0 font-medium ${status === 'out' ? 'text-red-600' : status === 'low' ? 'text-[#D97706]' : 'text-[#8892A0]'}`}
+            className="text-[10px] flex-shrink-0"
+            style={{ color: status === 'low' ? 'var(--amber)' : 'var(--text-3)' }}
           >
             {stockLabel}
           </span>
         </div>
         {sizeBreakdown && (
-          <p className="text-[10px] text-[#8892A0] mt-1 truncate" title={sizeBreakdown}>
+          <p className="text-[10px] mt-1 truncate" style={{ color: 'var(--text-3)' }} title={sizeBreakdown}>
             {sizeBreakdown}
           </p>
         )}
@@ -170,11 +179,14 @@ export default memo(POSProductCard);
 
 export function POSProductCardSkeleton() {
   return (
-    <div className="bg-white rounded-[10px] overflow-hidden border border-[rgba(0,0,0,0.07)] shadow-[0_1px_3px_rgba(13,17,23,0.06)]">
-      <div className="w-full aspect-square bg-[#EEF1F6] animate-pulse" />
+    <div
+      className="rounded-[12px] overflow-hidden border"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
+    >
+      <div className="w-full aspect-square animate-pulse" style={{ background: 'var(--elevated)' }} />
       <div className="px-2.5 pt-2 pb-2.5 flex flex-col gap-2">
-        <div className="h-3 w-4/5 bg-[#E3E8F0] rounded animate-pulse" />
-        <div className="h-3.5 w-1/2 bg-[#E3E8F0] rounded animate-pulse" />
+        <div className="h-3 w-4/5 rounded animate-pulse" style={{ background: 'var(--overlay)' }} />
+        <div className="h-3.5 w-1/2 rounded animate-pulse" style={{ background: 'var(--overlay)' }} />
       </div>
     </div>
   );

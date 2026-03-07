@@ -2,13 +2,18 @@
 // InventoryPage.tsx
 // File: warehouse-pos/src/pages/InventoryPage.tsx
 //
+// DATA SOURCE: This page owns its product list (local state + loadProducts).
+// It does NOT use InventoryContext.products. The route at /inventory renders
+// this page, so product list and add/edit/delete are self-contained here.
+// Do not duplicate state with InventoryContext; keep a single source per page.
+//
 // World-class inventory dashboard. Design principles:
 //   • Summary stat bar at top (total SKUs, total stock value, low/out alerts)
 //   • Clean sticky header — warehouse selector + ONE search + Add button
 //   • Category filter chips + sort — no clutter
 //   • Cards show stock bar, size breakdown, price — no inline edit, no duplicates
 //   • All working logic preserved exactly: retry, poll, abort, optimistic updates,
-//     lastSaveTimeRef guard, pendingDeletesRef, size-wipe guard
+//     lastSaveTimeRef guard, pendingDeletesRef, size-wipe guard, lastUpdatedProductRef
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -17,9 +22,15 @@ import ProductCard, { ProductCardSkeleton, type Product } from '../components/in
 import ProductModal from '../components/inventory/ProductModal';
 import { type SizeCode } from '../components/inventory/SizesSection';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
+import { INVENTORY_UPDATED_EVENT, notifyInventoryUpdated } from '../lib/inventoryEvents';
 import { useWarehouse } from '../contexts/WarehouseContext';
-import { useApiStatus } from '../contexts/ApiStatusContext';
 import type { Warehouse } from '../types';
+import {
+  INVENTORY_POLL_MS,
+  INVENTORY_PAGE_SIZE,
+  LAST_UPDATED_PRESERVE_MS,
+  INVENTORY_SEARCH_DEBOUNCE_MS,
+} from '../constants/inventory';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -30,9 +41,6 @@ interface InventoryPageProps {}
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
-const POLL_MS     = 30_000;
-const PAGE_SIZE   = 50;
-const SEARCH_DEBOUNCE_MS = 300;
 const CATEGORIES  = ['Sneakers', 'Slippers', 'Boots', 'Sandals', 'Accessories'];
 /** Common colors for filter chips (admin + POS). Uncategorized = products with no color (after backfill). */
 const COLOR_OPTIONS = ['Black', 'White', 'Red', 'Blue', 'Brown', 'Green', 'Grey', 'Navy', 'Beige', 'Multi', 'Uncategorized'];
@@ -59,9 +67,11 @@ function computeStats(products: Product[]) {
 
   for (const p of products) {
     const qty     = getProductQty(p);
-    const reorder = Number(p.reorderLevel ?? 0) || 0;
+    const reorder = p.reorderLevel ?? 3;
+    const cost    = p.costPrice ?? 0;
+    const price   = cost > 0 ? cost : 0; // cost-only so total is accurate
     totalUnits += qty;
-    totalValue += qty * (p.sellingPrice ?? 0);
+    totalValue += qty * price;
     if (qty === 0) outCount++;
     else if (qty <= reorder) lowCount++;
   }
@@ -102,12 +112,23 @@ function normalizeQuantityBySize(p: Record<string, unknown>): Product {
   return { ...p, quantityBySize: arr } as Product;
 }
 
+/**
+ * Parse a single product from API response (PUT/POST). May return null if the
+ * response shape is unexpected (e.g. missing id or wrapped in an unknown key).
+ * Call sites should handle null; we log when a 2xx response fails to parse.
+ */
 function unwrapProduct(raw: unknown): Product | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   const inner = r.data ?? r.product ?? r;
   if (!inner || typeof inner !== 'object' || !('id' in inner)) return null;
   return normalizeQuantityBySize(inner as Record<string, unknown>);
+}
+
+function logUnwrapProductNull(context: 'PUT' | 'POST', raw: unknown, parsed: Product | null): void {
+  if (raw != null && parsed === null) {
+    console.warn('[InventoryPage] unwrapProduct returned null for 2xx', context, 'response — unexpected shape', raw);
+  }
 }
 
 /** Normalize a raw list item so name, sku, barcode, color are always set (API may send camel or snake). */
@@ -235,43 +256,32 @@ function StatCard({
 }) {
   return (
     <div
-      className={`flex-1 min-w-0 px-4 py-4 rounded-[10px] border flex flex-col gap-0.5 shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]
-        ${accent
-          ? 'border-transparent text-white'
-          : warning
-            ? 'bg-[#FFFBEB] border-[rgba(217,119,6,0.15)]'
-            : 'bg-white border-[rgba(0,0,0,0.07)] text-[#0D1117]'}`}
-      style={
-        accent
-          ? {
-              background: 'linear-gradient(135deg, #5CACFA 0%, #1A7DD4 100%)',
-              boxShadow: '0 4px 20px rgba(92,172,250,0.35)',
-            }
-          : undefined
-      }
+      className="flex-1 min-w-0 px-4 py-4 rounded-[14px] border flex flex-col gap-0.5 shadow-[var(--shadow-sm)]"
+      style={{
+        background: 'var(--surface)',
+        borderColor: warning ? 'rgba(217,119,6,0.2)' : 'var(--border)',
+      }}
     >
       <p
-        className={`text-[10px] font-semibold uppercase tracking-[0.16em]
-          ${accent ? 'text-white/70' : warning ? 'text-[#D97706]' : 'text-[#8892A0]'}`}
+        className="text-[10px] font-semibold uppercase tracking-[0.16em]"
+        style={{ color: accent ? 'var(--text-3)' : warning ? 'var(--amber)' : 'var(--text-3)' }}
       >
         {label}
       </p>
       <p
         className="tabular-nums leading-tight truncate"
         style={{
-          fontFamily: 'Syne, sans-serif',
-          fontSize: '28px',
-          fontWeight: 800,
+          fontFamily: 'var(--font-m)',
+          fontSize: '24px',
+          fontWeight: 600,
           letterSpacing: '-0.5px',
-          ...(accent ? { color: 'white' } : warning ? { color: '#D97706' } : {}),
+          color: accent ? 'var(--blue)' : warning ? 'var(--amber)' : 'var(--text)',
         }}
       >
         {value}
       </p>
       {sub && (
-        <p
-          className={`text-[11px] mt-1 ${accent ? 'text-white/65' : warning ? 'text-[#D97706]/70' : 'text-[#8892A0]'}`}
-        >
+        <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
           {sub}
         </p>
       )}
@@ -309,7 +319,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const warehouseList = contextWarehouses?.length ? contextWarehouses : FALLBACK_WAREHOUSES;
   const warehouse = currentWarehouse ?? warehouseList.find(w => w.id === warehouseId) ?? warehouseList[0];
 
-  // ── State ─────────────────────────────────────────────────────────────────
+  // ── State (this page's list only; not InventoryContext.products) ───────────
   const [products,       setProducts]       = useState<Product[]>([]);
   const [totalCount,     setTotalCount]     = useState(0);
   const [sizeCodes,      setSizeCodes]      = useState<SizeCode[]>([]);
@@ -334,7 +344,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const [modalOpen,      setModalOpen]      = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [confirmDelete,  setConfirmDelete]  = useState<Product | null>(null);
-  const [warehouseStats,   setWarehouseStats] = useState<{ totalStockValue: number; totalUnits: number } | null>(null);
+  const [warehouseStats, setWarehouseStats] = useState<{ totalStockValue: number; totalUnits?: number } | null>(null);
 
   const modalOpenRef       = useRef(false);
   const pollTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -343,21 +353,22 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const lastSaveTimeRef    = useRef<number>(0);
   const loadAbortRef       = useRef<AbortController | null>(null);
   const didInitialLoad     = useRef(false);
-  const productsLengthRef  = useRef(0);
+  const productsLengthRef   = useRef(0);
   const searchDebounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchCategoryRef   = useRef({ search: '', category: 'all' as FilterKey, sizeCode: 'all' as string, color: 'all' as string });
   const skipSearchDebounceRef = useRef(true);
+  const lastVisibilityRefetchRef = useRef<number>(0);
+  /** After edit, preserve this product when loadProducts runs so poll/visibility refetch does not overwrite with stale list. */
+  const lastUpdatedProductRef = useRef<{ product: Product; at: number } | null>(null);
   searchCategoryRef.current = { search, category, sizeCode: sizeFilter, color: colorFilter };
   productsLengthRef.current = products.length;
 
   const { toasts, show: showToast } = useToast();
-  const { isDegraded } = useApiStatus();
 
-  // Derived stats (memoised — recompute only when products change). Uses selling price for selection value.
+  // Derived stats (memoised — recompute only when products change)
   const stats = useMemo(() => computeStats(products), [products]);
 
-  // Warehouse-level totals (cost-based, single source of truth from DB). Fetched for "Total stock value" when no filter.
-  const hasFilter = (search?.trim() ?? '') !== '' || category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all';
+  const hasFilter = !!(search.trim() || category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all');
 
   // ── apiFetch (retry + abort) ──────────────────────────────────────────────
 
@@ -394,7 +405,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        const msg  = (body as { message?: string; error?: string }).message ?? (body as { error?: string }).error ?? `HTTP ${res.status}`;
+        const msg  = (body as { error?: string }).error ?? (body as { message?: string }).message ?? `HTTP ${res.status}`;
         const e    = new Error(msg) as Error & { status: number };
         e.status   = res.status;
         throw e;
@@ -429,7 +440,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
     }
 
     const { search: q, category: cat, sizeCode: sc, color: col } = searchCategoryRef.current;
-    const limit = requestLimit ?? PAGE_SIZE;
+    const limit = requestLimit ?? INVENTORY_PAGE_SIZE;
     const params = new URLSearchParams();
     params.set('warehouse_id', warehouseId);
     params.set('limit', String(limit));
@@ -457,14 +468,33 @@ export default function InventoryPage(_props: InventoryPageProps) {
       const pending = pendingDeletesRef.current;
       const merged = pending.size > 0 ? list.filter(p => !pending.has(p.id)) : list;
       setTotalCount(total);
+      /** Prefer last-updated product over list item when refetch runs shortly after edit (avoids stale overwrite). */
+      const applyLastUpdated = (listToSet: Product[]): Product[] => {
+        const ru = lastUpdatedProductRef.current;
+        if (!ru || Date.now() - ru.at > LAST_UPDATED_PRESERVE_MS) return listToSet;
+        return listToSet.map((p) => (p.id === ru.product.id ? ru.product : p));
+      };
       if (append) {
         setProducts(prev => {
           const byId = new Map(prev.map(p => [p.id, p]));
           merged.forEach(p => byId.set(p.id, p));
+          const ru = lastUpdatedProductRef.current;
+          if (ru && Date.now() - ru.at <= LAST_UPDATED_PRESERVE_MS) byId.set(ru.product.id, ru.product);
           return Array.from(byId.values());
         });
       } else {
-        setProducts(merged);
+        setProducts(prev => {
+          const listToSet = merged.map((p) => {
+            if (p.sizeKind === 'sized' && (p.quantityBySize?.length ?? 0) === 0) {
+              const cur = prev.find((x) => x.id === p.id);
+              if (cur && (cur.quantityBySize?.length ?? 0) > 0) {
+                return { ...p, sizeKind: cur.sizeKind, quantityBySize: cur.quantityBySize };
+              }
+            }
+            return p;
+          });
+          return applyLastUpdated(listToSet);
+        });
       }
     } catch (e: unknown) {
       const err = e as Error;
@@ -480,29 +510,6 @@ export default function InventoryPage(_props: InventoryPageProps) {
         else setLoading(false);
       }
     }
-  }, [warehouseId, apiFetch]);
-
-  // Warehouse-level totals (cost-based) for "Total stock value" when no filter. Same source as Dashboard.
-  useEffect(() => {
-    if (!warehouseId) {
-      setWarehouseStats(null);
-      return;
-    }
-    const today = new Date().toISOString().split('T')[0];
-    apiFetch<{ totalStockValue?: number; totalUnits?: number }>(
-      `/api/dashboard?warehouse_id=${encodeURIComponent(warehouseId)}&date=${today}`
-    )
-      .then((data) => {
-        if (data && typeof data.totalStockValue === 'number') {
-          setWarehouseStats({
-            totalStockValue: data.totalStockValue,
-            totalUnits: typeof data.totalUnits === 'number' ? data.totalUnits : 0,
-          });
-        } else {
-          setWarehouseStats(null);
-        }
-      })
-      .catch(() => setWarehouseStats(null));
   }, [warehouseId, apiFetch]);
 
   // ── Load size codes ───────────────────────────────────────────────────────
@@ -522,13 +529,56 @@ export default function InventoryPage(_props: InventoryPageProps) {
     pollTimerRef.current = setInterval(() => {
       if (!modalOpenRef.current && document.visibilityState === 'visible') {
         const n = productsLengthRef.current;
-        loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
+        loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
       }
-    }, POLL_MS);
+    }, INVENTORY_POLL_MS);
   }
   function stopPoll() {
     if (pollTimerRef.current) { clearInterval(pollTimerRef.current); pollTimerRef.current = null; }
   }
+
+  // ── Warehouse-level stats (full totals so they don't drop with pagination/filter) ──
+  const statsRequestIdRef = useRef(0);
+
+  const loadWarehouseStats = useCallback(() => {
+    if (!warehouseId) return;
+    const myId = ++statsRequestIdRef.current;
+    const date = new Date().toISOString().split('T')[0];
+    apiFetch<{ totalStockValue?: number; totalUnits?: number }>(
+      `/api/dashboard?warehouse_id=${encodeURIComponent(warehouseId)}&date=${date}`
+    )
+      .then((data) => {
+        if (myId !== statsRequestIdRef.current) return;
+        if (data && typeof data.totalStockValue === 'number') {
+          setWarehouseStats({
+            totalStockValue: data.totalStockValue,
+            ...(typeof data.totalUnits === 'number' ? { totalUnits: data.totalUnits } : {}),
+          });
+        }
+      })
+      .catch(() => {
+        if (myId === statsRequestIdRef.current) setWarehouseStats(null);
+      });
+  }, [warehouseId, apiFetch]);
+
+  useEffect(() => {
+    if (!warehouseId) {
+      setWarehouseStats(null);
+      return;
+    }
+    loadWarehouseStats();
+  }, [warehouseId, loadWarehouseStats]);
+
+  // Refetch when inventory changes (e.g. POS sale, order deduct) so stock value and quantities update
+  useEffect(() => {
+    const onInventoryUpdated = () => {
+      loadWarehouseStats();
+      const n = productsLengthRef.current;
+      loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
+    };
+    window.addEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
+    return () => window.removeEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
+  }, [warehouseId, loadWarehouseStats, loadProducts]);
 
   // ── Lifecycle: warehouse change ────────────────────────────────────────────
 
@@ -541,6 +591,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
     setCategory('all');
     setSizeFilter('all');
     setColorFilter('all');
+    setWarehouseStats(null);
     didInitialLoad.current = false;
     skipSearchDebounceRef.current = true;
     loadAbortRef.current?.abort();
@@ -549,12 +600,16 @@ export default function InventoryPage(_props: InventoryPageProps) {
     loadSizeCodes();
     const pollDelay = setTimeout(() => startPoll(), 5000);
 
+    const VISIBILITY_REFETCH_MS = 5000;
     const onVisible = () => {
       if (!didInitialLoad.current) return;
-      if (document.visibilityState === 'visible' && !modalOpenRef.current) {
-        const n = productsLengthRef.current;
-        loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
-      }
+      if (document.visibilityState !== 'visible' || modalOpenRef.current) return;
+      const now = Date.now();
+      if (now - lastVisibilityRefetchRef.current < VISIBILITY_REFETCH_MS) return;
+      lastVisibilityRefetchRef.current = now;
+      loadWarehouseStats();
+      const n = productsLengthRef.current;
+      loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
     };
     document.addEventListener('visibilitychange', onVisible);
     const initGate = setTimeout(() => { didInitialLoad.current = true; }, 500);
@@ -566,7 +621,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
       document.removeEventListener('visibilitychange', onVisible);
       loadAbortRef.current?.abort();
     };
-  }, [warehouseId, loadProducts]);
+  }, [warehouseId, loadProducts, loadWarehouseStats]);
 
   // ── Debounced server-side search when search or category changes ────────────
 
@@ -579,7 +634,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
     searchDebounceRef.current = setTimeout(() => {
       searchDebounceRef.current = null;
       loadProducts(0, false);
-    }, SEARCH_DEBOUNCE_MS);
+    }, INVENTORY_SEARCH_DEBOUNCE_MS);
     return () => {
       if (searchDebounceRef.current) {
         clearTimeout(searchDebounceRef.current);
@@ -609,7 +664,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
     if (msSinceSave > 5000) {
       setTimeout(() => {
         const n = productsLengthRef.current;
-        loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
+        loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
       }, 500);
     }
   }
@@ -665,6 +720,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
         });
 
         const updated = unwrapProduct(raw);
+        logUnwrapProductNull('PUT', raw, updated);
         if (updated) {
           const serverHasSizes  = (updated.quantityBySize?.length ?? 0) > 0;
           const payloadHasSizes = (payload.quantityBySize?.length  ?? 0) > 0;
@@ -674,8 +730,12 @@ export default function InventoryPage(_props: InventoryPageProps) {
             setProducts(prev => prev.map(p => p.id === payload.id ? updated : p));
           }
         }
+        const productToPreserve = updated ?? optimistic;
+        lastUpdatedProductRef.current = { product: productToPreserve, at: Date.now() };
 
         lastSaveTimeRef.current = Date.now();
+        loadWarehouseStats();
+        notifyInventoryUpdated();
         showToast(`${payload.name} updated`, 'success');
       } catch (e: unknown) {
         const err = e as Error;
@@ -700,6 +760,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
         });
 
         let created = unwrapProduct(raw);
+        logUnwrapProductNull('POST', raw, created);
         if (created && (payload.quantityBySize?.length ?? 0) > 0
             && (created.quantityBySize?.length ?? 0) === 0) {
           created = { ...created, quantityBySize: payload.quantityBySize, quantity: payload.quantity };
@@ -708,10 +769,12 @@ export default function InventoryPage(_props: InventoryPageProps) {
         if (created?.id) setProducts(prev => [created!, ...prev]);
         else setTimeout(() => {
           const n = productsLengthRef.current;
-          loadProducts(0, false, true, n > PAGE_SIZE ? n : undefined);
+          loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
         }, 300);
 
         lastSaveTimeRef.current = Date.now();
+        loadWarehouseStats();
+        notifyInventoryUpdated();
         showToast(`${payload.name} added`, 'success');
       } catch (e: unknown) {
         const err = e as Error;
@@ -735,35 +798,35 @@ export default function InventoryPage(_props: InventoryPageProps) {
   ];
 
   const alertCount = stats.outCount + stats.lowCount;
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
-  const currentPage = totalCount === 0 ? 1 : Math.min(Math.ceil(products.length / PAGE_SIZE), totalPages);
+  const totalPages = Math.ceil(totalCount / INVENTORY_PAGE_SIZE) || 1;
+  const currentPage = totalCount === 0 ? 1 : Math.min(Math.ceil(products.length / INVENTORY_PAGE_SIZE), totalPages);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] pb-28">
+    <div className="min-h-screen pb-28" style={{ background: 'var(--bg)' }}>
 
-      {/* ══ Page header: breadcrumb, title, subtitle, Add product (CHANGE 4) ══ */}
+      {/* ══ Page header ══ */}
       <div className="px-4 pt-6 pb-4 lg:px-0">
         <div
           className="flex items-center gap-1.5 text-[12px] mb-3.5"
-          style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
+          style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
         >
           <span>{warehouse?.name ?? 'Warehouse'}</span>
-          <span className="opacity-40" aria-hidden>›</span>
-          <span className="font-medium" style={{ color: '#424958' }}>Inventory</span>
+          <span style={{ color: 'var(--border-md)' }} aria-hidden>›</span>
+          <span className="font-medium" style={{ color: 'var(--text)' }}>Inventory</span>
         </div>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1
               className="text-[21px] font-extrabold tracking-tight"
-              style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}
+              style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}
             >
               Inventory
             </h1>
             <p
               className="text-[12px] mt-0.5"
-              style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
+              style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
             >
               {totalCount === 0 && !loading && !error
                 ? 'No products yet'
@@ -775,11 +838,11 @@ export default function InventoryPage(_props: InventoryPageProps) {
           <button
             type="button"
             onClick={openAddModal}
-            className="h-[35px] px-3.5 rounded-[7px] text-white text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px hover:bg-[#3D96F5]"
+            className="h-[35px] px-3.5 rounded-[10px] text-white text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px"
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              background: '#5CACFA',
-              boxShadow: '0 2px 8px rgba(92,172,250,0.25)',
+              fontFamily: 'var(--font-b)',
+              background: 'var(--blue)',
+              boxShadow: '0 2px 8px var(--blue-glow)',
             }}
           >
             <PlusIcon /> Add product
@@ -787,13 +850,13 @@ export default function InventoryPage(_props: InventoryPageProps) {
         </div>
       </div>
 
-      {/* ══ Stats: Total stock value (cost, warehouse) vs Selection value (selling, filtered) ══ */}
+      {/* ══ Stats: full warehouse totals when no filter; else filtered-list stats ══ */}
       {!loading && !error && (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5 px-4 lg:px-0">
           <StatCard
             label="SKUs"
             value={totalCount > 0 ? totalCount : 0}
-            sub={totalCount > 0 && hasMore ? 'Load more for full stats' : `${stats.totalUnits.toLocaleString()} total units`}
+            sub={totalCount > 0 && hasMore && hasFilter ? 'Load more for full stats' : `${(hasFilter ? stats.totalUnits : (warehouseStats?.totalUnits ?? stats.totalUnits)).toLocaleString()} total units`}
           />
           <StatCard
             label="Alerts"
@@ -812,7 +875,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
               sub={hasFilter
                 ? `${stats.totalUnits.toLocaleString()} units · at selling price`
                 : warehouseStats != null
-                  ? `${warehouseStats.totalUnits.toLocaleString()} units · at cost`
+                  ? `${(warehouseStats.totalUnits ?? stats.totalUnits).toLocaleString()} units · at cost`
                   : 'Loading…'}
               accent
             />
@@ -820,31 +883,37 @@ export default function InventoryPage(_props: InventoryPageProps) {
         </div>
       )}
 
-      {/* ══ Filter toolbar: single row — category pills, Size/Color dropdowns, Sort, count (CHANGE 4) ══ */}
-      <div className="px-4 pb-4 flex flex-wrap items-center gap-2 lg:px-0">
-        <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
-          {(['all', ...CATEGORIES] as string[]).map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setCategory(cat)}
-              className={`flex-shrink-0 h-[30px] px-3 rounded-[20px] border text-[12px] font-medium whitespace-nowrap transition-colors
-                ${category === cat
-                  ? 'bg-[#0D1117] border-[#0D1117] text-white'
-                  : 'bg-white border-[rgba(0,0,0,0.11)] text-[#424958] hover:bg-[#EEF1F6]'}`}
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-            >
-              {cat === 'all' ? 'All' : cat}
-            </button>
-          ))}
+      {/* ══ Filter toolbar: single row — category pills, Size/Color dropdowns, Sort, count; scroll on narrow so no overflow ══ */}
+      <div className="px-4 pb-4 lg:px-0 overflow-x-auto overflow-y-hidden -mx-4 px-4 lg:mx-0 lg:overflow-visible scrollbar-none">
+        <div className="flex flex-wrap items-center gap-2 min-h-[44px]">
+          <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+            {(['all', ...CATEGORIES] as string[]).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategory(cat)}
+                className="flex-shrink-0 min-h-[44px] flex items-center px-4 rounded-[99px] border text-[12px] font-medium whitespace-nowrap transition-all touch-manipulation"
+                style={{
+                  fontFamily: 'var(--font-b)',
+                  ...(category === cat
+                    ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
+                    : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
+                }}
+              >
+                {cat === 'all' ? 'All' : cat}
+              </button>
+            ))}
           <select
             id="inv-size-filter"
             value={sizeFilter}
             onChange={(e) => setSizeFilter(e.target.value)}
-            className="h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none focus:border-[#5CACFA]"
+            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              fontFamily: 'var(--font-b)',
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-2)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
               backgroundPosition: 'right 10px center',
             }}
           >
@@ -859,10 +928,13 @@ export default function InventoryPage(_props: InventoryPageProps) {
             id="inv-color-filter"
             value={colorFilter}
             onChange={(e) => setColorFilter(e.target.value)}
-            className="h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none focus:border-[#5CACFA]"
+            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              fontFamily: 'var(--font-b)',
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-2)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
               backgroundPosition: 'right 10px center',
             }}
           >
@@ -875,8 +947,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
             <button
               type="button"
               onClick={() => setSortOpen((o) => !o)}
-              className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] hover:bg-[#EEF1F6] transition-colors"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              className="flex items-center gap-1.5 min-h-[44px] h-[30px] px-2.5 rounded-[99px] border text-[12px] font-medium transition-colors touch-manipulation hover:border-[var(--border-md)]"
+              style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="8" y1="6" x2="21" y2="6" />
@@ -888,7 +960,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
             {sortOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
-                <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-[rgba(0,0,0,0.07)] py-1.5 w-44">
+                <div
+                  className="absolute left-0 top-full mt-1 z-20 rounded-xl shadow-[var(--shadow-md)] border py-1.5 w-44"
+                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                >
                   {SORT_OPTIONS.map((opt) => (
                     <button
                       key={opt.key}
@@ -897,8 +972,11 @@ export default function InventoryPage(_props: InventoryPageProps) {
                         setSort(opt.key);
                         setSortOpen(false);
                       }}
-                      className={`w-full px-4 py-2 text-left text-[13px] font-medium transition-colors
-                        ${sort === opt.key ? 'text-[#5CACFA] bg-[#F4F6F9]' : 'text-[#424958] hover:bg-[#EEF1F6]'}`}
+                      className="w-full px-4 py-2 text-left text-[13px] font-medium transition-colors"
+                      style={{
+                        color: sort === opt.key ? 'var(--blue)' : 'var(--text-2)',
+                        background: sort === opt.key ? 'var(--blue-soft)' : 'transparent',
+                      }}
                     >
                       {opt.label}
                     </button>
@@ -908,11 +986,12 @@ export default function InventoryPage(_props: InventoryPageProps) {
             )}
           </div>
         </div>
-        <span className="text-[11px] text-[#8892A0] whitespace-nowrap" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-          Showing <strong className="font-semibold text-[#424958]">
-            {displayed.length === 0 ? 0 : 1}–{displayed.length}
-          </strong> of {totalCount}
-        </span>
+          <span className="text-[11px] whitespace-nowrap" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
+            Showing <strong className="font-semibold" style={{ color: 'var(--text)' }}>
+              {displayed.length === 0 ? 0 : 1}–{displayed.length}
+            </strong> of {totalCount}
+          </span>
+        </div>
       </div>
 
       {/* ══ Main content ══ */}
@@ -921,16 +1000,22 @@ export default function InventoryPage(_props: InventoryPageProps) {
         {/* Error */}
         {error && (
           <div className="flex flex-col items-center gap-5 py-20 text-center">
-            <div className="w-20 h-20 rounded-3xl bg-red-50 flex items-center justify-center text-red-300">
+            <div
+              className="w-20 h-20 rounded-3xl flex items-center justify-center"
+              style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }}
+            >
               <BoxIcon/>
             </div>
             <div>
-              <p className="text-[17px] font-black text-slate-800">Couldn&apos;t load products</p>
-              <p className="text-[13px] text-slate-400 mt-1 max-w-[260px] leading-relaxed">{error}</p>
+              <p className="text-[17px] font-black" style={{ color: 'var(--text)' }}>Couldn&apos;t load products</p>
+              <p className="text-[13px] mt-1 max-w-[260px] leading-relaxed" style={{ color: 'var(--text-3)' }}>{error}</p>
             </div>
-            <button type="button" onClick={() => loadProducts(0, false)}
-                    className="h-10 px-6 rounded-xl bg-primary-500 text-white text-[13px] font-bold
-                               hover:bg-primary-600 transition-colors shadow-[0_4px_12px_rgba(92,172,250,0.25)]">
+            <button
+              type="button"
+              onClick={() => loadProducts(0, false)}
+              className="h-10 px-6 rounded-xl text-white text-[13px] font-bold transition-all hover:-translate-y-px"
+              style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
+            >
               Retry
             </button>
           </div>
@@ -943,10 +1028,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </div>
         )}
 
-        {/* Empty filter (server returned 0 for this q/category/size/color) */}
+        {/* Empty filter */}
         {!loading && !error && products.length === 0 && (search.trim() || category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all') && (
           <div className="flex flex-col items-center gap-5 py-24 text-center">
-            <p className="text-[15px] font-bold text-slate-700">
+            <p className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>
               No results for current filters
               {search.trim() && ` (search: "${search}")`}
               {category !== 'all' && ` (category: ${category})`}
@@ -954,12 +1039,16 @@ export default function InventoryPage(_props: InventoryPageProps) {
               {colorFilter !== 'all' && ` (color: ${colorFilter})`}
             </p>
             {colorFilter !== 'all' && !search.trim() && category === 'all' && sizeFilter === 'all' && (
-              <p className="text-[12px] text-slate-500 max-w-[280px]">
+              <p className="text-[12px] max-w-[280px]" style={{ color: 'var(--text-3)' }}>
                 No products have this color. Use <strong>Uncategorized</strong> to see products without a color set, or set a color when editing a product.
               </p>
             )}
-            <button type="button" onClick={() => { setSearch(''); setCategory('all'); setSizeFilter('all'); setColorFilter('all'); }}
-                    className="text-[13px] font-bold text-primary-500 hover:text-primary-700">
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setCategory('all'); setSizeFilter('all'); setColorFilter('all'); }}
+              className="text-[13px] font-bold transition-colors hover:opacity-90"
+              style={{ color: 'var(--blue)' }}
+            >
               Clear filters
             </button>
           </div>
@@ -969,32 +1058,22 @@ export default function InventoryPage(_props: InventoryPageProps) {
         {!loading && !error && products.length === 0 && !search.trim() && category === 'all' && sizeFilter === 'all' && colorFilter === 'all' && (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-[#8892A0]"
-              style={{ background: '#EEF1F6', border: '1px solid rgba(0,0,0,0.11)' }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center border"
+              style={{ background: 'var(--elevated)', borderColor: 'var(--border)', color: 'var(--text-3)' }}
             >
               <BoxIcon />
             </div>
-            <p
-              className="text-[17px] font-bold"
-              style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}
-            >
+            <p className="text-[17px] font-bold" style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}>
               No products yet
             </p>
-            <p
-              className="text-[13px] max-w-[280px]"
-              style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
-            >
+            <p className="text-[13px] max-w-[280px]" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
               Add your first product to get started.
             </p>
             <button
               type="button"
               onClick={openAddModal}
-              className="h-[38px] px-5 rounded-[7px] text-white text-[13px] font-semibold flex items-center gap-1.5 mt-1 transition-all duration-150 hover:-translate-y-px"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                background: '#5CACFA',
-                boxShadow: '0 2px 8px rgba(92,172,250,0.25)',
-              }}
+              className="h-[38px] px-5 rounded-[10px] text-white text-[13px] font-semibold flex items-center gap-1.5 mt-1 transition-all duration-150 hover:-translate-y-px"
+              style={{ fontFamily: 'var(--font-b)', background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
             >
               <PlusIcon /> Add first product
             </button>
@@ -1011,7 +1090,6 @@ export default function InventoryPage(_props: InventoryPageProps) {
                   product={product}
                   onEditFull={openEditModal}
                   onDelete={handleDeleteProduct}
-                  disableDestructiveActions={isDegraded}
                 />
               ))}
             </div>
@@ -1021,10 +1099,12 @@ export default function InventoryPage(_props: InventoryPageProps) {
                   type="button"
                   disabled={loadingMore}
                   onClick={() => loadProducts(products.length, true)}
-                  className="h-11 px-6 rounded-xl border-2 border-slate-200 bg-white
-                             text-[13px] font-bold text-slate-700 hover:border-slate-300
-                             hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed
-                             transition-colors"
+                  className="h-11 px-6 rounded-xl border text-[13px] font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-[var(--shadow-sm)]"
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)',
+                  }}
                 >
                   {loadingMore ? 'Loading…' : `Load more (${products.length} of ${totalCount})`}
                 </button>

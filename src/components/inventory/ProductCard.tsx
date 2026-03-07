@@ -8,7 +8,6 @@
 // ============================================================
 
 import { useState, useRef, useCallback, memo } from 'react';
-import { getStockStatus as getStatusFromUtil } from '../../lib/stockAlerts';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -49,18 +48,24 @@ interface ProductCardProps {
   }) => Promise<void>;
   onEditFull: (product: Product) => void;
   onDelete?: (product: Product) => void;
-  /** When true (e.g. server degraded), disable delete and show tooltip. */
-  disableDestructiveActions?: boolean;
 }
 
-// ── Helpers (use shared stock alert logic so Dashboard, Reports, and UI stay in sync) ────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 type StockStatus = 'in' | 'low' | 'out';
 
+function getTotalQuantity(product: Product): number {
+  if (product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0) {
+    return (product.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
+  }
+  return product.quantity ?? 0;
+}
+
 function getStockStatus(product: Product): StockStatus {
-  const s = getStatusFromUtil(product);
-  if (s === 'out_of_stock') return 'out';
-  if (s === 'low_stock') return 'low';
+  const qty = getTotalQuantity(product);
+  if (qty === 0) return 'out';
+  if (product.reorderLevel != null && qty <= product.reorderLevel) return 'low';
+  if (qty <= 3) return 'low';
   return 'in';
 }
 
@@ -91,28 +96,23 @@ const IconImage = () => (
   </svg>
 );
 
-const IconSpinner = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-    style={{ animation: 'card-spin 0.8s linear infinite' }}>
-    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-  </svg>
-);
+const IconSpinner = () => <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0" aria-hidden />;
 
 // ── Stock Status Badge ─────────────────────────────────────────────────────
 
 function StockBadge({ status }: { status: StockStatus }) {
   const config = {
-    in:  { label: 'In stock',     dot: '#16A34A', border: 'rgba(22,163,74,0.2)' },
-    low: { label: 'Low stock',    dot: '#D97706', border: 'rgba(217,119,6,0.3)' },
-    out: { label: 'Out of stock', dot: '#DC2626', border: 'rgba(220,38,38,0.2)' },
+    in:  { label: 'In stock',     color: 'var(--green)', bg: 'var(--green-dim)', border: 'rgba(22,163,74,0.2)' },
+    low: { label: 'Low stock',    color: 'var(--amber)', bg: 'var(--amber-dim)', border: 'rgba(217,119,6,0.2)' },
+    out: { label: 'Out of stock', color: 'var(--red-status)', bg: 'var(--red-dim)', border: 'rgba(220,38,38,0.2)' },
   }[status];
 
   return (
     <span
-      className="absolute top-2 right-2 flex items-center gap-1.5 h-6 px-2 rounded-md text-[10px] font-semibold bg-white border"
-      style={{ color: status === 'in' ? '#16A34A' : status === 'low' ? '#D97706' : '#DC2626', borderColor: config.border }}
+      className="absolute top-2 right-2 flex items-center gap-1.5 h-6 px-2 rounded-md text-[10px] font-semibold border"
+      style={{ color: config.color, background: config.bg, borderColor: config.border }}
     >
-      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: config.dot }} />
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-current opacity-80" />
       {config.label}
     </span>
   );
@@ -124,7 +124,10 @@ function SizePills({ product }: { product: Product }) {
   if (product.sizeKind === 'na') {
     return (
       <div className="flex items-center gap-1.5 mb-3">
-        <span className="h-7 px-3 rounded-lg bg-slate-100 text-[12px] font-semibold text-slate-600 flex items-center">
+        <span
+          className="h-7 px-3 rounded-lg text-[12px] font-semibold flex items-center border"
+          style={{ background: 'var(--green-dim)', color: 'var(--green)', borderColor: 'rgba(22,163,74,0.2)' }}
+        >
           Qty: {product.quantity}
         </span>
       </div>
@@ -134,7 +137,10 @@ function SizePills({ product }: { product: Product }) {
   if (product.sizeKind === 'one_size') {
     return (
       <div className="flex items-center gap-1.5 mb-3">
-        <span className="h-7 px-3 rounded-lg bg-slate-100 text-[12px] font-semibold text-slate-600 flex items-center">
+        <span
+          className="h-7 px-3 rounded-lg text-[12px] font-semibold flex items-center border"
+          style={{ background: 'var(--green-dim)', color: 'var(--green)', borderColor: 'rgba(22,163,74,0.2)' }}
+        >
           One size · {product.quantity}
         </span>
       </div>
@@ -144,7 +150,7 @@ function SizePills({ product }: { product: Product }) {
   if (product.quantityBySize.length === 0) {
     return (
       <div className="mb-3">
-        <span className="text-[12px] text-slate-300 italic">No sizes recorded</span>
+        <span className="text-[12px] italic" style={{ color: 'var(--text-3)' }}>No sizes recorded</span>
       </div>
     );
   }
@@ -153,17 +159,21 @@ function SizePills({ product }: { product: Product }) {
   return (
     <div className="flex flex-wrap gap-1 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
       {product.quantityBySize.map((row) => {
+        const isOut = row.quantity === 0;
         const isLow = row.quantity > 0 && row.quantity <= reorder;
+        const pillStyle = isOut
+          ? { background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }
+          : isLow
+            ? { background: 'var(--amber-dim)', color: 'var(--amber)', borderColor: 'rgba(217,119,6,0.2)' }
+            : { background: 'var(--green-dim)', color: 'var(--green)', borderColor: 'rgba(22,163,74,0.2)' };
         return (
           <span
             key={row.sizeCode}
-            className={`flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-0.5
-              ${isLow ? 'bg-[#FFFBEB] border border-[rgba(217,119,6,0.25)] text-[#D97706]' : 'bg-[#F4F6F9] border border-[rgba(0,0,0,0.11)] text-[#424958]'}`}
+            className="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold flex items-center gap-0.5 border"
+            style={pillStyle}
           >
             {row.sizeCode}
-            <span className={isLow ? 'text-[#D97706]/80' : 'text-[#8892A0]'} style={{ fontWeight: 400 }}>
-              ·{row.quantity}
-            </span>
+            <span style={{ fontWeight: 400, opacity: 0.9 }}>·{row.quantity}</span>
           </span>
         );
       })}
@@ -306,7 +316,6 @@ function ProductCardInner({
   onSaveStock,
   onEditFull,
   onDelete,
-  disableDestructiveActions = false,
 }: ProductCardProps) {
   const supportsInlineStock = typeof onSaveStock === 'function' && typeof onEditOpen === 'function' && typeof onEditClose === 'function';
   const editing = supportsInlineStock && isEditing;
@@ -316,19 +325,18 @@ function ProductCardInner({
 
   return (
     <article
-      className={`
-        bg-white rounded-[10px] overflow-hidden border
-        shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]
-        transition-[box-shadow,transform,border-color] duration-[180ms] cursor-pointer
-        ${status === 'low' ? 'border-[rgba(217,119,6,0.25)]' : 'border-[rgba(0,0,0,0.07)]'}
-        ${editing
-          ? 'ring-2 ring-[#5CACFA] shadow-[0_4px_16px_rgba(13,17,23,0.09)]'
-          : 'hover:shadow-[0_4px_16px_rgba(13,17,23,0.09)] hover:-translate-y-0.5 hover:border-black/10'
-        }
-      `}
+      className="rounded-[14px] overflow-hidden border cursor-pointer transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 hover:border-[var(--border-md)]"
+      style={{
+        background: 'var(--surface)',
+        borderColor: status === 'low' ? 'rgba(217,119,6,0.25)' : 'var(--border)',
+        boxShadow: editing ? '0 0 0 2px var(--blue)' : 'var(--shadow-sm)',
+      }}
     >
-      {/* ── Image area 4:3, gradient placeholder (CHANGE 4) ── */}
-      <div className="relative w-full aspect-[4/3] overflow-hidden bg-[#EEF1F6]">
+      {/* ── Image area 4:3 ── */}
+      <div
+        className="relative w-full aspect-[4/3] overflow-hidden border-b"
+        style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}
+      >
         {hasImage ? (
           <img
             src={product.images![0]}
@@ -338,17 +346,22 @@ function ProductCardInner({
           />
         ) : (
           <div
-            className="absolute inset-0 flex items-center justify-center text-[#A8B4C4]"
-            style={{ background: 'linear-gradient(135deg, #EEF1F6 0%, #E3E8F0 100%)' }}
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ background: 'var(--elevated)', color: 'var(--text-3)' }}
           >
             <IconImage />
           </div>
         )}
+        {status === 'out' && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'rgba(255,255,255,0.85)' }}
+          />
+        )}
 
-        {/* Category tag: dark semi-transparent on image */}
         <span
           className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-semibold backdrop-blur-[8px]"
-          style={{ background: 'rgba(13,17,23,0.7)', color: 'rgba(255,255,255,0.92)' }}
+          style={{ background: 'rgba(0,0,0,0.5)', color: 'rgba(255,255,255,0.95)' }}
         >
           {product.category}
         </span>
@@ -361,22 +374,22 @@ function ProductCardInner({
         <div className="px-3.5 pt-3 pb-2">
           <h3
             className="text-[13px] font-semibold truncate mb-0.5"
-            style={{ fontFamily: "'DM Sans', sans-serif", color: '#0D1117' }}
+            style={{ fontFamily: 'var(--font-b)', color: 'var(--text)' }}
           >
             {product.name}
           </h3>
-          <p className="font-mono text-[10px] text-[#8892A0] truncate mb-2">
+          <p className="font-mono text-[10px] truncate mb-2" style={{ color: 'var(--text-3)' }}>
             {product.sku}
           </p>
           <div className="flex items-baseline gap-1.5 mb-2">
             <span
               className="text-[16px] font-extrabold"
-              style={{ fontFamily: 'Syne, sans-serif', color: '#5CACFA' }}
+              style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
             >
               {formatPrice(product.sellingPrice)}
             </span>
             {product.costPrice > 0 && (
-              <span className="text-[11px] text-[#8892A0]">
+              <span className="text-[11px]" style={{ color: 'var(--text-3)' }}>
                 Cost: {formatPrice(product.costPrice)}
               </span>
             )}
@@ -393,14 +406,27 @@ function ProductCardInner({
         />
       )}
 
-      {/* ── Footer: Edit / Delete outlined 30px (CHANGE 4) ── */}
+      {/* ── Footer: Edit / Stock / Delete ── */}
       {!editing && (
-        <div className={`grid border-t border-[rgba(0,0,0,0.07)] ${supportsInlineStock ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <div
+          className={`grid border-t ${supportsInlineStock ? 'grid-cols-3' : 'grid-cols-2'}`}
+          style={{ borderColor: 'var(--border)' }}
+        >
           <button
             type="button"
             onClick={() => onEditFull(product)}
-            className="h-[30px] flex items-center justify-center gap-1 text-[12px] font-medium text-[#424958] border-r border-[rgba(0,0,0,0.07)] hover:bg-[#F4F6F9] transition-colors"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
+            className="h-[30px] flex items-center justify-center gap-1 text-[12px] font-medium border-r transition-colors hover:border-[var(--blue)] hover:text-[var(--blue)]"
+            style={{ fontFamily: 'var(--font-b)', color: 'var(--text-2)', borderColor: 'var(--border)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--blue-dim)';
+              e.currentTarget.style.borderColor = 'var(--blue)';
+              e.currentTarget.style.color = 'var(--blue)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '';
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.color = 'var(--text-2)';
+            }}
           >
             <IconEdit /> Edit
           </button>
@@ -408,19 +434,33 @@ function ProductCardInner({
             <button
               type="button"
               onClick={() => onEditOpen?.(product.id)}
-              className="h-[30px] flex items-center justify-center gap-1 text-[12px] font-medium text-[#5CACFA] border-r border-[rgba(0,0,0,0.07)] hover:bg-[#F4F6F9] transition-colors"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              className="h-[30px] flex items-center justify-center gap-1 text-[12px] font-medium border-r transition-colors hover:border-[var(--blue)] hover:text-[var(--blue)]"
+              style={{ fontFamily: 'var(--font-b)', color: 'var(--blue)', borderColor: 'var(--border)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--blue-dim)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '';
+              }}
             >
               <IconPlus /> Stock
             </button>
           )}
           <button
             type="button"
-            onClick={() => !disableDestructiveActions && onDelete?.(product)}
-            disabled={disableDestructiveActions}
-            className="h-[30px] flex items-center justify-center text-[#424958] hover:bg-[#FEF2F2] hover:text-[#DC2626] transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#424958]"
+            onClick={() => onDelete?.(product)}
+            className="h-[30px] flex items-center justify-center transition-colors"
+            style={{ color: 'var(--text-2)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--red-dim)';
+              e.currentTarget.style.color = 'var(--red-status)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '';
+              e.currentTarget.style.color = 'var(--text-2)';
+            }}
             aria-label="Delete product"
-            title={disableDestructiveActions ? 'Server unavailable' : 'Delete product'}
+            title="Delete product"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>
@@ -446,19 +486,22 @@ export default ProductCard;
 
 export function ProductCardSkeleton() {
   return (
-    <div className="bg-white rounded-[10px] overflow-hidden border border-[rgba(0,0,0,0.07)] shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]">
-      <div className="w-full aspect-[4/3] bg-[#EEF1F6] animate-pulse" />
+    <div
+      className="rounded-[14px] overflow-hidden border shadow-[var(--shadow-sm)]"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      <div className="w-full aspect-[4/3] skeleton-shimmer" />
       <div className="px-4 pt-3.5 pb-4 flex flex-col gap-2.5">
-        <div className="h-4 w-3/4 bg-slate-100 rounded-lg animate-pulse" />
-        <div className="h-3 w-1/2 bg-slate-100 rounded-lg animate-pulse" />
-        <div className="h-5 w-1/3 bg-slate-100 rounded-lg animate-pulse" />
+        <div className="h-4 w-3/4 rounded-lg skeleton-shimmer" />
+        <div className="h-3 w-1/2 rounded-lg skeleton-shimmer" />
+        <div className="h-5 w-1/3 rounded-lg skeleton-shimmer" />
         <div className="flex gap-1.5">
-          {[1,2,3].map(i => (
-            <div key={i} className="h-7 w-16 bg-slate-100 rounded-lg animate-pulse" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-7 w-16 rounded-lg skeleton-shimmer" />
           ))}
         </div>
       </div>
-      <div className="h-12 border-t border-slate-100 bg-slate-50 animate-pulse" />
+      <div className="h-12 border-t skeleton-shimmer" style={{ borderColor: 'var(--border)' }} />
     </div>
   );
 }

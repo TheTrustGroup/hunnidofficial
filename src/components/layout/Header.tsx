@@ -1,24 +1,39 @@
-// src/components/layout/Header.tsx - Phase 4: breadcrumb left, search center, "● Live" blue pill + bell right.
-import { useState, FormEvent, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Search, Bell, LogOut } from 'lucide-react';
+// src/components/layout/Header.tsx — TopBar: breadcrumb, search, status pill, bell, New Sale (light theme)
+import { useState, FormEvent } from 'react';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
+import { Search, Bell, LogOut, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { RealtimeSyncIndicator } from '../RealtimeSyncIndicator';
+import { useApiStatus } from '../../contexts/ApiStatusContext';
+
+const BREADCRUMB: Record<string, { parent?: string; current: string }> = {
+  '/': { current: 'Dashboard' },
+  '/inventory': { parent: 'Dashboard', current: 'Inventory' },
+  '/orders': { parent: 'Dashboard', current: 'Orders' },
+  '/pos': { current: 'POS' },
+  '/sales': { parent: 'Dashboard', current: 'Sales' },
+  '/deliveries': { parent: 'Dashboard', current: 'Deliveries' },
+  '/reports': { parent: 'Dashboard', current: 'Reports' },
+  '/users': { parent: 'Settings', current: 'User Management' },
+  '/settings': { parent: 'Dashboard', current: 'Settings' },
+  '/more': { current: 'More' },
+};
+
+function getBreadcrumb(pathname: string) {
+  return BREADCRUMB[pathname] ?? { current: pathname.slice(1) || 'Dashboard' };
+}
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { logout } = useAuth();
+  const { isDegraded } = useApiStatus();
   const isInventory = location.pathname === '/inventory';
   const searchFromUrl = isInventory ? (searchParams.get('q') ?? '') : '';
   const [localQuery, setLocalQuery] = useState('');
   const searchValue = isInventory ? searchFromUrl : localQuery;
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  useEffect(() => {
-    if (isInventory) setLocalQuery(searchFromUrl);
-  }, [isInventory, searchFromUrl]);
+  const breadcrumb = getBreadcrumb(location.pathname);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -63,60 +78,138 @@ export function Header() {
     }
   };
 
-  // POS has its own topbar; do not show layout header on POS
-  if (location.pathname === '/pos') return null;
-
   return (
-    <header className="fixed top-0 left-0 lg:left-[240px] right-0 h-14 border-b border-[rgba(0,0,0,0.07)] flex items-center gap-3 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-5 pt-[var(--safe-top)] z-10 bg-white">
-      {/* Center: search bar (⌘K) — EDK-style h-[34px], icon w-4 h-4 */}
-      <div className="flex-1 max-w-[540px] min-w-0">
-        <form onSubmit={handleSearchSubmit} className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8892A0] pointer-events-none" strokeWidth={2} strokeLinecap="round" />
+    <header
+      className="sticky top-0 left-0 lg:left-[244px] right-0 h-14 flex items-center gap-3 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-5 pt-[var(--safe-top)] z-50 border-b shadow-[var(--shadow-sm)]"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      {/* Left: breadcrumb — Inter 500 13px */}
+      <nav className="flex-shrink-0 min-w-0" aria-label="Breadcrumb">
+        <ol className="flex items-center gap-1.5 text-[13px] font-medium truncate" style={{ fontFamily: 'var(--font-b)' }}>
+          {breadcrumb.parent != null ? (
+            <>
+              <li>
+                <span style={{ color: 'var(--text-3)' }}>{breadcrumb.parent}</span>
+              </li>
+              <li style={{ color: 'var(--border-md)' }} aria-hidden>›</li>
+            </>
+          ) : null}
+          <li>
+            <span style={{ color: 'var(--text)' }}>{breadcrumb.current}</span>
+          </li>
+        </ol>
+      </nav>
+
+      {/* Center: search bar */}
+      <div className="flex-1 max-w-[540px] min-w-0 flex justify-center">
+        <form onSubmit={handleSearchSubmit} className="relative w-full max-w-[380px] group">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none"
+            style={{ color: 'var(--text-3)' }}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
           <input
             type="search"
             inputMode="search"
             value={searchValue}
             onChange={(e) => handleSearchInput(e.target.value)}
             placeholder="Search products, SKU, or barcode…"
-            className="w-full h-[34px] pl-9 pr-14 rounded-lg bg-[#F4F6F9] border border-[rgba(0,0,0,0.11)] text-[13px] text-[#0D1117] placeholder:text-[#8892A0] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[rgba(92,172,250,0.35)] focus:shadow-[0_0_0_3px_rgba(92,172,250,0.10)]"
+            className="w-full h-11 pl-10 pr-14 rounded-[10px] border outline-none transition-[duration-150] focus:border-[var(--blue)] focus:shadow-[0_0_0_3px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
+            style={{
+              background: 'var(--elevated)',
+              borderColor: 'var(--border)',
+              color: 'var(--text)',
+              fontSize: '13px',
+              fontFamily: 'var(--font-b)',
+            }}
+            onMouseEnter={(e) => {
+              if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = 'var(--border-md)';
+            }}
+            onMouseLeave={(e) => {
+              if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = 'var(--border)';
+            }}
             aria-label="Search products, SKU, or barcode"
           />
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] text-[#8892A0] font-medium tracking-wide">⌘K</span>
+          <span
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-medium tracking-wide rounded px-1.5 py-0.5"
+            style={{ fontFamily: 'var(--font-m)', color: 'var(--text-3)', background: 'var(--border)' }}
+          >
+            ⌘K
+          </span>
         </form>
       </div>
 
-      {/* Right: "● Live" blue pill, notification bell, log out — EDK: h-[34px], icons w-4 h-4 */}
+      {/* Right: Online/Offline pill, Bell, New Sale, Log out */}
       <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-        <div
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-medium border"
+        {/* Status pill */}
+        <span
+          className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[11px] font-bold uppercase shrink-0"
           style={{
-            background: 'var(--blue-dim)',
-            color: 'var(--blue)',
-            borderColor: 'rgba(92,172,250,0.35)',
             fontFamily: 'var(--font-d)',
+            ...(isDegraded
+              ? { background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.2)', color: 'var(--red-status)' }
+              : { background: 'rgba(22,163,74,0.08)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }),
           }}
         >
-          <RealtimeSyncIndicator />
-        </div>
+          <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden />
+          {isDegraded ? 'Offline' : 'Live'}
+        </span>
+
         <button
           type="button"
-          className="relative h-[34px] min-w-[34px] rounded-lg border border-[rgba(0,0,0,0.11)] bg-white flex items-center justify-center text-[#424958] hover:bg-[#F4F6F9] transition-colors px-2"
+          className="relative w-11 h-11 rounded-[9px] border flex items-center justify-center transition-colors min-w-[44px] min-h-[44px] shrink-0"
+          style={{
+            background: 'var(--elevated)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-2)',
+          }}
           aria-label="View notifications"
           title="Notifications"
           disabled
         >
-          <Bell className="w-4 h-4" strokeWidth={2} />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-[#5CACFA] rounded-full border-[1.5px] border-white" aria-hidden />
+          <Bell className="w-[18px] h-[18px]" strokeWidth={2} />
+          <span
+            className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--surface)]"
+            style={{ background: 'var(--red-status)' }}
+            aria-hidden
+          />
         </button>
+
+        <Link
+          to="/pos"
+          className="flex items-center justify-center gap-1.5 h-11 px-4 rounded-[10px] text-white text-[13px] font-semibold transition-all duration-200 hover:-translate-y-px min-h-[44px] shrink-0"
+          style={{
+            background: 'var(--blue)',
+            boxShadow: '0 2px 8px var(--blue-glow)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#1d4ed8';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'var(--blue)';
+          }}
+        >
+          <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
+          <span className="hidden sm:inline">New Sale</span>
+        </Link>
+
         <button
           type="button"
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="flex items-center justify-center gap-1.5 h-[34px] px-3 rounded-lg border border-[rgba(0,0,0,0.11)] bg-white text-[13px] font-medium text-[#424958] hover:bg-[#F4F6F9] transition-colors min-h-[34px]"
+          className="flex items-center justify-center gap-1.5 h-11 px-3 rounded-[10px] border transition-colors min-h-[44px] shrink-0"
+          style={{
+            background: 'var(--elevated)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-2)',
+            fontFamily: 'var(--font-b)',
+            fontSize: '12px',
+          }}
           title="Log out"
           aria-label="Log out"
         >
-          <LogOut className="w-4 h-4" strokeWidth={2} />
+          <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
           <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
         </button>
       </div>
