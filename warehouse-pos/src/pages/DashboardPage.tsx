@@ -130,43 +130,83 @@ async function apiFetch<T = unknown>(path: string): Promise<T> {
   throw lastErr;
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────
+// ── Stat card (light theme: primary = blue block, others = white with token colors) ───
 
 function StatCard({
   label,
   value,
   icon: Icon,
-  accent = false,
+  primary = false,
+  revenue = false,
   warning = false,
   danger = false,
 }: {
   label:   string;
   value:   string | number;
   icon:    LucideIcon;
-  accent?: boolean;
+  primary?: boolean;
+  revenue?: boolean;
   warning?: boolean;
   danger?:  boolean;
 }) {
-  const bg = accent  ? 'bg-white border-slate-200' :
-             warning ? 'bg-white border-slate-200' :
-             danger  ? 'bg-white border-slate-200' :
-                       'bg-white border-slate-200';
+  const isPrimary = primary;
+  const valColor = isPrimary
+    ? 'white'
+    : danger
+      ? 'var(--red-status)'
+      : warning
+        ? 'var(--amber)'
+        : revenue
+          ? 'var(--blue)'
+          : 'var(--text)';
 
-  const valColor = danger  ? 'text-red-500'   :
-                   warning ? 'text-amber-500' :
-                             'text-slate-900';
+  const iconWrapBg = isPrimary
+    ? 'rgba(255,255,255,0.15)'
+    : danger
+      ? 'var(--red-dim)'
+      : warning
+        ? 'var(--amber-dim)'
+        : revenue
+          ? 'var(--blue-dim)'
+          : 'var(--overlay)';
 
-  const iconColor = danger  ? 'text-red-500'   :
-                    warning ? 'text-amber-500' :
-                              'text-slate-400';
+  const iconColor = isPrimary ? 'white' : revenue ? 'var(--blue)' : warning ? 'var(--amber)' : danger ? 'var(--red-status)' : 'var(--text-2)';
 
   return (
-    <div className={`flex flex-col justify-between p-6 rounded-2xl border ${bg} shadow-[var(--card-shadow)]`}>
+    <div
+      className="flex flex-col justify-between p-6 rounded-[14px] border transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5"
+      style={{
+        background: isPrimary ? 'var(--blue)' : 'var(--surface)',
+        borderColor: isPrimary ? 'var(--blue)' : 'var(--border)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
       <div className="flex items-center justify-between mb-4">
-        <span className="text-[13px] font-semibold text-slate-500">{label}</span>
-        <Icon className={iconColor} size={28} aria-hidden />
+        <span
+          className="text-[13px] font-semibold"
+          style={{ color: isPrimary ? 'rgba(255,255,255,0.9)' : 'var(--text-2)' }}
+        >
+          {label}
+        </span>
+        <span
+          className="w-10 h-10 rounded-[10px] flex items-center justify-center flex-shrink-0"
+          style={{ background: iconWrapBg }}
+        >
+          <Icon size={22} style={{ color: iconColor }} aria-hidden />
+        </span>
       </div>
-      <p className={`text-[28px] font-black tabular-nums leading-none min-w-0 truncate ${valColor}`} title={typeof value === 'string' ? value : String(value)}>{value}</p>
+      <p
+        className="tabular-nums leading-none min-w-0 truncate"
+        style={{
+          fontFamily: 'var(--font-m)',
+          fontSize: '24px',
+          fontWeight: 600,
+          color: valColor,
+        }}
+        title={typeof value === 'string' ? value : String(value)}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -176,7 +216,7 @@ function StatCard({
 function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="flex items-center gap-3 py-6 px-4 text-emerald-600">
+      <div className="flex items-center gap-3 py-6 px-4" style={{ color: 'var(--green)' }}>
         <CheckCircle className="w-6 h-6 flex-shrink-0" aria-hidden />
         <span className="text-[14px] font-semibold">All products are sufficiently stocked</span>
       </div>
@@ -184,21 +224,28 @@ function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   }
 
   return (
-    <div className="divide-y divide-slate-100">
+    <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
       {items.map((p) => {
         const isOut = p.quantity === 0;
         return (
-          <div key={p.id} className="flex items-center justify-between py-3.5 px-4">
+          <div
+            key={p.id}
+            className="flex items-center justify-between py-3.5 px-4 transition-colors hover:bg-[var(--elevated)]"
+          >
             <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-bold text-slate-900 truncate">{p.name}</p>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">{p.category || 'Uncategorised'}</p>
+              <p className="text-[14px] font-bold truncate" style={{ color: 'var(--text)' }}>{p.name}</p>
+              <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--text-3)' }}>{p.category || 'Uncategorised'}</p>
             </div>
             <div className="flex items-center gap-3 ml-4">
-              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-bold
-                ${isOut
-                  ? 'bg-red-50 text-red-500 border border-red-100'
-                  : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isOut ? 'bg-red-400' : 'bg-amber-400'}`}/>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-bold border"
+                style={
+                  isOut
+                    ? { background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }
+                    : { background: 'var(--amber-dim)', color: 'var(--amber)', borderColor: 'rgba(217,119,6,0.2)' }
+                }
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-current"/>
                 {isOut ? 'Out of stock' : `${p.quantity} left`}
               </div>
             </div>
@@ -317,63 +364,72 @@ export default function DashboardPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] p-6">
+    <div className="min-h-screen p-6" style={{ background: 'var(--bg)' }}>
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* ── Header ── */}
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-[24px] font-black text-slate-900 tracking-tight">
+              <h1 className="text-[24px] font-black tracking-tight" style={{ color: 'var(--text)' }}>
                 Admin Control Panel
               </h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
-                               bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"/>
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider"
+                style={{ background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid rgba(22,163,74,0.2)' }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]"/>
                 Super Admin
               </span>
             </div>
-            <p className="text-[13px] text-slate-500">
+            <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
               Full system access — inventory, POS, reports, users &amp; settings.
             </p>
           </div>
 
-          <a href="/pos"
-             className="flex items-center gap-2 h-10 px-5 rounded-xl bg-primary-500 hover:bg-primary-600
-                        text-white text-[14px] font-bold transition-colors
-                        shadow-[0_4px_12px_rgba(92,172,250,0.3)]">
+          <a
+            href="/pos"
+            className="flex items-center gap-2 h-10 px-5 rounded-xl text-white text-[14px] font-bold transition-all hover:-translate-y-px"
+            style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
+          >
             <ShoppingCart className="w-5 h-5" aria-hidden />
             New sale
           </a>
         </div>
 
-        {/* ── Warehouse label — proves context is working ── */}
+        {/* ── Warehouse label ── */}
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400"/>
-          <p className="text-[13px] font-semibold text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-[var(--green)]"/>
+          <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
             Inventory stats for:{' '}
-            <span className="text-slate-900 font-black">{warehouseName}</span>
+            <span className="font-black" style={{ color: 'var(--text)' }}>{warehouseName}</span>
           </p>
           {loading && (
-            <span className="flex items-center gap-2 text-[12px] text-slate-400">
+            <span className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-3)' }}>
               <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
               Loading…
             </span>
           )}
         </div>
 
-        {/* ── Today's sales by location (both POS/warehouses at a glance) ── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[var(--card-shadow)]">
-          <h2 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+        {/* ── Today's sales by location ── */}
+        <div
+          className="rounded-[14px] border p-5 shadow-[var(--shadow-sm)]"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          <h2 className="text-[12px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
             Today&apos;s sales by location
           </h2>
           <div className="flex flex-wrap gap-4">
             {WAREHOUSE_IDS_FOR_SUMMARY.map((wid) => (
               <div key={wid} className="flex items-center gap-2">
-                <span className="text-[13px] font-semibold text-slate-600">
+                <span className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
                   {locationNameForId(wid)}
                 </span>
-                <span className="text-[15px] font-black tabular-nums text-slate-900">
+                <span
+                  className="text-[15px] font-black tabular-nums"
+                  style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}
+                >
                   {todayByWarehouse == null
                     ? '—'
                     : formatGHCCompact(todayByWarehouse[wid] ?? 0)}
@@ -385,14 +441,20 @@ export default function DashboardPage() {
 
         {/* ── Error ── */}
         {error && !loading && (
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-50 border border-red-100">
-            <AlertTriangle className="w-6 h-6 flex-shrink-0 text-red-500" aria-hidden />
+          <div
+            className="flex items-center gap-3 p-4 rounded-[14px] border"
+            style={{ background: 'var(--red-dim)', borderColor: 'rgba(220,38,38,0.2)' }}
+          >
+            <AlertTriangle className="w-6 h-6 flex-shrink-0" style={{ color: 'var(--red-status)' }} aria-hidden />
             <div>
-              <p className="text-[14px] font-bold text-red-700">Failed to load data</p>
-              <p className="text-[12px] text-red-500 mt-0.5">{error}</p>
+              <p className="text-[14px] font-bold" style={{ color: 'var(--red-status)' }}>Failed to load data</p>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--red-status)' }}>{error}</p>
             </div>
-            <button onClick={() => loadData(warehouseId)}
-                    className="ml-auto px-4 py-2 rounded-xl bg-primary-500 text-white text-[12px] font-bold hover:bg-primary-600">
+            <button
+              onClick={() => loadData(warehouseId)}
+              className="ml-auto px-4 py-2 rounded-xl text-white text-[12px] font-bold"
+              style={{ background: 'var(--blue)' }}
+            >
               Retry
             </button>
           </div>
@@ -404,7 +466,7 @@ export default function DashboardPage() {
             label="Total Stock Value"
             value={loading || !stats ? '—' : formatGHCCompact(stats.totalStockValue)}
             icon={DollarSign}
-            accent
+            primary
           />
           <StatCard
             label="Total Products"
@@ -421,20 +483,30 @@ export default function DashboardPage() {
             label="Today's Sales"
             value={loading || !stats ? '—' : formatGHCCompact(stats.todaysSales)}
             icon={Receipt}
+            revenue
           />
         </div>
 
         {/* ── Low stock alerts ── */}
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-[var(--card-shadow)]">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <div
+          className="rounded-[14px] border overflow-hidden shadow-[var(--shadow-sm)]"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        >
+          <div
+            className="flex items-center justify-between px-5 py-4 border-b"
+            style={{ borderColor: 'var(--border)' }}
+          >
             <div>
-              <h2 className="text-[15px] font-black text-slate-900">Stock Alerts</h2>
-              <p className="text-[12px] text-slate-400 mt-0.5">
+              <h2 className="text-[15px] font-black" style={{ color: 'var(--text)' }}>Stock Alerts</h2>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>
                 {warehouseName} — products at or below reorder level
               </p>
             </div>
             {stats && stats.outOfStockCount > 0 && (
-              <span className="px-3 py-1 rounded-full bg-red-50 text-red-500 text-[12px] font-bold border border-red-100">
+              <span
+                className="px-3 py-1 rounded-full text-[12px] font-bold border"
+                style={{ background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }}
+              >
                 {stats.outOfStockCount} out of stock
               </span>
             )}
@@ -442,7 +514,7 @@ export default function DashboardPage() {
           {loading ? (
             <div className="p-6 space-y-3">
               {[1,2,3].map(i => (
-                <div key={i} className="h-10 bg-slate-100 rounded-xl animate-pulse"/>
+                <div key={i} className="h-10 rounded-xl animate-pulse" style={{ background: 'var(--overlay)' }}/>
               ))}
             </div>
           ) : (
@@ -452,20 +524,26 @@ export default function DashboardPage() {
 
         {/* ── Category breakdown ── */}
         {!loading && dashboard && Object.keys(dashboard.categorySummary).length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-[var(--card-shadow)]">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="text-[15px] font-black text-slate-900">By Category</h2>
-              <p className="text-[12px] text-slate-400 mt-0.5">{warehouseName}</p>
+          <div
+            className="rounded-[14px] border overflow-hidden shadow-[var(--shadow-sm)]"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h2 className="text-[15px] font-black" style={{ color: 'var(--text)' }}>By Category</h2>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>{warehouseName}</p>
             </div>
             <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {Object.entries(dashboard.categorySummary)
                 .sort((a, b) => b[1].value - a[1].value)
                 .map(([cat, { count, value }]) => (
-                  <div key={cat}
-                       className="flex flex-col gap-1 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">{cat}</span>
-                    <span className="text-[18px] font-black text-slate-900">{count} SKUs</span>
-                    <span className="text-[11px] text-slate-400 font-medium">{formatGHC(value)}</span>
+                  <div
+                    key={cat}
+                    className="flex flex-col gap-1 p-3.5 rounded-xl border"
+                    style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}
+                  >
+                    <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>{cat}</span>
+                    <span className="text-[18px] font-black" style={{ color: 'var(--text)' }}>{count} SKUs</span>
+                    <span className="text-[11px] font-medium" style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}>{formatGHC(value)}</span>
                   </div>
                 ))}
             </div>

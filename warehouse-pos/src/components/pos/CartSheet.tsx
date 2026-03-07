@@ -72,7 +72,16 @@ const IconSpinner = () => <span className="loading-spinner-ring loading-spinner-
 
 function PayBtn({ method, selected, onSelect }: { method: PaymentMethod; selected: boolean; onSelect: () => void }) {
   return (
-    <button type="button" onClick={onSelect} className={`flex-1 h-14 rounded-2xl border-[1.5px] flex flex-col items-center justify-center gap-1 font-sans text-[12px] font-bold transition-all duration-150 active:scale-95 ${selected ? 'bg-slate-900 border-slate-900 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)]' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+    <button
+      type="button"
+      onClick={onSelect}
+      className="flex-1 h-14 rounded-2xl border flex flex-col items-center justify-center gap-1 text-[12px] font-bold transition-all duration-150 active:scale-95"
+      style={{
+        background: selected ? 'var(--blue-soft)' : 'var(--surface)',
+        borderColor: selected ? 'rgba(92,172,250,0.3)' : 'var(--border)',
+        color: selected ? 'var(--blue)' : 'var(--text-2)',
+      }}
+    >
       <span className="flex items-center justify-center leading-none"><PayIcon method={method} size={20} /></span>
       <span>{method}</span>
     </button>
@@ -81,19 +90,37 @@ function PayBtn({ method, selected, onSelect }: { method: PaymentMethod; selecte
 
 function CartLineItem({ line, onUpdateQty, onRemove }: { line: CartLine; onUpdateQty: (k: string, d: number) => void; onRemove: (k: string) => void }) {
   return (
-    <div className="flex items-start gap-3 px-5 py-3.5 border-b border-slate-50 last:border-0">
+    <div
+      className="flex items-start gap-3 px-5 py-3.5 border-b last:border-0 rounded-[10px] mx-2 mt-1"
+      style={{ borderColor: 'var(--border)', background: 'var(--elevated)' }}
+    >
       <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-bold text-slate-900 truncate leading-snug">{line.name}</p>
-        <p className="text-[12px] text-slate-400 mt-0.5">{line.sizeLabel ? `${line.sizeLabel} · ` : ''}{fmt(line.unitPrice)} each</p>
+        <p className="text-[14px] font-bold truncate leading-snug" style={{ color: 'var(--text)' }}>{line.name}</p>
+        <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>{line.sizeLabel ? `${line.sizeLabel} · ` : ''}{fmt(line.unitPrice)} each</p>
         <div className="flex items-center gap-2 mt-2">
-          <button type="button" onClick={() => onUpdateQty(line.key, -1)} disabled={line.qty <= 1} className="w-7 h-7 rounded-lg border-[1.5px] border-slate-200 bg-white text-[14px] font-bold text-slate-600 flex items-center justify-center hover:bg-slate-100 active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150">−</button>
-          <span className="text-[14px] font-bold text-slate-900 min-w-[20px] text-center tabular-nums">{line.qty}</span>
-          <button type="button" onClick={() => onUpdateQty(line.key, 1)} className="w-7 h-7 rounded-lg border-[1.5px] border-slate-200 bg-white text-[14px] font-bold text-slate-600 flex items-center justify-center hover:bg-slate-100 active:scale-90 transition-all duration-150">+</button>
+          <button
+            type="button"
+            onClick={() => onUpdateQty(line.key, -1)}
+            disabled={line.qty <= 1}
+            className="w-7 h-7 rounded-lg border text-[14px] font-bold flex items-center justify-center active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+            style={{ background: 'var(--border)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
+          >
+            −
+          </button>
+          <span className="text-[14px] font-bold min-w-[20px] text-center tabular-nums" style={{ color: 'var(--text)' }}>{line.qty}</span>
+          <button
+            type="button"
+            onClick={() => onUpdateQty(line.key, 1)}
+            className="w-7 h-7 rounded-lg border text-[14px] font-bold flex items-center justify-center active:scale-90 transition-all duration-150"
+            style={{ background: 'var(--border)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
+          >
+            +
+          </button>
         </div>
       </div>
       <div className="flex flex-col items-end gap-2 flex-shrink-0 pt-0.5">
-        <button type="button" onClick={() => onRemove(line.key)} className="w-7 h-7 rounded-lg bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-100 hover:text-red-600 active:scale-90 transition-all duration-150"><IconX /></button>
-        <p className="text-[14px] font-bold text-slate-900 tabular-nums">{fmt(line.unitPrice * line.qty)}</p>
+        <button type="button" onClick={() => onRemove(line.key)} className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-colors" style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }}><IconX /></button>
+        <p className="text-[14px] font-bold tabular-nums" style={{ color: 'var(--blue)', fontFamily: 'var(--font-m)' }}>{fmt(line.unitPrice * line.qty)}</p>
       </div>
     </div>
   );
@@ -306,15 +333,16 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
 
         {/* Charge button */}
         {lines.length > 0 && (
-          <div className="px-5 py-4 border-t border-slate-100 flex-shrink-0 bg-white">
+          <div className="px-5 py-4 border-t flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
             <button
               type="button"
               onClick={handleCharge}
               disabled={isCharging || lines.length === 0 || !canCharge}
-              className="w-full h-11 rounded-[7px] border-none text-white text-[14px] font-bold flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150 hover:-translate-y-px"
+              className="w-full h-12 rounded-[10px] border-none text-white flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-200 hover:-translate-y-px uppercase font-extrabold text-[16px]"
               style={{
-                background: scheduleDelivery ? '#D97706' : '#5CACFA',
-                boxShadow: scheduleDelivery ? '0 2px 8px rgba(217,119,6,0.25)' : '0 2px 8px rgba(92,172,250,0.25)',
+                fontFamily: 'var(--font-d)',
+                background: scheduleDelivery ? 'var(--amber)' : 'var(--blue)',
+                boxShadow: scheduleDelivery ? '0 4px 14px rgba(217,119,6,0.2)' : '0 4px 14px var(--blue-glow)',
               }}
             >
               {isCharging ? (<><IconSpinner /> Processing…</>) : scheduleDelivery ? (<><IconTruck /> Charge & Schedule — {fmt(total)}</>) : (`Charge ${fmt(total)}`)}

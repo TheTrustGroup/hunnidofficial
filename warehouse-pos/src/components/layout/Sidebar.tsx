@@ -1,5 +1,5 @@
-// src/components/layout/Sidebar.tsx — Hunnid Official sidebar (CHANGE 2)
-// Background #0D1117, width 244px, H monogram logo, warehouse pill, nav with divider, user card.
+// src/components/layout/Sidebar.tsx — Hunnid Official sidebar (light theme)
+// White surface, blue accents, warehouse pill, nav, user row. Style-only; no logic changes.
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -41,8 +41,6 @@ export function Sidebar() {
   const canSwitchWarehouse = showWarehouseSwitcher && warehouses.length > 1;
   const [warehouseDropdownOpen, setWarehouseDropdownOpen] = useState(false);
 
-  const isAdminRole =
-    user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'manager';
   const canSeeSwitchRole = user?.role === 'admin' || user?.role === 'super_admin';
 
   const navigation = BASE_NAVIGATION.filter(
@@ -61,38 +59,36 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 w-[244px] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20"
-      style={{ background: 'var(--sidebar-bg)' }}
+      className="fixed left-0 top-0 w-[var(--sidebar-w)] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20 border-r border-[var(--border)] shadow-[var(--shadow-sm)]"
+      style={{ background: 'var(--surface)' }}
     >
-      {/* Logo: H monogram + wordmark */}
-      <div className="flex items-center gap-[11px] px-4 pt-[17px] pb-[15px] border-b border-white/[0.06] flex-shrink-0">
+      {/* Logo: blue H mark + wordmark */}
+      <div className="flex items-center gap-[11px] px-4 pt-[17px] pb-[15px] border-b border-[var(--border)] flex-shrink-0 bg-[var(--surface)]">
         <div
-          className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0"
-          style={{
-            background: 'var(--blue)',
-            boxShadow: '0 2px 8px rgba(92,172,250,0.35)',
-          }}
+          className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0"
+          style={{ background: 'var(--blue)' }}
         >
           <LogoMark />
         </div>
         <div className="flex flex-col leading-none gap-0.5 min-w-0">
           <span
-            className="font-extrabold text-white truncate"
+            className="font-extrabold uppercase truncate"
             style={{
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'var(--font-d)',
               fontSize: '14px',
               letterSpacing: '0.02em',
+              color: 'var(--text)',
             }}
           >
             Hunnid
           </span>
           <span
-            className="font-semibold uppercase truncate"
+            className="font-normal uppercase truncate"
             style={{
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'var(--font-b)',
               fontSize: '10px',
               letterSpacing: '0.12em',
-              color: 'var(--blue)',
+              color: 'var(--text-3)',
             }}
           >
             {isPosPage ? 'POS Terminal' : 'OFFICIAL'}
@@ -100,35 +96,41 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Warehouse / Location selector */}
+      {/* Warehouse pill */}
       {showWarehouseSwitcher && (
         <div className="px-3 pt-[14px] pb-1.5 flex-shrink-0">
-          <span
-            className="block pl-0.5 mb-1.5 text-[9px] font-semibold uppercase"
-            style={{ letterSpacing: '0.18em', color: 'rgba(255,255,255,0.20)' }}
-          >
-            {isPosPage ? 'Location' : 'Warehouse'}
-          </span>
           <div className="relative">
             {canSwitchWarehouse ? (
               <>
                 <button
                   type="button"
                   onClick={() => setWarehouseDropdownOpen((o) => !o)}
-                  className="w-full flex items-center gap-2 py-2 px-2.5 rounded-[7px] transition-colors hover:bg-white/[0.06]"
+                  className="w-full flex items-center gap-2 py-2.5 px-3 rounded-[10px] transition-colors border"
                   style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'var(--blue-soft)',
+                    borderColor: 'rgba(92,172,250,0.15)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#e4ecfc';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--blue-soft)';
                   }}
                   aria-expanded={warehouseDropdownOpen}
                   aria-haspopup="listbox"
                   aria-label="Select warehouse"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] flex-shrink-0" aria-hidden />
-                  <span className="flex-1 text-left text-[12px] font-medium text-white/80 truncate">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-[#22C55E] flex-shrink-0 animate-pulse shadow-[0_0_6px_#22C55E]"
+                    aria-hidden
+                  />
+                  <span
+                    className="flex-1 text-left text-[12px] font-bold uppercase truncate"
+                    style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
+                  >
                     {warehouseName}
                   </span>
-                  <span className="text-white/[0.28] text-[10px]" aria-hidden>▾</span>
+                  <span className="text-[10px] opacity-50" style={{ color: 'var(--blue)' }} aria-hidden>▾</span>
                 </button>
                 {warehouseDropdownOpen && (
                   <>
@@ -139,8 +141,11 @@ export function Sidebar() {
                     />
                     <ul
                       role="listbox"
-                      className="absolute left-0 top-full mt-1 z-20 min-w-[180px] py-1.5 rounded-[7px] border border-white/[0.08] shadow-lg"
-                      style={{ background: '#0D1117' }}
+                      className="absolute left-0 top-full mt-1 z-20 min-w-[180px] py-1.5 rounded-[10px] border shadow-[var(--shadow-md)]"
+                      style={{
+                        background: 'var(--surface)',
+                        borderColor: 'var(--border)',
+                      }}
                     >
                       {warehouses.map((w) => (
                         <li key={w.id} role="option" aria-selected={currentWarehouseId === w.id}>
@@ -150,11 +155,11 @@ export function Sidebar() {
                               setCurrentWarehouseId(w.id);
                               setWarehouseDropdownOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 text-[12px] font-medium transition-colors ${
-                              currentWarehouseId === w.id
-                                ? 'bg-white/[0.08] text-white'
-                                : 'text-white/80 hover:bg-white/[0.05]'
-                            }`}
+                            className="w-full text-left px-3 py-2 text-[12px] font-medium transition-colors rounded-[6px] mx-1"
+                            style={{
+                              color: currentWarehouseId === w.id ? 'var(--blue)' : 'var(--text-2)',
+                              background: currentWarehouseId === w.id ? 'var(--blue-soft)' : 'transparent',
+                            }}
                           >
                             {w.name}
                           </button>
@@ -166,14 +171,20 @@ export function Sidebar() {
               </>
             ) : (
               <div
-                className="flex items-center gap-2 py-2 px-2.5 rounded-[7px]"
+                className="flex items-center gap-2 py-2.5 px-3 rounded-[10px] border"
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--blue-soft)',
+                  borderColor: 'rgba(92,172,250,0.15)',
                 }}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] flex-shrink-0" aria-hidden />
-                <span className="flex-1 text-[12px] font-medium text-white/80 truncate">
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-[#22C55E] flex-shrink-0 animate-pulse shadow-[0_0_6px_#22C55E]"
+                  aria-hidden
+                />
+                <span
+                  className="flex-1 text-[12px] font-bold uppercase truncate"
+                  style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
+                >
                   {warehouseName}
                 </span>
               </div>
@@ -182,7 +193,7 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Nav: main items */}
+      {/* Nav: main + admin */}
       <nav className="flex-1 min-h-0 py-2.5 overflow-y-auto" aria-label="Main navigation">
         <div className="px-0">
           {mainNav.map((item) => (
@@ -190,22 +201,24 @@ export function Sidebar() {
               key={item.name}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[7px] text-[13px] transition-colors duration-[120ms] ${
+                `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[10px] text-[13px] transition-colors duration-150 border ${
                   isActive
-                    ? 'text-white'
-                    : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'
+                    ? 'border-[rgba(92,172,250,0.12)]'
+                    : 'border-transparent hover:bg-[var(--overlay)]'
                 }`
               }
               style={({ isActive }) => ({
-                fontFamily: "'DM Sans', sans-serif",
-                ...(isActive ? { background: 'var(--sidebar-active-bg)', fontWeight: 500 } : {}),
+                fontFamily: 'var(--font-b)',
+                color: isActive ? 'var(--blue)' : 'var(--text-2)',
+                fontWeight: isActive ? 600 : undefined,
+                background: isActive ? 'var(--blue-soft)' : undefined,
               })}
             >
               {({ isActive }) => (
                 <>
                   <span
-                    className="w-4 h-4 flex-shrink-0 flex items-center justify-center opacity-60"
-                    style={isActive ? { color: 'var(--sidebar-active-icon)', opacity: 1 } : undefined}
+                    className="w-4 h-4 flex-shrink-0 flex items-center justify-center"
+                    style={{ color: isActive ? 'var(--blue)' : 'var(--text-2)' }}
                   >
                     <item.icon className="w-4 h-4" strokeWidth={2} />
                   </span>
@@ -218,34 +231,31 @@ export function Sidebar() {
 
         {adminNav.length > 0 && (
           <>
-            <div
-              className="my-2 mx-3 h-px flex-shrink-0"
-              style={{ background: 'rgba(255,255,255,0.06)' }}
-            />
+            <div className="my-2 mx-3 h-px flex-shrink-0 bg-[var(--border)]" />
             <div className="px-0">
               {adminNav.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.to}
                   className={({ isActive }) =>
-                    `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[7px] text-[13px] transition-colors duration-[120ms] ${
+                    `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[10px] text-[13px] transition-colors duration-150 border ${
                       isActive
-                        ? 'text-white'
-                        : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'
+                        ? 'border-[rgba(92,172,250,0.12)]'
+                        : 'border-transparent hover:bg-[var(--overlay)]'
                     }`
                   }
                   style={({ isActive }) => ({
-                    fontFamily: "'DM Sans', sans-serif",
-                    ...(isActive ? { background: 'var(--sidebar-active-bg)', fontWeight: 500 } : {}),
+                    fontFamily: 'var(--font-b)',
+                    color: isActive ? 'var(--blue)' : 'var(--text-2)',
+                    fontWeight: isActive ? 600 : undefined,
+                    background: isActive ? 'var(--blue-soft)' : undefined,
                   })}
                 >
                   {({ isActive }) => (
                     <>
                       <span
-                        className="w-4 h-4 flex-shrink-0 flex items-center justify-center opacity-60"
-                        style={
-                          isActive ? { color: 'var(--sidebar-active-icon)', opacity: 1 } : undefined
-                        }
+                        className="w-4 h-4 flex-shrink-0 flex items-center justify-center"
+                        style={{ color: isActive ? 'var(--blue)' : 'var(--text-2)' }}
                       >
                         <item.icon className="w-4 h-4" strokeWidth={2} />
                       </span>
@@ -259,27 +269,35 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* User card footer */}
-      <div className="p-3 border-t border-white/[0.06] flex-shrink-0 min-h-[5rem]">
+      {/* User row (bottom) */}
+      <div
+        className="p-3 border-t flex-shrink-0 min-h-[5rem]"
+        style={{ borderColor: 'var(--border)', background: 'var(--elevated)' }}
+      >
         <div
-          className="flex items-center gap-2 p-2 rounded-[7px] cursor-default transition-colors hover:bg-white/[0.04]"
+          className="flex items-center gap-2 p-2 rounded-[10px] cursor-default transition-colors hover:bg-[var(--overlay)]"
           role="presentation"
         >
           <div
-            className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-white font-bold text-[11px] flex-shrink-0"
+            className="w-[32px] h-[32px] rounded-full flex items-center justify-center text-white font-extrabold text-[13px] flex-shrink-0"
             style={{
-              background: isAdminRole ? 'var(--blue)' : '#424958',
+              fontFamily: 'var(--font-d)',
+              background: 'var(--blue)',
             }}
           >
             {user?.fullName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           <div className="flex-1 min-w-0">
             <p
-              className="text-[11px] font-medium truncate"
-              style={{ color: 'rgba(255,255,255,0.72)' }}
+              className="truncate font-semibold"
+              style={{
+                fontFamily: 'var(--font-b)',
+                fontSize: '13px',
+                color: 'var(--text)',
+              }}
               title={user?.email}
             >
-              {user?.email ?? '—'}
+              {user?.fullName ?? user?.email ?? '—'}
             </p>
             {canSeeSwitchRole && user ? (
               <label className="block mt-0.5">
@@ -287,12 +305,16 @@ export function Sidebar() {
                 <select
                   value={user.role}
                   onChange={(e) => switchRole(e.target.value)}
-                  className="w-full text-[10px] font-medium py-0.5 pr-5 rounded bg-transparent border-0 cursor-pointer focus:ring-0 focus:outline-none"
-                  style={{ color: 'rgba(255,255,255,0.28)' }}
+                  className="w-full font-normal py-0.5 pr-5 rounded bg-transparent border-0 cursor-pointer focus:ring-0 focus:outline-none"
+                  style={{
+                    fontFamily: 'var(--font-b)',
+                    fontSize: '11px',
+                    color: 'var(--text-3)',
+                  }}
                   aria-label="Switch role"
                 >
                   {Object.values(ROLES).map((role) => (
-                    <option key={role.id} value={role.id} className="bg-[#0D1117] text-white">
+                    <option key={role.id} value={role.id} style={{ background: 'var(--surface)', color: 'var(--text)' }}>
                       {role.name}
                     </option>
                   ))}
@@ -300,8 +322,12 @@ export function Sidebar() {
               </label>
             ) : (
               <p
-                className="text-[10px] mt-0.5"
-                style={{ color: 'rgba(255,255,255,0.28)' }}
+                className="mt-0.5 font-normal"
+                style={{
+                  fontFamily: 'var(--font-b)',
+                  fontSize: '11px',
+                  color: 'var(--text-3)',
+                }}
               >
                 {getRoleDisplayName(user?.role)}
               </p>

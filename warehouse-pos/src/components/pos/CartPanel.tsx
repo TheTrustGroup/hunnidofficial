@@ -46,13 +46,17 @@ export default function CartPanel({
 
   return (
     <aside
-      className="w-[344px] flex-shrink-0 flex flex-col border-l border-[rgba(0,0,0,0.07)] bg-white overflow-hidden"
+      className="w-[344px] flex-shrink-0 flex flex-col overflow-hidden"
+      style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }}
       aria-label="Current sale"
     >
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-[rgba(0,0,0,0.07)] flex-shrink-0">
+      <div
+        className="flex items-center justify-between px-4 py-3.5 flex-shrink-0 border-b"
+        style={{ borderColor: 'var(--border)' }}
+      >
         <h2
           className="text-[14px] font-extrabold"
-          style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117', letterSpacing: '0.02em' }}
+          style={{ fontFamily: 'var(--font-d)', color: 'var(--text)', letterSpacing: '0.02em' }}
         >
           Current Sale
         </h2>
@@ -60,8 +64,8 @@ export default function CartPanel({
           <button
             type="button"
             onClick={onClearCart}
-            className="text-[11px] font-medium text-[#8892A0] px-2 py-1.5 rounded border border-[rgba(0,0,0,0.11)] hover:bg-[#F4F6F9] transition-colors"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
+            className="text-[11px] font-medium px-2 py-1.5 rounded border transition-colors hover:bg-[var(--overlay)]"
+            style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)', borderColor: 'var(--border)' }}
           >
             Clear all
           </button>
@@ -72,21 +76,18 @@ export default function CartPanel({
         {lines.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-[#8892A0] mb-3"
-              style={{ background: '#F4F6F9', border: '1px solid rgba(0,0,0,0.11)' }}
+              className="w-12 h-12 rounded-full flex items-center justify-center mb-3 border"
+              style={{ background: 'var(--elevated)', borderColor: 'var(--border)', color: 'var(--text-3)' }}
             >
               <IconCart />
             </div>
             <p
-              className="text-[13px] font-semibold text-[#424958] mb-1"
-              style={{ fontFamily: 'Syne, sans-serif' }}
+              className="text-[13px] font-semibold mb-1"
+              style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}
             >
               Cart is empty
             </p>
-            <p
-              className="text-[12px]"
-              style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
-            >
+            <p className="text-[12px]" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
               Tap a product to add it
             </p>
           </div>
@@ -96,25 +97,27 @@ export default function CartPanel({
               {lines.map((line) => (
                 <div
                   key={line.key}
-                  className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[rgba(0,0,0,0.07)] hover:bg-[#F4F6F9] transition-colors"
+                  className="flex items-center gap-2.5 px-4 py-2.5 border-b transition-colors rounded-[10px] mx-2 mt-1"
+                  style={{ borderColor: 'var(--border)', background: 'var(--elevated)' }}
                 >
                   <div
-                    className="w-10 h-10 rounded-[7px] flex-shrink-0 flex items-center justify-center overflow-hidden bg-[#F4F6F9] border border-[rgba(0,0,0,0.07)]"
+                    className="w-10 h-10 rounded-[10px] flex-shrink-0 flex items-center justify-center overflow-hidden border"
+                    style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}
                   >
                     {line.imageUrl ? (
                       <img src={line.imageUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                    <IconBox />
+                      <IconBox />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold text-[#0D1117] truncate">{line.name}</p>
-                    <p className="text-[10px] text-[#8892A0]">{line.sizeLabel ?? 'One size'}</p>
+                    <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--text)' }}>{line.name}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-3)' }}>{line.sizeLabel ?? 'One size'}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span
-                      className="text-[13px] font-extrabold"
-                      style={{ fontFamily: 'Syne, sans-serif', color: '#5CACFA' }}
+                      className="text-[13px] font-extrabold tabular-nums"
+                      style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}
                     >
                       {fmt(line.unitPrice * line.qty)}
                     </span>
@@ -123,17 +126,19 @@ export default function CartPanel({
                         type="button"
                         onClick={() => onUpdateQty(line.key, -1)}
                         disabled={line.qty <= 1}
-                        className="w-[22px] h-[22px] rounded flex items-center justify-center text-[#424958] font-semibold border border-[rgba(0,0,0,0.11)] bg-[#F4F6F9] hover:bg-[#EEF1F6] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="pos-cart-qty-btn w-[22px] h-[22px] rounded flex items-center justify-center font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ borderColor: 'var(--border)', background: 'var(--border)', color: 'var(--text-2)' }}
                       >
                         −
                       </button>
-                      <span className="text-[12px] font-semibold min-w-[14px] text-center tabular-nums">
+                      <span className="text-[12px] font-semibold min-w-[14px] text-center tabular-nums" style={{ color: 'var(--text)' }}>
                         {line.qty}
                       </span>
                       <button
                         type="button"
                         onClick={() => onUpdateQty(line.key, 1)}
-                        className="w-[22px] h-[22px] rounded flex items-center justify-center text-[#424958] font-semibold border border-[rgba(0,0,0,0.11)] bg-[#F4F6F9] hover:bg-[#EEF1F6] transition-colors"
+                        className="pos-cart-qty-btn w-[22px] h-[22px] rounded flex items-center justify-center font-semibold border transition-colors"
+                        style={{ borderColor: 'var(--border)', background: 'var(--border)', color: 'var(--text-2)' }}
                       >
                         +
                       </button>
@@ -143,21 +148,21 @@ export default function CartPanel({
               ))}
             </div>
 
-            <div className="flex-shrink-0 px-4 py-3.5 border-t border-[rgba(0,0,0,0.07)] space-y-2">
+            <div className="flex-shrink-0 px-4 py-3.5 border-t space-y-2" style={{ borderColor: 'var(--border)' }}>
               <div className="flex justify-between items-center text-[12px]">
-                <span style={{ color: '#8892A0' }}>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
-                <span className="font-medium text-[#424958] tabular-nums">{fmt(subtotal)}</span>
+                <span style={{ color: 'var(--text-3)' }}>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+                <span className="font-medium tabular-nums" style={{ color: 'var(--text-2)' }}>{fmt(subtotal)}</span>
               </div>
               <div className="flex justify-between items-center text-[12px]">
-                <span style={{ color: '#8892A0' }}>Discount</span>
-                <span className="font-medium text-[#16A34A] tabular-nums">−{fmt(0)}</span>
+                <span style={{ color: 'var(--text-3)' }}>Discount</span>
+                <span className="font-medium tabular-nums" style={{ color: 'var(--green)' }}>−{fmt(0)}</span>
               </div>
-              <div className="h-px bg-[rgba(0,0,0,0.07)] my-2" />
+              <div className="h-px my-2" style={{ background: 'var(--border)' }} />
               <div className="flex justify-between items-center">
-                <span className="text-[13px] font-semibold text-[#0D1117]">Total</span>
+                <span className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>Total</span>
                 <span
                   className="text-[20px] font-extrabold tabular-nums"
-                  style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}
+                  style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}
                 >
                   {fmt(subtotal)}
                 </span>
@@ -168,11 +173,11 @@ export default function CartPanel({
               <button
                 type="button"
                 onClick={onOpenCharge}
-                className="w-full h-11 rounded-[7px] text-white text-[14px] font-bold flex items-center justify-center gap-2 transition-all duration-150 hover:-translate-y-px hover:bg-[#3D96F5] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                className="w-full h-12 rounded-[10px] text-white flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 uppercase font-extrabold text-[16px]"
                 style={{
-                  fontFamily: "'DM Sans', sans-serif",
-                  background: '#5CACFA',
-                  boxShadow: '0 2px 8px rgba(92,172,250,0.25)',
+                  fontFamily: 'var(--font-d)',
+                  background: 'var(--blue)',
+                  boxShadow: '0 4px 14px var(--blue-glow)',
                 }}
               >
                 Charge {fmt(subtotal)}
@@ -184,16 +189,16 @@ export default function CartPanel({
                 <button
                   type="button"
                   onClick={onOpenCharge}
-                  className="flex-1 h-8 rounded-[7px] border border-[rgba(0,0,0,0.11)] bg-[#F4F6F9] text-[11px] font-medium text-[#424958] hover:bg-[#EEF1F6] transition-colors"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  className="flex-1 h-8 rounded-[10px] border text-[11px] font-medium transition-colors"
+                  style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
                 >
                   + Discount
                 </button>
                 <button
                   type="button"
                   onClick={onHoldSale}
-                  className="flex-1 h-8 rounded-[7px] border border-[rgba(0,0,0,0.11)] bg-[#F4F6F9] text-[11px] font-medium text-[#424958] hover:bg-[#EEF1F6] transition-colors"
-                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  className="flex-1 h-8 rounded-[10px] border text-[11px] font-medium transition-colors"
+                  style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
                 >
                   Hold Sale
                 </button>

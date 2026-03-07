@@ -63,8 +63,8 @@ function StockBadge({ status, qty }: { status: StockStatus; qty: number }) {
 function ImagePlaceholder() {
   return (
     <div
-      className="absolute inset-0 flex items-center justify-center text-[#A8B4C4]"
-      style={{ background: 'linear-gradient(135deg, #EEF1F6 0%, #E0E6F0 100%)' }}
+      className="absolute inset-0 flex items-center justify-center"
+      style={{ background: 'var(--elevated)', color: 'var(--text-3)' }}
     >
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -105,16 +105,30 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
       type="button"
       disabled={isOut}
       onClick={() => onSelect(product)}
-      className="group w-full text-left bg-white rounded-[10px] overflow-hidden border border-[rgba(0,0,0,0.07)]
-        shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]
-        transition-all duration-150
-        hover:shadow-[0_4px_16px_rgba(13,17,23,0.09)] hover:-translate-y-0.5
-        active:scale-[0.97]
-        disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5CACFA]"
+      className="group w-full text-left rounded-[12px] overflow-hidden border transition-all duration-200
+        hover:shadow-[0_0_0_2px_var(--blue-dim)] active:scale-[0.98]
+        disabled:opacity-45 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:transform-none disabled:hover:shadow-none
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
+      style={{
+        background: 'var(--surface)',
+        borderColor: 'var(--border)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+      onMouseEnter={(e) => {
+        if (!isOut) {
+          e.currentTarget.style.borderColor = 'var(--blue)';
+          e.currentTarget.style.boxShadow = '0 0 0 2px var(--blue-dim)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+      }}
     >
-      {/* Image: 1:1 square, gradient placeholder */}
-      <div className="relative w-full aspect-square overflow-hidden bg-[#EEF1F6]">
+      <div
+        className="relative w-full aspect-square overflow-hidden"
+        style={{ background: 'var(--elevated)' }}
+      >
         {hasImage ? (
           <img
             src={safeSrc}
@@ -130,26 +144,27 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
 
       <div className="px-2.5 pt-2 pb-2.5">
         <p
-          className="text-[12px] font-semibold text-[#0D1117] truncate leading-snug mb-1"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
+          className="text-[12px] font-semibold truncate leading-snug mb-1"
+          style={{ fontFamily: 'var(--font-b)', color: 'var(--text)' }}
         >
           {product.name}
         </p>
         <div className="flex items-end justify-between gap-1">
           <span
             className="text-[14px] font-extrabold leading-none"
-            style={{ fontFamily: 'Syne, sans-serif', color: '#5CACFA' }}
+            style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
           >
             {formatPrice(product.sellingPrice)}
           </span>
           <span
-            className={`text-[10px] flex-shrink-0 ${status === 'low' ? 'text-[#D97706]' : 'text-[#8892A0]'}`}
+            className="text-[10px] flex-shrink-0"
+            style={{ color: status === 'low' ? 'var(--amber)' : 'var(--text-3)' }}
           >
             {stockLabel}
           </span>
         </div>
         {sizeBreakdown && (
-          <p className="text-[10px] text-[#8892A0] mt-1 truncate" title={sizeBreakdown}>
+          <p className="text-[10px] mt-1 truncate" style={{ color: 'var(--text-3)' }} title={sizeBreakdown}>
             {sizeBreakdown}
           </p>
         )}
@@ -164,11 +179,14 @@ export default memo(POSProductCard);
 
 export function POSProductCardSkeleton() {
   return (
-    <div className="bg-white rounded-[10px] overflow-hidden border border-[rgba(0,0,0,0.07)] shadow-[0_1px_3px_rgba(13,17,23,0.06)]">
-      <div className="w-full aspect-square bg-[#EEF1F6] animate-pulse" />
+    <div
+      className="rounded-[12px] overflow-hidden border"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
+    >
+      <div className="w-full aspect-square animate-pulse" style={{ background: 'var(--elevated)' }} />
       <div className="px-2.5 pt-2 pb-2.5 flex flex-col gap-2">
-        <div className="h-3 w-4/5 bg-[#E3E8F0] rounded animate-pulse" />
-        <div className="h-3.5 w-1/2 bg-[#E3E8F0] rounded animate-pulse" />
+        <div className="h-3 w-4/5 rounded animate-pulse" style={{ background: 'var(--overlay)' }} />
+        <div className="h-3.5 w-1/2 rounded animate-pulse" style={{ background: 'var(--overlay)' }} />
       </div>
     </div>
   );

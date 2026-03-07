@@ -1,9 +1,9 @@
 /**
- * Bottom tab bar (mobile): Dashboard | Inventory | Orders | POS | More.
- * Matches sample: white bar, active tab with red icon/text and light pink/red background.
- * No side menu; excess items live under More. 44×44px tap targets, font ≥11px.
+ * Mobile bottom nav: frosted pill with 5 items — Dashboard | Inventory | POS (center hero) | Orders | More.
+ * POS is a raised solid blue button; others are icon+label with blue-soft active state.
  */
 import { NavLink, useLocation } from 'react-router-dom';
+import { ShoppingCart } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWarehouse } from '../../contexts/WarehouseContext';
 import { BOTTOM_NAV_TABS } from '../../config/navigation';
@@ -16,45 +16,118 @@ function isTabActive(pathname: string, tabTo: string): boolean {
   return pathname === tabTo;
 }
 
+/** Reorder so POS is always at index 2 (center). */
+function orderTabsWithPosCenter(tabs: typeof BOTTOM_NAV_TABS): (typeof BOTTOM_NAV_TABS)[number][] {
+  const pos = tabs.find((t) => t.to === '/pos');
+  const rest = tabs.filter((t) => t.to !== '/pos');
+  if (!pos) return rest;
+  const left = rest.slice(0, 2);
+  const right = rest.slice(2);
+  return [...left, pos, ...right];
+}
+
 export function BottomNav() {
   const { pathname } = useLocation();
   const { hasPermission } = useAuth();
   const { isWarehouseBoundToSession } = useWarehouse();
 
-  const visibleTabs = BOTTOM_NAV_TABS.filter((tab) => {
+  const filtered = BOTTOM_NAV_TABS.filter((tab) => {
     if (tab.name === 'More') return true;
     if (tab.name === 'Inventory' && isWarehouseBoundToSession) return false;
     if (tab.permission != null) return hasPermission(tab.permission);
     return true;
   });
+  const visibleTabs = orderTabsWithPosCenter(filtered);
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch rounded-t-[var(--radius-card)] bg-white border-t border-[rgba(0,0,0,0.08)] shadow-[0_-2px_10px_rgba(0,0,0,0.06)] safe-area-pb"
-      style={{ paddingBottom: 'max(var(--safe-bottom), var(--grid-8, 8px))' }}
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-[200]"
+      style={{ paddingBottom: 'max(10px, var(--safe-bottom))' }}
       aria-label="Main navigation"
     >
-      {visibleTabs.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = isTabActive(pathname, tab.to);
-        return (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[var(--touch-min,44px)] pt-2 text-[var(--text-meta,11px)] font-medium transition-colors rounded-[var(--radius-base,8px)] mx-0.5 my-1 ${
-              isActive ? 'text-[var(--blue)] bg-[var(--sidebar-active-bg)]' : 'text-slate-500'
-            }`}
-          >
-            <Icon
-              className="w-5 h-5 flex-shrink-0"
-              strokeWidth={2}
-              aria-hidden
-              style={isActive ? { color: 'var(--sidebar-active-icon)' } : { color: '#8892A0' }}
-            />
-            <span>{tab.name}</span>
-          </NavLink>
-        );
-      })}
+      <div
+        className="mx-3 mb-2 rounded-[20px] border grid gap-0"
+        style={{
+          background: 'rgba(255,255,255,0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderColor: 'var(--border)',
+          boxShadow: 'var(--shadow-lg)',
+          padding: '8px 6px',
+          gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)`,
+          alignItems: 'end',
+        }}
+      >
+        {visibleTabs.map((tab) => {
+          const isPos = tab.to === '/pos';
+          const isActive = isTabActive(pathname, tab.to);
+          const Icon = tab.icon;
+
+          if (isPos) {
+            return (
+              <div
+                key={tab.to}
+                className="flex flex-col items-center gap-1"
+                style={{ marginTop: '-22px' }}
+              >
+                <NavLink
+                  to={tab.to}
+                  className="flex items-center justify-center rounded-[18px] transition-all duration-200 hover:scale-105 active:scale-105 min-w-[56px] min-h-[56px] w-14 h-14"
+                  style={{
+                    background: 'var(--blue)',
+                    border: '3px solid var(--bg)',
+                    boxShadow: '0 6px 20px var(--blue-glow), 0 2px 8px rgba(0,0,0,0.1)',
+                  }}
+                  aria-label="POS"
+                >
+                  <ShoppingCart
+                    className="w-6 h-6 text-white flex-shrink-0"
+                    strokeWidth={2.5}
+                    aria-hidden
+                  />
+                </NavLink>
+                <span
+                  className="text-[10px] font-semibold"
+                  style={{ fontFamily: 'var(--font-b)', color: 'var(--blue)' }}
+                >
+                  POS
+                </span>
+              </div>
+            );
+          }
+
+          return (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              className="flex flex-col items-center gap-1 py-1.5 px-0 rounded-xl transition-all duration-200 min-h-[44px] min-w-[44px] justify-end"
+              style={{ paddingTop: 6, paddingBottom: 6 }}
+            >
+              <span
+                className="flex items-center justify-center rounded-[12px] w-10 h-10 flex-shrink-0 transition-colors"
+                style={{ background: isActive ? 'var(--blue-soft)' : 'transparent' }}
+              >
+                <Icon
+                  className="w-5 h-5 flex-shrink-0"
+                  strokeWidth={2}
+                  aria-hidden
+                  style={{ color: isActive ? 'var(--blue)' : 'var(--text-3)' }}
+                />
+              </span>
+              <span
+                className="text-[10px] font-medium"
+                style={{
+                  fontFamily: 'var(--font-b)',
+                  color: isActive ? 'var(--blue)' : 'var(--text-3)',
+                  fontWeight: isActive ? 600 : 500,
+                }}
+              >
+                {tab.name}
+              </span>
+            </NavLink>
+          );
+        })}
+      </div>
     </nav>
   );
 }

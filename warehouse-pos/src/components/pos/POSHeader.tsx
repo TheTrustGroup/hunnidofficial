@@ -46,8 +46,10 @@ export default function POSHeader({
   onLogout,
 }: POSHeaderProps) {
   return (
-    <header className="flex-shrink-0 bg-white border-b border-[rgba(0,0,0,0.07)] h-14 px-4 flex items-center gap-2">
-      {/* Location badge: green dot + name (spec: 30px height, 6px radius, green bg) */}
+    <header
+      className="flex-shrink-0 h-14 px-4 flex items-center gap-2 border-b"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
       <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
         {canChangeWarehouse ? (
           <button
@@ -55,22 +57,27 @@ export default function POSHeader({
             onClick={onWarehouseTap}
             className="flex items-center gap-1.5 min-w-0 text-left"
           >
-            <span className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-md bg-[#F0FDF4] border border-[rgba(22,163,74,0.2)] text-[12px] font-semibold text-[#16A34A]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" aria-hidden />
+            <span
+              className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-md text-[12px] font-semibold border"
+              style={{ background: 'var(--green-dim)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" aria-hidden />
               <span className="truncate">{warehouseName}</span>
             </span>
-            <span className="text-slate-400 flex-shrink-0"><IconChevronDown /></span>
+            <span className="flex-shrink-0" style={{ color: 'var(--text-3)' }}><IconChevronDown /></span>
           </button>
         ) : (
-          <span className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-md bg-[#F0FDF4] border border-[rgba(22,163,74,0.2)] text-[12px] font-semibold text-[#16A34A]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" aria-hidden />
+          <span
+            className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-md text-[12px] font-semibold border"
+            style={{ background: 'var(--green-dim)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" aria-hidden />
             <span className="truncate">{warehouseName}</span>
           </span>
         )}
       </div>
-      {/* Single search with Scan pill inside right edge */}
       <div className="flex-1 min-w-0 relative">
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8892A0] pointer-events-none">
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-3)' }}>
           <IconSearch />
         </span>
         <input
@@ -78,37 +85,39 @@ export default function POSHeader({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search products or scan barcode…"
-          className="w-full h-9 pl-9 pr-[70px] rounded-lg bg-[#F4F6F9] border border-[rgba(0,0,0,0.11)] text-[13px] text-[#0D1117] placeholder:text-[#8892A0] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[rgba(92,172,250,0.35)] focus:shadow-[0_0_0_3px_rgba(92,172,250,0.10)]"
+          className="w-full h-9 pl-9 pr-[70px] rounded-[10px] text-[13px] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[var(--blue)] focus:shadow-[0_0_0_3px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
+          style={{ background: 'var(--elevated)', border: '1px solid var(--border)', color: 'var(--text)' }}
           aria-label="Search products or scan barcode"
         />
         <button
           type="button"
           onClick={onScanClick}
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-[23px] px-2 rounded bg-[#0D1117] text-white text-[10px] font-bold uppercase tracking-wide"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-[23px] px-2 rounded text-white text-[10px] font-bold uppercase tracking-wide"
+          style={{ background: 'var(--text)' }}
           aria-label="Scan barcode"
         >
           Scan
         </button>
       </div>
-      {/* Cart trigger (opens cart sheet on mobile / when cart panel hidden) */}
       <button
         type="button"
         onClick={onCartTap}
-        className="relative flex items-center gap-1.5 h-9 px-3 rounded-md bg-[#5CACFA] text-white text-[13px] font-semibold shadow-[0_2px_8px_rgba(92,172,250,0.25)] hover:bg-[#3D96F5] transition-colors flex-shrink-0"
+        className="relative flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-white text-[13px] font-semibold transition-all hover:-translate-y-px flex-shrink-0"
+        style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
         aria-label={cartCount > 0 ? `Cart: ${cartCount} items` : 'Cart'}
       >
         <IconCart className="w-5 h-5" />
         {cartCount > 0 && (
-          <span className="min-w-[18px] h-[18px] rounded-full bg-white text-[#5CACFA] text-[10px] font-bold flex items-center justify-center px-1">
+          <span className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[10px] font-bold" style={{ background: 'white', color: 'var(--blue)' }}>
             {cartCount > 99 ? '99+' : cartCount}
           </span>
         )}
       </button>
-      {/* Notification + Log out */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
           type="button"
-          className="relative w-9 h-9 rounded-lg border border-[rgba(0,0,0,0.11)] bg-white flex items-center justify-center text-[#424958] hover:bg-[#F4F6F9] transition-colors"
+          className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
           aria-label="Notifications"
           disabled
         >
@@ -117,7 +126,8 @@ export default function POSHeader({
         <button
           type="button"
           onClick={onLogout}
-          className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] hover:bg-[#F4F6F9] transition-colors"
+          className="flex items-center gap-1.5 h-9 px-3 rounded-lg border text-[12px] font-medium transition-colors"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
           aria-label="Log out"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>

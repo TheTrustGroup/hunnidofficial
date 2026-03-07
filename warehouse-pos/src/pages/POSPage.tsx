@@ -445,7 +445,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] flex flex-col lg:flex-row overflow-hidden">
+    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden" style={{ background: 'var(--bg)' }}>
 
       {!isWarehouseBoundToSession && (
         <SessionScreen

@@ -159,11 +159,13 @@ function ProductGridInner({
               key={opt.value}
               type="button"
               onClick={() => onCategoryChange(opt.value)}
-              className={`flex-shrink-0 h-[30px] px-3 rounded-md border text-[12px] font-medium whitespace-nowrap transition-colors
-                ${category === opt.value
-                  ? 'bg-[#0D1117] border-[#0D1117] text-white'
-                  : 'bg-white border-[rgba(0,0,0,0.11)] text-[#424958] hover:bg-[#F4F6F9]'}`}
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              className="flex-shrink-0 h-[30px] px-3 rounded-md border text-[12px] font-medium whitespace-nowrap transition-all"
+              style={{
+                fontFamily: 'var(--font-b)',
+                ...(category === opt.value
+                  ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
+                  : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
+              }}
             >
               {opt.label}
             </button>
@@ -177,10 +179,13 @@ function ProductGridInner({
           aria-label="Filter by size"
           value={sizeFilter}
           onChange={(e) => onSizeFilterChange(e.target.value)}
-          className="h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat focus:outline-none focus:border-[#5CACFA]"
+          className="h-[30px] pl-3 pr-8 rounded-[20px] border text-[12px] font-medium appearance-none bg-no-repeat focus:outline-none"
           style={{
-            fontFamily: "'DM Sans', sans-serif",
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+            fontFamily: 'var(--font-b)',
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-2)',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
             backgroundPosition: 'right 10px center',
             backgroundSize: '10px 6px',
           }}
@@ -194,10 +199,13 @@ function ProductGridInner({
           aria-label="Filter by color"
           value={colorFilter}
           onChange={(e) => onColorFilterChange(e.target.value)}
-          className="h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat focus:outline-none focus:border-[#5CACFA]"
+          className="h-[30px] pl-3 pr-8 rounded-[20px] border text-[12px] font-medium appearance-none bg-no-repeat focus:outline-none"
           style={{
-            fontFamily: "'DM Sans', sans-serif",
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+            fontFamily: 'var(--font-b)',
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-2)',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
             backgroundPosition: 'right 10px center',
             backgroundSize: '10px 6px',
           }}
@@ -220,7 +228,8 @@ function ProductGridInner({
             type="button"
             disabled={loadingMore}
             onClick={onLoadMore}
-            className="h-11 px-6 rounded-xl border-2 border-slate-200 bg-white text-[13px] font-bold text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="h-11 px-6 rounded-xl border text-[13px] font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }}
           >
             {loadingMore ? 'Loading…' : `Load more (${products.length} of ${totalCount})`}
           </button>

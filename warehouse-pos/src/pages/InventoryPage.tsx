@@ -256,43 +256,32 @@ function StatCard({
 }) {
   return (
     <div
-      className={`flex-1 min-w-0 px-4 py-4 rounded-[10px] border flex flex-col gap-0.5 shadow-[0_1px_3px_rgba(13,17,23,0.06),0_1px_2px_rgba(13,17,23,0.04)]
-        ${accent
-          ? 'border-transparent text-white'
-          : warning
-            ? 'bg-[#FFFBEB] border-[rgba(217,119,6,0.15)]'
-            : 'bg-white border-[rgba(0,0,0,0.07)] text-[#0D1117]'}`}
-      style={
-        accent
-          ? {
-              background: 'linear-gradient(135deg, #5CACFA 0%, #1A7DD4 100%)',
-              boxShadow: '0 4px 20px rgba(92,172,250,0.35)',
-            }
-          : undefined
-      }
+      className="flex-1 min-w-0 px-4 py-4 rounded-[14px] border flex flex-col gap-0.5 shadow-[var(--shadow-sm)]"
+      style={{
+        background: 'var(--surface)',
+        borderColor: warning ? 'rgba(217,119,6,0.2)' : 'var(--border)',
+      }}
     >
       <p
-        className={`text-[10px] font-semibold uppercase tracking-[0.16em]
-          ${accent ? 'text-white/70' : warning ? 'text-[#D97706]' : 'text-[#8892A0]'}`}
+        className="text-[10px] font-semibold uppercase tracking-[0.16em]"
+        style={{ color: accent ? 'var(--text-3)' : warning ? 'var(--amber)' : 'var(--text-3)' }}
       >
         {label}
       </p>
       <p
         className="tabular-nums leading-tight truncate"
         style={{
-          fontFamily: 'Syne, sans-serif',
-          fontSize: '28px',
-          fontWeight: 800,
+          fontFamily: 'var(--font-m)',
+          fontSize: '24px',
+          fontWeight: 600,
           letterSpacing: '-0.5px',
-          ...(accent ? { color: 'white' } : warning ? { color: '#D97706' } : {}),
+          color: accent ? 'var(--blue)' : warning ? 'var(--amber)' : 'var(--text)',
         }}
       >
         {value}
       </p>
       {sub && (
-        <p
-          className={`text-[11px] mt-1 ${accent ? 'text-white/65' : warning ? 'text-[#D97706]/70' : 'text-[#8892A0]'}`}
-        >
+        <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
           {sub}
         </p>
       )}
@@ -815,29 +804,29 @@ export default function InventoryPage(_props: InventoryPageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] pb-28">
+    <div className="min-h-screen pb-28" style={{ background: 'var(--bg)' }}>
 
-      {/* ══ Page header: breadcrumb, title, subtitle, Add product (CHANGE 4) ══ */}
+      {/* ══ Page header ══ */}
       <div className="px-4 pt-6 pb-4 lg:px-0">
         <div
           className="flex items-center gap-1.5 text-[12px] mb-3.5"
-          style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
+          style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
         >
           <span>{warehouse?.name ?? 'Warehouse'}</span>
-          <span className="opacity-40" aria-hidden>›</span>
-          <span className="font-medium" style={{ color: '#424958' }}>Inventory</span>
+          <span style={{ color: 'var(--border-md)' }} aria-hidden>›</span>
+          <span className="font-medium" style={{ color: 'var(--text)' }}>Inventory</span>
         </div>
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1
               className="text-[21px] font-extrabold tracking-tight"
-              style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}
+              style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}
             >
               Inventory
             </h1>
             <p
               className="text-[12px] mt-0.5"
-              style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
+              style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
             >
               {totalCount === 0 && !loading && !error
                 ? 'No products yet'
@@ -849,11 +838,11 @@ export default function InventoryPage(_props: InventoryPageProps) {
           <button
             type="button"
             onClick={openAddModal}
-            className="h-[35px] px-3.5 rounded-[7px] text-white text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px hover:bg-[#3D96F5]"
+            className="h-[35px] px-3.5 rounded-[10px] text-white text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px"
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              background: '#5CACFA',
-              boxShadow: '0 2px 8px rgba(92,172,250,0.25)',
+              fontFamily: 'var(--font-b)',
+              background: 'var(--blue)',
+              boxShadow: '0 2px 8px var(--blue-glow)',
             }}
           >
             <PlusIcon /> Add product
@@ -903,23 +892,28 @@ export default function InventoryPage(_props: InventoryPageProps) {
                 key={cat}
                 type="button"
                 onClick={() => setCategory(cat)}
-                className={`flex-shrink-0 min-h-[44px] flex items-center px-3 rounded-[20px] border text-[12px] font-medium whitespace-nowrap transition-colors touch-manipulation
-                ${category === cat
-                  ? 'bg-[#0D1117] border-[#0D1117] text-white'
-                  : 'bg-white border-[rgba(0,0,0,0.11)] text-[#424958] hover:bg-[#EEF1F6]'}`}
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-            >
-              {cat === 'all' ? 'All' : cat}
-            </button>
-          ))}
+                className="flex-shrink-0 min-h-[44px] flex items-center px-4 rounded-[99px] border text-[12px] font-medium whitespace-nowrap transition-all touch-manipulation"
+                style={{
+                  fontFamily: 'var(--font-b)',
+                  ...(category === cat
+                    ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
+                    : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
+                }}
+              >
+                {cat === 'all' ? 'All' : cat}
+              </button>
+            ))}
           <select
             id="inv-size-filter"
             value={sizeFilter}
             onChange={(e) => setSizeFilter(e.target.value)}
-            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none focus:border-[#5CACFA] touch-manipulation"
+            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              fontFamily: 'var(--font-b)',
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-2)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
               backgroundPosition: 'right 10px center',
             }}
           >
@@ -934,10 +928,13 @@ export default function InventoryPage(_props: InventoryPageProps) {
             id="inv-color-filter"
             value={colorFilter}
             onChange={(e) => setColorFilter(e.target.value)}
-            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none focus:border-[#5CACFA] touch-manipulation"
+            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
             style={{
-              fontFamily: "'DM Sans', sans-serif",
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238892A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              fontFamily: 'var(--font-b)',
+              background: 'var(--surface)',
+              borderColor: 'var(--border)',
+              color: 'var(--text-2)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
               backgroundPosition: 'right 10px center',
             }}
           >
@@ -950,8 +947,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
             <button
               type="button"
               onClick={() => setSortOpen((o) => !o)}
-              className="flex items-center gap-1.5 min-h-[44px] h-[30px] px-2.5 rounded-[20px] border border-[rgba(0,0,0,0.11)] bg-white text-[12px] font-medium text-[#424958] hover:bg-[#EEF1F6] transition-colors touch-manipulation"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
+              className="flex items-center gap-1.5 min-h-[44px] h-[30px] px-2.5 rounded-[99px] border text-[12px] font-medium transition-colors touch-manipulation hover:border-[var(--border-md)]"
+              style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="8" y1="6" x2="21" y2="6" />
@@ -963,7 +960,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
             {sortOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
-                <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-[rgba(0,0,0,0.07)] py-1.5 w-44">
+                <div
+                  className="absolute left-0 top-full mt-1 z-20 rounded-xl shadow-[var(--shadow-md)] border py-1.5 w-44"
+                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                >
                   {SORT_OPTIONS.map((opt) => (
                     <button
                       key={opt.key}
@@ -972,8 +972,11 @@ export default function InventoryPage(_props: InventoryPageProps) {
                         setSort(opt.key);
                         setSortOpen(false);
                       }}
-                      className={`w-full px-4 py-2 text-left text-[13px] font-medium transition-colors
-                        ${sort === opt.key ? 'text-[#5CACFA] bg-[#F4F6F9]' : 'text-[#424958] hover:bg-[#EEF1F6]'}`}
+                      className="w-full px-4 py-2 text-left text-[13px] font-medium transition-colors"
+                      style={{
+                        color: sort === opt.key ? 'var(--blue)' : 'var(--text-2)',
+                        background: sort === opt.key ? 'var(--blue-soft)' : 'transparent',
+                      }}
                     >
                       {opt.label}
                     </button>
@@ -983,8 +986,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
             )}
           </div>
         </div>
-          <span className="text-[11px] text-[#8892A0] whitespace-nowrap" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-            Showing <strong className="font-semibold text-[#424958]">
+          <span className="text-[11px] whitespace-nowrap" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
+            Showing <strong className="font-semibold" style={{ color: 'var(--text)' }}>
               {displayed.length === 0 ? 0 : 1}–{displayed.length}
             </strong> of {totalCount}
           </span>
@@ -997,16 +1000,22 @@ export default function InventoryPage(_props: InventoryPageProps) {
         {/* Error */}
         {error && (
           <div className="flex flex-col items-center gap-5 py-20 text-center">
-            <div className="w-20 h-20 rounded-3xl bg-red-50 flex items-center justify-center text-red-300">
+            <div
+              className="w-20 h-20 rounded-3xl flex items-center justify-center"
+              style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }}
+            >
               <BoxIcon/>
             </div>
             <div>
-              <p className="text-[17px] font-black text-slate-800">Couldn&apos;t load products</p>
-              <p className="text-[13px] text-slate-400 mt-1 max-w-[260px] leading-relaxed">{error}</p>
+              <p className="text-[17px] font-black" style={{ color: 'var(--text)' }}>Couldn&apos;t load products</p>
+              <p className="text-[13px] mt-1 max-w-[260px] leading-relaxed" style={{ color: 'var(--text-3)' }}>{error}</p>
             </div>
-            <button type="button" onClick={() => loadProducts(0, false)}
-                    className="h-10 px-6 rounded-xl bg-primary-500 text-white text-[13px] font-bold
-                               hover:bg-primary-600 transition-colors shadow-[0_4px_12px_rgba(92,172,250,0.25)]">
+            <button
+              type="button"
+              onClick={() => loadProducts(0, false)}
+              className="h-10 px-6 rounded-xl text-white text-[13px] font-bold transition-all hover:-translate-y-px"
+              style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
+            >
               Retry
             </button>
           </div>
@@ -1019,10 +1028,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </div>
         )}
 
-        {/* Empty filter (server returned 0 for this q/category/size/color) */}
+        {/* Empty filter */}
         {!loading && !error && products.length === 0 && (search.trim() || category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all') && (
           <div className="flex flex-col items-center gap-5 py-24 text-center">
-            <p className="text-[15px] font-bold text-slate-700">
+            <p className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>
               No results for current filters
               {search.trim() && ` (search: "${search}")`}
               {category !== 'all' && ` (category: ${category})`}
@@ -1030,12 +1039,16 @@ export default function InventoryPage(_props: InventoryPageProps) {
               {colorFilter !== 'all' && ` (color: ${colorFilter})`}
             </p>
             {colorFilter !== 'all' && !search.trim() && category === 'all' && sizeFilter === 'all' && (
-              <p className="text-[12px] text-slate-500 max-w-[280px]">
+              <p className="text-[12px] max-w-[280px]" style={{ color: 'var(--text-3)' }}>
                 No products have this color. Use <strong>Uncategorized</strong> to see products without a color set, or set a color when editing a product.
               </p>
             )}
-            <button type="button" onClick={() => { setSearch(''); setCategory('all'); setSizeFilter('all'); setColorFilter('all'); }}
-                    className="text-[13px] font-bold text-primary-500 hover:text-primary-700">
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setCategory('all'); setSizeFilter('all'); setColorFilter('all'); }}
+              className="text-[13px] font-bold transition-colors hover:opacity-90"
+              style={{ color: 'var(--blue)' }}
+            >
               Clear filters
             </button>
           </div>
@@ -1045,32 +1058,22 @@ export default function InventoryPage(_props: InventoryPageProps) {
         {!loading && !error && products.length === 0 && !search.trim() && category === 'all' && sizeFilter === 'all' && colorFilter === 'all' && (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-[#8892A0]"
-              style={{ background: '#EEF1F6', border: '1px solid rgba(0,0,0,0.11)' }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center border"
+              style={{ background: 'var(--elevated)', borderColor: 'var(--border)', color: 'var(--text-3)' }}
             >
               <BoxIcon />
             </div>
-            <p
-              className="text-[17px] font-bold"
-              style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}
-            >
+            <p className="text-[17px] font-bold" style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}>
               No products yet
             </p>
-            <p
-              className="text-[13px] max-w-[280px]"
-              style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}
-            >
+            <p className="text-[13px] max-w-[280px]" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
               Add your first product to get started.
             </p>
             <button
               type="button"
               onClick={openAddModal}
-              className="h-[38px] px-5 rounded-[7px] text-white text-[13px] font-semibold flex items-center gap-1.5 mt-1 transition-all duration-150 hover:-translate-y-px"
-              style={{
-                fontFamily: "'DM Sans', sans-serif",
-                background: '#5CACFA',
-                boxShadow: '0 2px 8px rgba(92,172,250,0.25)',
-              }}
+              className="h-[38px] px-5 rounded-[10px] text-white text-[13px] font-semibold flex items-center gap-1.5 mt-1 transition-all duration-150 hover:-translate-y-px"
+              style={{ fontFamily: 'var(--font-b)', background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
             >
               <PlusIcon /> Add first product
             </button>
@@ -1096,10 +1099,12 @@ export default function InventoryPage(_props: InventoryPageProps) {
                   type="button"
                   disabled={loadingMore}
                   onClick={() => loadProducts(products.length, true)}
-                  className="h-11 px-6 rounded-xl border-2 border-slate-200 bg-white
-                             text-[13px] font-bold text-slate-700 hover:border-slate-300
-                             hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed
-                             transition-colors"
+                  className="h-11 px-6 rounded-xl border text-[13px] font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-[var(--shadow-sm)]"
+                  style={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text)',
+                  }}
                 >
                   {loadingMore ? 'Loading…' : `Load more (${products.length} of ${totalCount})`}
                 </button>
