@@ -80,3 +80,15 @@ In the project’s environment variables, add:
 | `POS_PASSWORD_MAIN_TOWN`        | Password for maintown_cashier@… (Main Town) | EDK default when ALLOWED_POS_EMAILS not set              |
 
 Redeploy after changing env vars.
+
+## 5. Login 401 / "Invalid email or password" (API project)
+
+These env vars must be set on the **project that serves the API** (e.g. the Vercel project for `api.hunnidofficial.com`), not only on the frontend:
+
+1. **ALLOWED_POS_EMAILS** — Must include every cashier email that should be able to log in, e.g.  
+   `hcashier@hunnidofficial.com,jcashier@hunnidofficial.com`  
+   If this is missing or doesn’t include an email, that user is never treated as a POS user and login returns 401.
+
+2. **SUPABASE_URL** and **SUPABASE_ANON_KEY** — Must be from the **same** Supabase project where those users exist (e.g. HunnidOfficial). Get them from Supabase → Project Settings → API (Project URL and anon public key). Redeploy after adding or changing them.
+
+3. **Optional fallback:** Set **POS_PASSWORD** to a single shared password; then cashiers can also sign in with that if Supabase sign-in fails.

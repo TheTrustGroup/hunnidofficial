@@ -36,7 +36,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const body = await req.json().catch(() => ({}));
     const email = typeof body.email === 'string' ? body.email.trim() : '';
-    const password = typeof body.password === 'string' ? body.password : '';
+    const password = typeof body.password === 'string' ? body.password.trim() : '';
     if (!email || !password) {
       return withCors(jsonError(401, 'Email and password required', { headers: h }), req);
     }
@@ -53,9 +53,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         });
         if (!error && data?.user?.email) {
           user = { email: data.user.email, role: 'cashier' };
-        } else {
-          return withCors(jsonError(401, 'Invalid email or password', { headers: h }), req);
+        } else if (error) {
+          // Server-only log: see Vercel logs to debug (e.g. "Invalid login credentials", "Email not confirmed")
+          console.error('[auth/login] Supabase signIn failed for POS email:', error.message);
         }
+        // If Supabase failed, fall back to env POS_PASSWORD below (validateCredentials)
+      } else {
+        console.error('[auth/login] POS email but no Supabase anon client (missing SUPABASE_ANON_KEY or SUPABASE_URL?)');
       }
     }
 
