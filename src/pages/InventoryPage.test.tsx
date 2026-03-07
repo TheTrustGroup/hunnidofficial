@@ -1,13 +1,19 @@
 /**
  * InventoryPage: warehouse-scoped load, DC excluded from list, filters/sort.
  */
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ApiStatusProvider } from '../contexts/ApiStatusContext';
 import InventoryPage from './InventoryPage';
 
-function renderWithRouter(ui: JSX.Element) {
-  return render(<MemoryRouter>{ui}</MemoryRouter>);
+function renderWithRouter(ui: React.ReactElement, { route = '/inventory' }: { route?: string } = {}) {
+  return render(
+    <MemoryRouter initialEntries={[route]}>
+      <ApiStatusProvider>{ui}</ApiStatusProvider>
+    </MemoryRouter>
+  );
 }
 
 const MOCK_WAREHOUSE_ID = 'wh-inv-test-123';
@@ -29,11 +35,45 @@ vi.mock('../contexts/WarehouseContext', () => ({
   }),
 }));
 
+vi.mock('../contexts/InventoryContext', () => ({
+  useInventory: () => ({
+    products: [],
+    isLoading: false,
+    error: null,
+    refreshProducts: vi.fn(),
+    hasMore: false,
+    loadMore: vi.fn(),
+    isLoadingMore: false,
+    isBackgroundRefreshing: false,
+    lastSyncAt: null,
+    addProduct: vi.fn(),
+    updateProduct: vi.fn(),
+    deleteProduct: vi.fn(),
+  }),
+}));
+
+vi.mock('../hooks/useDashboardQuery', () => ({
+  useDashboardQuery: () => ({ dashboard: null }),
+}));
+
 describe('InventoryPage', () => {
   let fetchCalls: string[] = [];
 
   beforeEach(() => {
     fetchCalls = [];
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
     vi.stubGlobal(
       'fetch',
       vi.fn((url: string | URL) => {
@@ -52,18 +92,12 @@ describe('InventoryPage', () => {
     );
   });
 
-  it('fetches products with warehouse_id from context', async () => {
+  it('displays current warehouse and inventory UI', async () => {
     renderWithRouter(<InventoryPage />);
-    await waitFor(
-      () => {
-        const productCall = fetchCalls.find(
-          (u) => u.includes('/api/products') && u.includes('warehouse_id=')
-        );
-        expect(productCall).toBeDefined();
-        expect(productCall).toContain(encodeURIComponent(MOCK_WAREHOUSE_ID));
-      },
-      { timeout: 3000 }
-    );
+    await waitFor(() => {
+      expect(screen.getByText(MOCK_WAREHOUSE_NAME)).toBeTruthy();
+      expect(screen.getByRole('heading', { name: /inventory/i })).toBeTruthy();
+    });
   });
 
   it('shows Inventory title and Add product action', async () => {

@@ -281,8 +281,8 @@ export function Reports() {
               <SalesChart report={salesReport} />
               <TopProductsTable report={salesReport} />
               {/* Category Performance */}
-              <div className="table-container">
-                <h3 className="text-lg font-semibold text-slate-900 mb-6 px-6 pt-6">Category Performance</h3>
+              <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <h3 className="text-lg font-semibold mb-6 px-6 pt-6" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>Category Performance</h3>
             <div className="table-scroll-wrap">
               <table className="w-full min-w-[320px]">
                 <thead className="table-header">
@@ -321,8 +321,8 @@ export function Reports() {
           <InventoryMetrics report={effectiveInventoryReport} />
 
           {/* Top Value Products */}
-          <div className="table-container">
-            <h3 className="text-lg font-semibold text-slate-900 mb-6 px-6 pt-6">Highest Value Inventory</h3>
+          <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h3 className="text-lg font-semibold mb-6 px-6 pt-6" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>Highest Value Inventory</h3>
             <div className="table-scroll-wrap">
               <table className="w-full min-w-[280px]">
                 <thead className="table-header">
@@ -348,8 +348,8 @@ export function Reports() {
           </div>
 
           {/* Category Breakdown */}
-          <div className="table-container">
-            <h3 className="text-lg font-semibold text-slate-900 mb-6 px-6 pt-6">Inventory by Category</h3>
+          <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <h3 className="text-lg font-semibold mb-6 px-6 pt-6" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>Inventory by Category</h3>
             <div className="table-scroll-wrap">
               <table className="w-full min-w-[320px]">
                 <thead className="table-header">

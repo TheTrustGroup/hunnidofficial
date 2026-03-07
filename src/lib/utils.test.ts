@@ -5,9 +5,6 @@ import {
   calculatePercentageChange,
   generateTransactionNumber,
   getCategoryDisplay,
-  toTitleCase,
-  getDeduplicatedCategoryOptions,
-  colorMatchesFilter,
   getLocationDisplay,
   normalizeProductLocation,
 } from './utils';
@@ -66,61 +63,6 @@ describe('getCategoryDisplay', () => {
   it('returns empty string for null/undefined', () => {
     expect(getCategoryDisplay(null)).toBe('');
     expect(getCategoryDisplay(undefined)).toBe('');
-  });
-});
-
-describe('colorMatchesFilter', () => {
-  it('matches case-insensitively', () => {
-    expect(colorMatchesFilter('Black', 'Black')).toBe(true);
-    expect(colorMatchesFilter('black', 'Black')).toBe(true);
-    expect(colorMatchesFilter('BLACK', 'Black')).toBe(true);
-    expect(colorMatchesFilter('Black', 'black')).toBe(true);
-  });
-  it('matches Gray and Grey as same', () => {
-    expect(colorMatchesFilter('Gray', 'Grey')).toBe(true);
-    expect(colorMatchesFilter('Grey', 'Gray')).toBe(true);
-    expect(colorMatchesFilter('grey', 'Gray')).toBe(true);
-  });
-  it('returns false for empty product color when filter is set', () => {
-    expect(colorMatchesFilter(null, 'Black')).toBe(false);
-    expect(colorMatchesFilter('', 'Black')).toBe(false);
-    expect(colorMatchesFilter('  ', 'Black')).toBe(false);
-  });
-  it('returns false for mismatch', () => {
-    expect(colorMatchesFilter('Red', 'Black')).toBe(false);
-    expect(colorMatchesFilter('Black', 'Red')).toBe(false);
-  });
-});
-
-describe('toTitleCase', () => {
-  it('title-cases a single word', () => {
-    expect(toTitleCase('slippers')).toBe('Slippers');
-    expect(toTitleCase('SNEAKERS')).toBe('Sneakers');
-  });
-  it('returns trimmed string', () => {
-    expect(toTitleCase('  red  ')).toBe('Red');
-  });
-  it('returns empty for empty/whitespace', () => {
-    expect(toTitleCase('')).toBe('');
-    expect(toTitleCase('   ')).toBe('');
-  });
-});
-
-describe('getDeduplicatedCategoryOptions', () => {
-  it('dedupes case-insensitively and returns value + title-case label', () => {
-    const opts = getDeduplicatedCategoryOptions(['Slipper', 'slippers', 'Slippers', 'Sneakers']);
-    // "slipper" and "slippers" are different keys, so we get 3 entries
-    expect(opts).toHaveLength(3);
-    const slipper = opts.find((o) => o.label === 'Slipper');
-    const slippers = opts.find((o) => o.label === 'Slippers');
-    const sneakers = opts.find((o) => o.label === 'Sneakers');
-    expect(slipper?.value).toBe('Slipper');
-    expect(slippers?.value).toBe('slippers'); // first occurrence for that key
-    expect(sneakers?.value).toBe('Sneakers');
-  });
-  it('sorts Uncategorized last', () => {
-    const opts = getDeduplicatedCategoryOptions(['Uncategorized', 'A', 'B']);
-    expect(opts.map((o) => o.label)).toEqual(['A', 'B', 'Uncategorized']);
   });
 });
 

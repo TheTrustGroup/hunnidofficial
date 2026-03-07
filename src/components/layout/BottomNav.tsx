@@ -1,6 +1,6 @@
 /**
- * Bottom tab bar (mobile): Dashboard | Inventory | Orders | POS | More.
- * Compact layout: small icons and labels so the bar stays low-profile.
+ * Phase 4: Mobile bottom nav — Dashboard | Inventory | POS | Sales | More.
+ * POS tab: elevated #5CACFA circle. Active: #5CACFA icon + label.
  */
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -36,21 +36,58 @@ export function BottomNav() {
       {visibleTabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = isTabActive(pathname, tab.to);
+        const isPosTab = tab.to === '/pos';
+        const activeColor = isActive ? 'var(--blue)' : '#64748b';
+
+        if (isPosTab) {
+          return (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] min-w-[44px] py-1.5 touch-manipulation"
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center -mt-4 shadow-lg border-2 border-white"
+                style={{
+                  background: isActive ? 'var(--blue)' : 'var(--blue-dim)',
+                  borderColor: 'white',
+                  boxShadow: isActive ? '0 4px 14px var(--blue-glow)' : '0 2px 8px rgba(0,0,0,0.08)',
+                }}
+              >
+                <Icon
+                  className="w-6 h-6 flex-shrink-0"
+                  strokeWidth={2}
+                  aria-hidden
+                  style={{ color: isActive ? '#000' : 'var(--blue)' }}
+                />
+              </div>
+              <span
+                className="text-[11px] font-medium leading-tight"
+                style={{ color: activeColor, fontFamily: 'var(--font-d)' }}
+              >
+                {tab.name}
+              </span>
+            </NavLink>
+          );
+        }
+
         return (
           <NavLink
             key={tab.to}
             to={tab.to}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-0 py-1.5 text-[10px] font-medium transition-colors rounded-md mx-0.5 ${
-              isActive ? 'text-[var(--blue)] bg-[var(--sidebar-active-bg)]' : 'text-slate-500'
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] min-w-[44px] py-1.5 px-2 text-[11px] font-medium transition-colors rounded-lg mx-0.5 ${
+              isActive ? 'bg-[var(--blue-dim)]' : ''
             }`}
           >
             <Icon
-              className="w-4 h-4 flex-shrink-0"
+              className="w-6 h-6 flex-shrink-0"
               strokeWidth={2}
               aria-hidden
-              style={isActive ? { color: 'var(--sidebar-active-icon)' } : { color: '#8892A0' }}
+              style={{ color: activeColor }}
             />
-            <span className="leading-tight">{tab.name}</span>
+            <span className="leading-tight" style={{ color: activeColor, fontFamily: 'var(--font-d)' }}>
+              {tab.name}
+            </span>
           </NavLink>
         );
       })}

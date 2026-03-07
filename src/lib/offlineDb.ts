@@ -4,6 +4,7 @@
  * On QuotaExceededError we set offline_storage_quota_exceeded and dispatch event for toast (INTEGRATION_PLAN).
  */
 import { isQuotaExceededError, setOfflineQuotaExceeded } from './offlineQuota';
+import { isTransactionError } from '../db/inventoryDB';
 
 const DB_NAME = 'warehouse-pos';
 const DB_VERSION = 2;
@@ -13,6 +14,11 @@ const STORE_OFFLINE_TX = 'offline_transactions';
 export const STORE_POS_EVENT_QUEUE = 'pos_event_queue';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+
+/** Clear cached DB promise so next openDb() reopens. Call after transaction/closed errors to avoid e.trans. */
+export function clearOfflineDbInstance(): void {
+  dbPromise = null;
+}
 
 /** Open shared IndexedDB (used by offlineDb and posEventQueue). */
 export function openDb(): Promise<IDBDatabase> {
@@ -24,7 +30,14 @@ export function openDb(): Promise<IDBDatabase> {
     }
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      if (db == null) {
+        reject(new Error('IndexedDB open returned no database'));
+        return;
+      }
+      resolve(db);
+    };
     req.onupgradeneeded = (ev) => {
       const db = (ev.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_PRODUCTS)) {
@@ -84,9 +97,8 @@ export async function saveProductsToDb(products: unknown[]): Promise<void> {
       };
     });
   } catch (e) {
-    if (isQuotaExceededError(e)) {
-      setOfflineQuotaExceeded();
-    }
+    if (isTransactionError(e)) clearOfflineDbInstance();
+    if (isQuotaExceededError(e)) setOfflineQuotaExceeded();
     if (import.meta.env.DEV) console.warn('IndexedDB save products failed:', e);
   }
 }
@@ -107,7 +119,8 @@ export async function loadProductsFromDb<T = unknown>(): Promise<T[]> {
       };
       req.onerror = () => reject(req.error);
     });
-  } catch {
+  } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
     return [];
   }
 }
@@ -119,6 +132,7 @@ export async function enqueueOfflineTransaction(tx: Record<string, unknown>): Pr
     const store = db.transaction(STORE_OFFLINE_TX, 'readwrite').objectStore(STORE_OFFLINE_TX);
     store.put(serializeForDb(tx));
   } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
     if (import.meta.env.DEV) console.warn('IndexedDB enqueue transaction failed:', e);
   }
 }
@@ -138,7 +152,8 @@ export async function getOfflineTransactionQueue<T = unknown>(): Promise<T[]> {
       };
       req.onerror = () => reject(req.error);
     });
-  } catch {
+  } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
     return [];
   }
 }
@@ -150,6 +165,7 @@ export async function clearOfflineTransactionQueue(): Promise<void> {
     const store = db.transaction(STORE_OFFLINE_TX, 'readwrite').objectStore(STORE_OFFLINE_TX);
     store.clear();
   } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
     if (import.meta.env.DEV) console.warn('IndexedDB clear offline queue failed:', e);
   }
 }
@@ -161,8 +177,129 @@ export async function removeOfflineTransactionById(id: string): Promise<void> {
     const store = db.transaction(STORE_OFFLINE_TX, 'readwrite').objectStore(STORE_OFFLINE_TX);
     store.delete(id);
   } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
     if (import.meta.env.DEV) console.warn('IndexedDB remove offline tx failed:', e);
   }
+}
+
+// ─── POS event queue (offline sales sync) ───────────────────────────────────
+
+export type SaleEventStatus = 'pending' | 'synced' | 'failed';
+
+export interface PosSaleEvent {
+  event_id: string;
+  status: SaleEventStatus;
+  created_at: number;
+  payload: Record<string, unknown>;
+}
+
+/** Generate a stable event id for idempotency (Idempotency-Key). */
+function generateEventId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `pos-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/**
+ * Append a sale to the POS event queue for sync when back online.
+ * @param payload - Same shape as POST /api/sales body (warehouseId, lines, total, etc.)
+ * @param eventId - Optional; if not provided a new UUID is generated.
+ * @returns The event_id used (for receipt or retries).
+ */
+export async function enqueueSaleEvent(
+  payload: Record<string, unknown>,
+  eventId?: string
+): Promise<string> {
+  const event_id = eventId ?? generateEventId();
+  const event: PosSaleEvent = {
+    event_id,
+    status: 'pending',
+    created_at: Date.now(),
+    payload: { ...payload },
+  };
+  try {
+    const db = await openDb();
+    const store = db.transaction(STORE_POS_EVENT_QUEUE, 'readwrite').objectStore(STORE_POS_EVENT_QUEUE);
+    store.put(serializeForDb(event));
+  } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
+    if (isQuotaExceededError(e)) setOfflineQuotaExceeded();
+    if (import.meta.env.DEV) console.warn('IndexedDB enqueue sale event failed:', e);
+    throw e;
+  }
+  return event_id;
+}
+
+/**
+ * Get all pending sale events, oldest first (for sync order).
+ */
+export async function getPendingSaleEvents(): Promise<PosSaleEvent[]> {
+  try {
+    const db = await openDb();
+    const store = db.transaction(STORE_POS_EVENT_QUEUE, 'readonly').objectStore(STORE_POS_EVENT_QUEUE);
+    const index = store.index('by_status');
+    const req = index.getAll('pending');
+    const result = await new Promise<PosSaleEvent[]>((resolve, reject) => {
+      req.onsuccess = () => {
+        const rows = (req.result || []) as PosSaleEvent[];
+        rows.sort((a, b) => a.created_at - b.created_at);
+        resolve(rows);
+      };
+      req.onerror = () => reject(req.error);
+    });
+    return result;
+  } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
+    return [];
+  }
+}
+
+/**
+ * Remove a sale event after successful sync (or after marking failed).
+ */
+export async function deleteSaleEvent(eventId: string): Promise<void> {
+  try {
+    const db = await openDb();
+    const store = db.transaction(STORE_POS_EVENT_QUEUE, 'readwrite').objectStore(STORE_POS_EVENT_QUEUE);
+    store.delete(eventId);
+  } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
+    if (import.meta.env.DEV) console.warn('IndexedDB delete sale event failed:', e);
+  }
+}
+
+/**
+ * Mark a sale event as failed (e.g. 409 insufficient stock). Sync will not retry it.
+ */
+export async function markSaleEventFailed(eventId: string): Promise<void> {
+  try {
+    const db = await openDb();
+    const store = db.transaction(STORE_POS_EVENT_QUEUE, 'readwrite').objectStore(STORE_POS_EVENT_QUEUE);
+    const getReq = store.get(eventId);
+    await new Promise<void>((resolve, reject) => {
+      getReq.onsuccess = () => {
+        const event = getReq.result as PosSaleEvent | undefined;
+        if (event) {
+          event.status = 'failed';
+          store.put(event);
+        }
+        resolve();
+      };
+      getReq.onerror = () => reject(getReq.error);
+    });
+  } catch (e) {
+    if (isTransactionError(e)) clearOfflineDbInstance();
+    if (import.meta.env.DEV) console.warn('IndexedDB mark sale event failed:', e);
+  }
+}
+
+/**
+ * Count pending sale events (for UI: "Pending sales: N").
+ */
+export async function getPendingSaleEventsCount(): Promise<number> {
+  const events = await getPendingSaleEvents();
+  return events.length;
 }
 
 /** Check if IndexedDB is available. */

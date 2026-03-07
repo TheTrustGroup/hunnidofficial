@@ -115,14 +115,28 @@ function DeliveryCard({
   const isVoided = !!(delivery.voidedAt != null && String(delivery.voidedAt).trim() !== '');
 
   return (
-    <div className={`bg-white rounded-2xl border-[1.5px] overflow-hidden transition-all duration-200 ${isCancelled ? 'border-slate-200 opacity-90' : overdue ? 'border-red-200 shadow-[0_0_0_3px_rgba(239,68,68,0.08)]' : 'border-slate-200'}`}>
+    <div
+      className={`rounded-xl overflow-hidden transition-all duration-200 ${isCancelled ? 'opacity-90' : ''}`}
+      style={{
+        background: 'var(--surface)',
+        borderWidth: '1.5px',
+        borderColor: isCancelled ? 'var(--border)' : overdue ? 'var(--red-status)' : 'var(--border)',
+        boxShadow: overdue && !isCancelled ? '0 0 0 3px rgba(239,68,68,0.08)' : undefined,
+      }}
+    >
 
       {/* Card header */}
       <button type="button" onClick={() => setExpanded(v => !v)}
         className="w-full flex items-start gap-3 px-4 py-4 text-left hover:bg-slate-50/50 transition-colors">
 
         {/* Delivery icon */}
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${isCancelled ? 'bg-slate-100 text-slate-400' : delivery.deliveryStatus === 'dispatched' ? 'bg-blue-100 text-blue-600' : overdue ? 'bg-red-100 text-red-500' : 'bg-amber-100 text-amber-600'}`}>
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+          style={{
+            background: isCancelled ? 'var(--elevated)' : delivery.deliveryStatus === 'dispatched' ? 'var(--blue-dim)' : overdue ? 'rgba(239,68,68,0.12)' : 'var(--amber-dim)',
+            color: isCancelled ? 'var(--text-3)' : delivery.deliveryStatus === 'dispatched' ? 'var(--blue)' : overdue ? 'var(--red-status)' : 'var(--amber)',
+          }}
+        >
           <IconTruck />
         </div>
 
@@ -213,7 +227,8 @@ function DeliveryCard({
                   type="button"
                   disabled={loading}
                   onClick={() => onMarkDispatched(delivery.id)}
-                  className="flex-1 min-w-[120px] h-10 rounded-xl border-[1.5px] border-blue-200 bg-blue-50 text-blue-700 text-[13px] font-bold flex items-center justify-center gap-1.5 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                  className="flex-1 min-w-[120px] h-10 rounded-xl border-[1.5px] text-[13px] font-bold flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors"
+                  style={{ borderColor: 'var(--blue)', background: 'var(--blue-dim)', color: 'var(--blue)', fontFamily: 'var(--font-d)' }}
                 >
                   {loading ? <IconSpinner /> : <IconTruck />}
                   Mark Dispatched
@@ -376,7 +391,7 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen pb-20" style={{ background: 'var(--bg)' }}>
 
       {/* Toast */}
       {toast && (
@@ -389,7 +404,7 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
       <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-[20px] font-extrabold text-slate-900 tracking-tight">Deliveries</h1>
+            <h1 className="text-[20px] font-extrabold text-slate-900 tracking-tight" style={{ fontFamily: 'var(--font-d)' }}>Deliveries</h1>
             <p className="text-[12px] text-slate-400 mt-0.5">
               {pendingCount + dispatchedCount} active · {cancelledCount > 0 ? `${cancelledCount} cancelled` : ''} {overdueCount > 0 ? `· ${overdueCount} overdue` : ''}
             </p>

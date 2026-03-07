@@ -14,9 +14,9 @@ import {
   Copy,
   Bug,
 } from 'lucide-react';
-import { subscribeToLogs, getRecentLogBuffer, clearLogs, logDb } from '../../utils/logger';
+import { subscribeToLogs, getRecentLogBuffer, clearLogs, getLogDb } from '../../utils/logger';
 import { syncService } from '../../services/syncService';
-import { db } from '../../db/inventoryDB';
+import { getDB } from '../../db/inventoryDB';
 
 const PANEL_WIDTH = 420;
 const LOG_HEIGHT = 220;
@@ -60,10 +60,23 @@ export function DebugPanel() {
 
   const refreshIdb = useCallback(async () => {
     try {
-      const [products, syncQueue, logsCount] = await Promise.all([
-        db.products.count(),
-        db.syncQueue.count(),
-        logDb.logs.count(),
+      const d = await getDB();
+      if (!d) {
+        setIdbSummary(null);
+        return;
+      }
+      const logDb = await getLogDb();
+      let logsCount = 0;
+      if (logDb?.logs) {
+        try {
+          logsCount = await logDb.logs.count();
+        } catch {
+          // IndexedDB unavailable
+        }
+      }
+      const [products, syncQueue] = await Promise.all([
+        d.products.count().catch(() => 0),
+        d.syncQueue.count().catch(() => 0),
       ]);
       setIdbSummary({ products, syncQueue, logs: logsCount });
     } catch {

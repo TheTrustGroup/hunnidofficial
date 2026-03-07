@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
@@ -7,6 +7,10 @@ import { SyncStatusBar } from '../SyncStatusBar';
 import { ConflictModalContainer } from '../ConflictModalContainer';
 import { ApiStatusProvider, useApiStatus } from '../../contexts/ApiStatusContext';
 import { useCriticalData } from '../../contexts/CriticalDataContext';
+import { useRealtimeContext } from '../../contexts/RealtimeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useWarehouse } from '../../contexts/WarehouseContext';
+import { PresenceProvider } from '../../contexts/PresenceContext';
 import { Button } from '../ui/Button';
 
 const DISMISS_BANNER_KEY = 'dismiss_degraded_banner_session';
@@ -23,6 +27,10 @@ export function Layout() {
 }
 
 function LayoutContent() {
+  const location = useLocation();
+  const isPOS = location.pathname === '/pos';
+  const { user, isAuthenticated } = useAuth();
+  const { currentWarehouseId, currentWarehouse } = useWarehouse();
   const { isDegraded: degraded, retry } = useApiStatus();
   const [showBanner, setShowBanner] = useState(false);
   const degradedSinceRef = useRef<number | null>(null);
@@ -31,6 +39,20 @@ function LayoutContent() {
     return sessionStorage.getItem(DISMISS_BANNER_KEY) === '1';
   });
   const { criticalDataError, isSyncingCriticalData, reloadCriticalData } = useCriticalData();
+  const realtimeContext = useRealtimeContext();
+  const [now, setNow] = useState(() => Date.now());
+  const disconnectedSince = realtimeContext?.disconnectedSince ?? null;
+  const realtimeStatus = realtimeContext?.status ?? 'disconnected';
+  const showReconnectingBanner =
+    disconnectedSince != null &&
+    (realtimeStatus === 'error' || realtimeStatus === 'disconnected') &&
+    now - disconnectedSince >= 30_000;
+
+  useEffect(() => {
+    if (!showReconnectingBanner) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [showReconnectingBanner]);
 
   // Debounce: show banner only after degraded for BANNER_DEBOUNCE_MS so brief flickers don't cause jitter
   useEffect(() => {
@@ -81,7 +103,7 @@ function LayoutContent() {
       {/* Slim hint while phase 2 (inventory, orders) syncs in background after login */}
       {isSyncingCriticalData && (
         <div
-          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-primary-50/90 text-primary-900 text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 border-b border-primary-200/50"
+          className="lg:ml-[240px] mt-[calc(56px+var(--safe-top))] bg-primary-50/90 text-primary-900 text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 border-b border-primary-200/50"
           role="status"
           aria-live="polite"
         >
@@ -92,7 +114,7 @@ function LayoutContent() {
       {/* In-flow banner: reserves layout space so content is never overlapped. Pushes main content down. */}
       {criticalDataError && (
         <div
-          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
+          className="lg:ml-[240px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
           role="alert"
         >
           <span>Initial load had issues: {criticalDataError}</span>
@@ -101,11 +123,19 @@ function LayoutContent() {
           </Button>
         </div>
       )}
+      {showReconnectingBanner && (
+        <div
+          className="lg:ml-[240px] mt-[calc(56px+var(--safe-top))] bg-amber-100 text-amber-900 text-center py-2 px-4 text-sm font-medium border-b border-amber-200"
+          role="status"
+          aria-live="polite"
+        >
+          Reconnecting… Your data may be slightly delayed.
+        </div>
+      )}
       {showDegradedBanner && (
         <div
-          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
-          role="alert"
-          aria-live="assertive"
+          className="lg:ml-[240px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
+          role="status"
         >
           <span>Server temporarily unavailable. Last saved data — read-only. Add, edit, and sales disabled until server is back.</span>
           <Button
@@ -126,13 +156,21 @@ function LayoutContent() {
           </Button>
         </div>
       )}
-      {/* Phase 6: main padding ≥16px (max(1rem, safe-area)); no edge-touch; reserves space for SyncStatusBar */}
+      {/* Main: offset by sidebar and topbar; on POS no extra top margin (POS has its own topbar). */}
       <main
-        className={`lg:ml-[244px] pt-20 lg:pt-8 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 pb-[max(4rem,calc(var(--safe-bottom)+4rem))] lg:pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))] min-h-[calc(var(--min-h-viewport)-56px)] max-w-[1600px] overflow-x-hidden ${
-          showDegradedBanner || showSyncingBar ? 'mt-0' : 'mt-[calc(56px+var(--safe-top))]'
+        className={`lg:ml-[240px] pt-20 lg:pt-8 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 pb-[max(4rem,calc(var(--safe-bottom)+4rem))] lg:pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))] min-h-[calc(var(--min-h-viewport)-56px)] max-w-[1600px] overflow-x-hidden ${
+          showDegradedBanner || showSyncingBar ? 'mt-0' : isPOS ? 'mt-0' : 'mt-[calc(56px+var(--safe-top))]'
         }`}
       >
-        <Outlet />
+        <PresenceProvider
+          currentUserEmail={user?.email ?? null}
+          currentUserRole={user?.role ?? null}
+          currentWarehouseId={currentWarehouseId ?? ''}
+          currentWarehouseName={currentWarehouse?.name ?? ''}
+          isAuthenticated={!!isAuthenticated}
+        >
+          <Outlet />
+        </PresenceProvider>
       </main>
       <SyncStatusBar />
       <BottomNav />

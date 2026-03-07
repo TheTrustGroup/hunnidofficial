@@ -1,52 +1,19 @@
 // ============================================================
-// DashboardPage.tsx
-// File: warehouse-pos/src/pages/DashboardPage.tsx
-//
-// THE FIX: This replaces whatever Dashboard component was using
-// "apiClient.ts:138" with a hardcoded Main Store warehouse_id.
-//
-// ROOT CAUSE OF THE BUG (confirmed from network tab):
-//   Old dashboard: warehouse_id = hardcoded or stale ...0001 (Main Store)
-//   UI label showed "Main Town" but data was still Main Store.
-//
-// HOW THIS FILE FIXES IT:
-//   Reads warehouseId from WarehouseContext.
-//   Every time warehouse changes → useEffect re-runs → fetches correct data.
-//   Stats are computed from the fetched products (accurate, real numbers).
-//   Today's sales are fetched from /api/sales filtered by warehouse + date.
+// DashboardPage.tsx — Phase 5: 6 KPI StatCards, Revenue chart, useCurrentWarehouse data.
+// Uses WarehouseContext for warehouseId. useDashboardQuery + useDashboardSalesReport.
 // ============================================================
 
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
-import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle } from 'lucide-react';
-import { useWarehouse, KNOWN_WAREHOUSE_NAMES } from '../contexts/WarehouseContext';
-import { getApiHeaders, API_BASE_URL } from '../lib/api';
-
-// ── Types (match GET /api/dashboard response) ──────────────────────────────
-
-interface DashboardLowStockItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  quantityBySize: { sizeCode: string; quantity: number }[];
-  reorderLevel: number;
-}
-
-interface DashboardCategorySummary {
-  [category: string]: { count: number; value: number };
-}
-
-interface DashboardData {
-  totalStockValue: number;
-  totalProducts: number;
-  lowStockCount: number;
-  outOfStockCount: number;
-  todaySales: number;
-  lowStockItems: DashboardLowStockItem[];
-  categorySummary: DashboardCategorySummary;
-}
+import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { DollarSign, Package, Layers, AlertTriangle, Receipt, ShoppingCart, CheckCircle, Users, TrendingUp } from 'lucide-react';
+import { useWarehouse } from '../contexts/WarehouseContext';
+import { useAuth } from '../contexts/AuthContext';
+import { usePresence } from '../contexts/PresenceContext';
+import { isValidWarehouseId } from '../lib/warehouseId';
+import { useDashboardQuery, type DashboardLowStockItem } from '../hooks/useDashboardQuery';
+import { useDashboardSalesReport } from '../hooks/useDashboardSalesReport';
+import { StatCard } from '../components/ui/StatCard';
+import { DashboardRevenueChart } from '../components/dashboard/DashboardRevenueChart';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -67,106 +34,6 @@ function formatGHCCompact(n: number): string {
     return `${sign}GH₵${v >= 100 ? Math.round(v) : v.toFixed(1)}K`;
   }
   return sign + 'GH₵' + abs.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
-// ── apiFetch (with retry for transient network failures) ───────────────────
-
-const FETCH_TIMEOUT_MS = 15_000;
-const RETRY_DELAYS_MS = [1_000, 2_000];
-
-/** Do not retry 401 — session expired; user must re-login. */
-const SESSION_EXPIRED_MSG = 'Session expired. Please log in again.';
-
-function isRetryableError(e: unknown): boolean {
-  if (e instanceof Error) {
-    const msg = e.message;
-    if (msg.includes(SESSION_EXPIRED_MSG) || msg.includes('401') || msg.includes('Session expired')) return false;
-    const lower = msg.toLowerCase();
-    if (e.name === 'AbortError' || lower.includes('timeout')) return true;
-    if (lower.includes('network') || lower.includes('connection') || lower.includes('failed to fetch')) return true;
-  }
-  return false;
-}
-
-async function apiFetchOnce<T = unknown>(path: string): Promise<T> {
-  const ctrl = new AbortController();
-  const t    = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(`${API_BASE_URL}${path}`, {
-      headers: getApiHeaders() as HeadersInit,
-      signal:  ctrl.signal,
-    });
-    clearTimeout(t);
-    if (!res.ok) {
-      if (res.status === 401) throw new Error(SESSION_EXPIRED_MSG);
-      const b = await res.json().catch(() => ({}));
-      throw new Error((b as { error?: string; message?: string }).error ?? (b as { error?: string; message?: string }).message ?? `HTTP ${res.status}`);
-    }
-    const text = await res.text();
-    return (text ? JSON.parse(text) : {}) as T;
-  } catch (e: unknown) {
-    clearTimeout(t);
-    if (e instanceof Error && e.name === 'AbortError') throw new Error('Request timed out');
-    throw e;
-  }
-}
-
-async function apiFetch<T = unknown>(path: string): Promise<T> {
-  let lastErr: unknown;
-  for (let i = 0; i <= RETRY_DELAYS_MS.length; i++) {
-    try {
-      return await apiFetchOnce<T>(path);
-    } catch (e) {
-      lastErr = e;
-      if (i < RETRY_DELAYS_MS.length && isRetryableError(e)) {
-        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[i]));
-        continue;
-      }
-      throw e;
-    }
-  }
-  throw lastErr;
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  accent = false,
-  warning = false,
-  danger = false,
-}: {
-  label:   string;
-  value:   string | number;
-  icon:    LucideIcon;
-  accent?: boolean;
-  warning?: boolean;
-  danger?:  boolean;
-}) {
-  const bg = accent  ? 'bg-white border-slate-200' :
-             warning ? 'bg-white border-slate-200' :
-             danger  ? 'bg-white border-slate-200' :
-                       'bg-white border-slate-200';
-
-  const valColor = danger  ? 'text-red-500'   :
-                   warning ? 'text-amber-500' :
-                             'text-slate-900';
-
-  const iconColor = danger  ? 'text-red-500'   :
-                    warning ? 'text-amber-500' :
-                              'text-slate-400';
-
-  return (
-    <div className={`flex flex-col justify-between p-6 rounded-2xl border ${bg} shadow-sm`}>
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-[13px] font-semibold text-slate-500">{label}</span>
-        <Icon className={iconColor} size={28} aria-hidden />
-      </div>
-      <p className={`text-[28px] font-black tabular-nums leading-none min-w-0 truncate ${valColor}`} title={typeof value === 'string' ? value : String(value)}>{value}</p>
-    </div>
-  );
 }
 
 // ── Low stock table (uses pre-aggregated lowStockItems from API) ────────────
@@ -207,75 +74,35 @@ function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   );
 }
 
-// ── Warehouse IDs for "today by location" (match server). Names from same source as dropdown. ───────
-
-const WAREHOUSE_IDS_FOR_SUMMARY = [
-  '00000000-0000-0000-0000-000000000001',
-  '00000000-0000-0000-0000-000000000002',
-] as const;
-
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const { currentWarehouseId, currentWarehouse, warehouses } = useWarehouse();
-  const warehouseId   = currentWarehouseId;
+  const { hasRole } = useAuth();
+  const { presenceList, isSubscribed } = usePresence();
+  const warehouseId = currentWarehouseId ?? '';
   const warehouseName = currentWarehouse?.name ?? 'Warehouse';
+  const isWarehouseValid = isValidWarehouseId(warehouseId);
+  const canSeePresence = hasRole(['admin', 'super_admin']);
 
-  /** Name for "sales by location" — same source as sidebar/dropdown (warehouses from API, then KNOWN_WAREHOUSE_NAMES). */
-  const locationNameForId = (wid: string) =>
-    warehouses.find((w) => w.id === wid)?.name ?? KNOWN_WAREHOUSE_NAMES[wid] ?? wid;
+  const { dashboard, todayByWarehouse, isLoading: loading, error: queryError, refetch } = useDashboardQuery(warehouseId);
+  const { salesByDay, todayRevenue, todayProfit, isLoading: salesLoading, refetch: refetchSales } = useDashboardSalesReport(warehouseId);
+  const error = queryError?.message ?? null;
+  const loadingAny = loading || (isWarehouseValid && salesLoading);
 
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [todayByWarehouse, setTodayByWarehouse] = useState<Record<string, number> | null>(null);
-
-  const loadData = useCallback(async (wid: string) => {
-    setLoading(true);
-    setError(null);
-    setDashboard(null);
-
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const data = await apiFetch<DashboardData>(
-        `/api/dashboard?warehouse_id=${encodeURIComponent(wid)}&date=${today}`
-      );
-      setDashboard(data);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Failed to load dashboard data';
-      if (msg === SESSION_EXPIRED_MSG) {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.removeItem('current_user');
-          localStorage.removeItem('auth_token');
-        }
-        navigate('/login?session_expired=1', { replace: true });
-        return;
-      }
-      setError(msg);
-    } finally {
-      setLoading(false);
+  // Refetch when Dashboard is opened so Stock Alerts and chart stay current.
+  useEffect(() => {
+    if (isWarehouseValid) {
+      refetch();
+      refetchSales();
     }
-  }, [navigate]);
-
-  useEffect(() => {
-    loadData(warehouseId);
-  }, [warehouseId, loadData]);
-
-  // Today's sales per warehouse (super-admin at-a-glance; one lightweight request).
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    let cancelled = false;
-    apiFetch<Record<string, number>>(`/api/dashboard/today-by-warehouse?date=${today}`)
-      .then((data) => { if (!cancelled) setTodayByWarehouse(data); })
-      .catch(() => { if (!cancelled) setTodayByWarehouse(null); });
-    return () => { cancelled = true; };
-  }, []);
+  }, [isWarehouseValid, refetch, refetchSales]);
 
   const stats = dashboard
     ? {
         totalStockValue: dashboard.totalStockValue,
         totalProducts: dashboard.totalProducts,
+        totalUnits: dashboard.totalUnits,
         lowStockCount: dashboard.lowStockCount,
         outOfStockCount: dashboard.outOfStockCount,
         todaysSales: dashboard.todaySales,
@@ -285,124 +112,200 @@ export default function DashboardPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] p-6">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="min-h-screen bg-[var(--bg)] p-4 sm:p-6 pb-24 lg:pb-6">
+      <div className="max-w-6xl mx-auto space-y-6">
 
-        {/* ── Header ── */}
-        <div className="flex items-start justify-between">
+        {/* ── Header: Syne title, warehouse label, New sale (desktop) ── */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-[24px] font-black text-slate-900 tracking-tight">
-                Admin Control Panel
-              </h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
-                               bg-slate-900 text-white text-[11px] font-bold uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"/>
-                Super Admin
-              </span>
-            </div>
-            <p className="text-[13px] text-slate-500">
-              Full system access — inventory, POS, reports, users &amp; settings.
+            <h1
+              className="text-xl sm:text-2xl font-bold tracking-tight"
+              style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}
+            >
+              Dashboard
+            </h1>
+            <p className="text-[13px] mt-1" style={{ color: 'var(--text-3)' }}>
+              {!isWarehouseValid ? (
+                'Loading warehouse…'
+              ) : (
+                <>Stats for <span style={{ color: 'var(--text)', fontWeight: 600 }}>{warehouseName}</span></>
+              )}
+              {isWarehouseValid && loadingAny && (
+                <span className="ml-2 animate-pulse">Loading…</span>
+              )}
             </p>
           </div>
-
-          <a href="/pos"
-             className="flex items-center gap-2 h-10 px-5 rounded-xl bg-primary-500 hover:bg-primary-600
-                        text-white text-[14px] font-bold transition-colors
-                        shadow-[0_4px_12px_rgba(92,172,250,0.3)]">
+          <Link
+            to="/pos"
+            className="hidden lg:flex items-center gap-2 h-10 px-5 rounded-xl font-semibold text-sm transition-colors"
+            style={{
+              background: 'var(--blue)',
+              color: '#0D1117',
+              boxShadow: '0 4px 14px var(--blue-glow)',
+            }}
+          >
             <ShoppingCart className="w-5 h-5" aria-hidden />
             New sale
-          </a>
+          </Link>
         </div>
 
-        {/* ── Warehouse label — proves context is working ── */}
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400"/>
-          <p className="text-[13px] font-semibold text-slate-600">
-            Inventory stats for:{' '}
-            <span className="text-slate-900 font-black">{warehouseName}</span>
-          </p>
-          {loading && (
-            <span className="text-[12px] text-slate-400 animate-pulse">Loading…</span>
-          )}
-        </div>
-
-        {/* ── Today's sales by location (both POS/warehouses at a glance) ── */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
-            Today&apos;s sales by location
-          </h2>
-          <div className="flex flex-wrap gap-4">
-            {WAREHOUSE_IDS_FOR_SUMMARY.map((wid) => (
-              <div key={wid} className="flex items-center gap-2">
-                <span className="text-[13px] font-semibold text-slate-600">
-                  {locationNameForId(wid)}
-                </span>
-                <span className="text-[15px] font-black tabular-nums text-slate-900">
-                  {todayByWarehouse == null
-                    ? '—'
-                    : formatGHCCompact(todayByWarehouse[wid] ?? 0)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Error ── */}
-        {error && !loading && (
-          <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-50 border border-red-100">
-            <AlertTriangle className="w-6 h-6 flex-shrink-0 text-red-500" aria-hidden />
-            <div>
-              <p className="text-[14px] font-bold text-red-700">Failed to load data</p>
-              <p className="text-[12px] text-red-500 mt-0.5">{error}</p>
+        {/* ── Today's Sales by Location ── */}
+        {warehouses.length > 0 && (
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h2 className="text-[15px] font-bold" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>
+                Today&apos;s Sales by Location
+              </h2>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>Sales total per warehouse for today</p>
             </div>
-            <button onClick={() => loadData(warehouseId)}
-                    className="ml-auto px-4 py-2 rounded-xl bg-primary-500 text-white text-[12px] font-bold hover:bg-primary-600">
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {warehouses.map((w) => (
+                <div key={w.id} className="flex items-center justify-between p-3.5 rounded-lg border" style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}>
+                  <span className="text-[13px] font-semibold" style={{ color: 'var(--text)' }}>{w.name}</span>
+                  <span className="text-[15px] font-semibold tabular-nums" style={{ color: 'var(--text)', fontFamily: 'var(--font-m)' }}>
+                    {loading ? '—' : formatGHCCompact(todayByWarehouse[w.id] ?? 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Active cashiers (admin only, Supabase Realtime Presence) ── */}
+        {canSeePresence && (
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: 'var(--border)' }}>
+              <Users className="w-5 h-5" style={{ color: 'var(--text-3)' }} aria-hidden />
+              <div>
+                <h2 className="text-[15px] font-bold" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>
+                  {presenceList.length === 0 ? 'No other users active' : `${presenceList.length} cashier${presenceList.length !== 1 ? 's' : ''} active`}
+                </h2>
+                <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>
+                  {isSubscribed ? 'Live — updates when someone opens or leaves the app' : 'Connecting…'}
+                </p>
+              </div>
+            </div>
+            {presenceList.length > 0 && (
+              <ul className="p-5 space-y-2">
+                {presenceList.map((entry) => (
+                  <li key={entry.key} className="flex items-center justify-between gap-3 p-3 rounded-lg border" style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-slate-800 truncate">{entry.payload.displayName || entry.payload.email}</p>
+                      <p className="text-[12px] text-slate-500">
+                        {entry.payload.page} — {entry.payload.warehouseName}
+                        {entry.isIdle && <span className="ml-2 text-amber-600 font-medium">Idle</span>}
+                      </p>
+                    </div>
+                    {!entry.isIdle && <span className="text-[11px] text-slate-400 whitespace-nowrap">{entry.lastActivityAgo}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* ── Soft notice when API returned 200 with empty stats (no circuit; sales/POS still work) ── */}
+        {dashboard?.error && !loading && (
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-100">
+            <AlertTriangle className="w-6 h-6 flex-shrink-0 text-amber-600" aria-hidden />
+            <div>
+              <p className="text-[14px] font-bold text-amber-800">Stats temporarily unavailable</p>
+              <p className="text-[12px] text-amber-700 mt-0.5">{dashboard.error}</p>
+              <p className="text-[11px] text-slate-500 mt-1">Dashboard stats only — sales and inventory are unaffected.</p>
+            </div>
+            <button onClick={() => refetch()} className="ml-auto px-4 py-2 rounded-xl bg-amber-500 text-white text-[12px] font-bold hover:bg-amber-600">
               Retry
             </button>
           </div>
         )}
 
-        {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Total Stock Value"
-            value={loading || !stats ? '—' : formatGHCCompact(stats.totalStockValue)}
-            icon={DollarSign}
-            accent
-          />
-          <StatCard
-            label="Total Products"
-            value={loading || !stats ? '—' : stats.totalProducts}
-            icon={Package}
-          />
-          <StatCard
-            label="Low Stock Items"
-            value={loading || !stats ? '—' : stats.lowStockCount + stats.outOfStockCount}
-            icon={AlertTriangle}
-            warning={stats ? stats.lowStockCount + stats.outOfStockCount > 0 : false}
-          />
-          <StatCard
-            label="Today's Sales"
-            value={loading || !stats ? '—' : formatGHCCompact(stats.todaysSales)}
-            icon={Receipt}
-          />
+        {/* ── Hard error (query failed after retries or dashboard circuit open) ── */}
+        {error && !loading && !dashboard?.error && (
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-50 border border-red-100">
+            <AlertTriangle className="w-6 h-6 flex-shrink-0 text-red-500" aria-hidden />
+            <div>
+              <p className="text-[14px] font-bold text-red-700">Failed to load data</p>
+              <p className="text-[12px] text-red-500 mt-0.5">{error}</p>
+              <p className="text-[11px] text-slate-500 mt-1">Dashboard only — sales and POS still work. Click Retry to try again.</p>
+            </div>
+            <button onClick={() => refetch()} className="ml-auto px-4 py-2 rounded-xl bg-red-500 text-white text-[12px] font-bold hover:bg-red-600">
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* ── Two-column: 6 KPIs (2×3 mobile) + Revenue chart ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+            <StatCard
+              label="Total Stock Value"
+              value={stats ? formatGHCCompact(stats.totalStockValue) : '—'}
+              icon={DollarSign}
+              variant="default"
+              loading={!isWarehouseValid || (loading && !dashboard)}
+            />
+            <StatCard
+              label="Total Products"
+              value={stats?.totalProducts ?? '—'}
+              icon={Package}
+              variant="default"
+              loading={!isWarehouseValid || (loading && !dashboard)}
+            />
+            <StatCard
+              label="Total Units"
+              value={stats?.totalUnits ?? '—'}
+              icon={Layers}
+              variant="default"
+              loading={!isWarehouseValid || (loading && !dashboard)}
+            />
+            <StatCard
+              label="Low Stock Items"
+              value={stats != null ? stats.lowStockCount + stats.outOfStockCount : '—'}
+              icon={AlertTriangle}
+              variant={stats != null && stats.lowStockCount + stats.outOfStockCount > 0 ? 'amber' : 'default'}
+              loading={!isWarehouseValid || (loading && !dashboard)}
+            />
+            <StatCard
+              label="Today's Revenue"
+              value={isWarehouseValid && (dashboard || salesByDay.length > 0) ? formatGHCCompact((todayRevenue || stats?.todaysSales) ?? 0) : '—'}
+              icon={Receipt}
+              variant="primary"
+              loading={!isWarehouseValid || loadingAny}
+            />
+            <StatCard
+              label="Today's Profit"
+              value={isWarehouseValid ? formatGHCCompact(todayProfit) : '—'}
+              icon={TrendingUp}
+              variant="green"
+              loading={!isWarehouseValid || salesLoading}
+            />
+          </div>
+          <div className="min-h-0">
+            <DashboardRevenueChart data={salesByDay} loading={isWarehouseValid && salesLoading} />
+          </div>
         </div>
 
-        {/* ── Low stock alerts ── */}
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        {/* ── Low stock alerts (from API: GET /api/dashboard → lowStockItems) ── */}
+        <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
             <div>
-              <h2 className="text-[15px] font-black text-slate-900">Stock Alerts</h2>
-              <p className="text-[12px] text-slate-400 mt-0.5">
+              <h2 className="text-[15px] font-bold" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>
+                Stock Alerts
+              </h2>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>
                 {warehouseName} — products at or below reorder level
               </p>
             </div>
-            {stats && stats.outOfStockCount > 0 && (
-              <span className="px-3 py-1 rounded-full bg-red-50 text-red-500 text-[12px] font-bold border border-red-100">
-                {stats.outOfStockCount} out of stock
-              </span>
-            )}
+            {(() => {
+              const items = dashboard?.lowStockItems ?? [];
+              const outCount = items.filter((i) => i.quantity === 0).length;
+              if (outCount === 0) return null;
+              return (
+                <span className="px-3 py-1 rounded-full bg-red-50 text-red-500 text-[12px] font-bold border border-red-100">
+                  {outCount} out of stock
+                </span>
+              );
+            })()}
           </div>
           {loading ? (
             <div className="p-6 space-y-3">
@@ -416,27 +319,43 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Category breakdown ── */}
-        {!loading && dashboard && Object.keys(dashboard.categorySummary).length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="text-[15px] font-black text-slate-900">By Category</h2>
-              <p className="text-[12px] text-slate-400 mt-0.5">{warehouseName}</p>
+        {!loading && dashboard && dashboard.categorySummary && typeof dashboard.categorySummary === 'object' && Object.keys(dashboard.categorySummary).length > 0 && (
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h2 className="text-[15px] font-bold" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>
+                By Category
+              </h2>
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>{warehouseName}</p>
             </div>
             <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {Object.entries(dashboard.categorySummary)
                 .sort((a, b) => b[1].value - a[1].value)
                 .map(([cat, { count, value }]) => (
-                  <div key={cat}
-                       className="flex flex-col gap-1 p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">{cat}</span>
-                    <span className="text-[18px] font-black text-slate-900">{count} SKUs</span>
-                    <span className="text-[11px] text-slate-400 font-medium">{formatGHC(value)}</span>
+                  <div key={cat} className="flex flex-col gap-1 p-3.5 rounded-lg border" style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}>
+                    <span className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>{cat}</span>
+                    <span className="text-[18px] font-semibold" style={{ color: 'var(--text)', fontFamily: 'var(--font-m)' }}>{count} SKUs</span>
+                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-3)' }}>{formatGHC(value)}</span>
                   </div>
                 ))}
             </div>
           </div>
         )}
 
+        {/* ── Mobile FAB: New sale (56px tap target; above bottom nav + safe-area) ── */}
+        <Link
+          to="/pos"
+          className="lg:hidden fixed z-20 flex items-center justify-center w-14 h-14 rounded-full font-semibold text-sm shadow-lg border-2 border-white transition-transform active:scale-95 touch-manipulation"
+          style={{
+            bottom: 'calc(5rem + var(--safe-bottom))',
+            right: 'max(1rem, var(--safe-right))',
+            background: 'var(--blue)',
+            color: '#0D1117',
+            boxShadow: '0 4px 20px var(--blue-glow)',
+          }}
+          aria-label="New sale"
+        >
+          <ShoppingCart className="w-6 h-6" aria-hidden />
+        </Link>
       </div>
     </div>
   );

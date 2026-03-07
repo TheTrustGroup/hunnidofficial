@@ -7,43 +7,35 @@ interface InventoryMetricsProps {
 }
 
 export function InventoryMetrics({ report }: InventoryMetricsProps) {
-  const metrics = [
-    {
-      label: 'Total Products',
-      value: report.totalProducts.toString(),
-      icon: Package,
-      color: 'bg-blue-50 text-blue-600',
-    },
-    {
-      label: 'Total Stock Value',
-      value: formatCurrency(report.totalStockValue),
-      icon: DollarSign,
-      color: 'bg-green-50 text-green-600',
-    },
-    {
-      label: 'Low Stock Items',
-      value: report.lowStockItems.toString(),
-      icon: AlertTriangle,
-      color: 'bg-amber-50 text-amber-600',
-    },
-    {
-      label: 'Out of Stock',
-      value: report.outOfStockItems.toString(),
-      icon: TrendingDown,
-      color: 'bg-red-50 text-red-600',
-    },
+  const metrics: Array<{ label: string; value: string; icon: typeof Package; bg: string; accent: string }> = [
+    { label: 'Total Products', value: report.totalProducts.toString(), icon: Package, bg: 'var(--blue-dim)', accent: 'var(--blue)' },
+    { label: 'Total Stock Value', value: formatCurrency(report.totalStockValue), icon: DollarSign, bg: 'var(--green-dim)', accent: 'var(--green)' },
+    { label: 'Low Stock Items', value: report.lowStockItems.toString(), icon: AlertTriangle, bg: 'var(--amber-dim)', accent: 'var(--amber)' },
+    { label: 'Out of Stock', value: report.outOfStockItems.toString(), icon: TrendingDown, bg: 'rgba(239,68,68,0.12)', accent: 'var(--red-status)' },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {metrics.map((metric, idx) => (
-        <div key={idx} className="solid-card animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
+        <div
+          key={idx}
+          className="rounded-xl border p-4 animate-fade-in-up transition-all duration-200 hover:-translate-y-0.5"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            animationDelay: `${idx * 50}ms`,
+          }}
+        >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-600 mb-2">{metric.label}</p>
-              <p className="text-2xl font-bold text-slate-900 tracking-tight">{metric.value}</p>
+              <p className="text-sm font-medium mb-2" style={{ color: 'var(--text-3)', fontFamily: 'var(--font-b)' }}>
+                {metric.label}
+              </p>
+              <p className="text-2xl font-semibold tracking-tight tabular-nums" style={{ color: 'var(--text)', fontFamily: 'var(--font-m)' }}>
+                {metric.value}
+              </p>
             </div>
-            <div className={`p-3.5 rounded-xl border ${metric.color} flex-shrink-0 ml-4`}>
+            <div className="p-3 rounded-xl flex-shrink-0 ml-4" style={{ background: metric.bg, color: metric.accent }}>
               <metric.icon className="w-5 h-5" strokeWidth={2} />
             </div>
           </div>

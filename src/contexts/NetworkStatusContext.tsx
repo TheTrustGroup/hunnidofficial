@@ -14,6 +14,7 @@ import {
 } from 'react';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { syncService } from '../services/syncService';
+import { processSalesSyncQueue } from '../services/salesSyncService';
 import { recordOfflineDuration } from '../lib/telemetry';
 import { isOfflineEnabled } from '../lib/offlineFeatureFlag';
 
@@ -76,7 +77,7 @@ export function NetworkStatusProvider({ children }: NetworkStatusProviderProps) 
     }
   }, [isOnline]);
 
-  // When we transition from offline to online, show "Back Online - Syncing..." and optionally trigger sync (gated by offline feature flag)
+  // When we transition from offline to online, show "Back Online - Syncing..." and trigger product + sales sync
   useEffect(() => {
     const wasOffline = !previousOnlineRef.current;
     if (wasOffline && isOnline) {
@@ -86,6 +87,7 @@ export function NetworkStatusProvider({ children }: NetworkStatusProviderProps) 
       if (isOfflineEnabled()) {
         syncService.processSyncQueue().catch(() => {});
       }
+      processSalesSyncQueue().catch(() => {});
     }
     previousOnlineRef.current = isOnline;
   }, [isOnline, clearHideTimeouts]);

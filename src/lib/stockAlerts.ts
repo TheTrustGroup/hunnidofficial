@@ -1,6 +1,6 @@
 /**
  * Centralized stock alert logic. Used by Dashboard (API), Reports, Inventory filters,
- * ProductCard, ProductGridView, and backend get_warehouse_stats so counts and labels stay in sync.
+ * ProductCard and backend get_warehouse_stats so counts and labels stay in sync.
  *
  * Rules (single source of truth):
  * - Out of stock: quantity === 0

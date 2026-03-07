@@ -47,12 +47,12 @@ export const BASE_NAVIGATION: NavItem[] = [
   { name: 'Settings', to: '/settings', icon: Settings, permission: PERMISSIONS.SETTINGS.VIEW },
 ];
 
-/** Bottom nav: exactly 5 tabs. "More" goes to /more; other items listed there. */
+/** Bottom nav: exactly 5 tabs — Dashboard | Inventory | POS | Sales | More. */
 export const BOTTOM_NAV_TABS: NavItem[] = [
   { name: 'Dashboard', to: '/', icon: LayoutDashboard, permission: PERMISSIONS.DASHBOARD.VIEW },
   { name: 'Inventory', to: '/inventory', icon: Package, permission: PERMISSIONS.INVENTORY.VIEW },
-  { name: 'Orders', to: '/orders', icon: ClipboardList, permission: PERMISSIONS.ORDERS.VIEW },
   { name: 'POS', to: '/pos', icon: ShoppingCart, permission: PERMISSIONS.POS.ACCESS },
+  { name: 'Sales', to: '/sales', icon: Receipt, permission: PERMISSIONS.REPORTS.VIEW_SALES },
   { name: 'More', to: '/more', icon: MoreVertical },
 ];
 

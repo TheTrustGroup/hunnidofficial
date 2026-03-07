@@ -35,7 +35,7 @@ npm run dev
 
 ## POS and data flow
 
-- **POS route:** `/pos` → `POSPage` → **ProductGrid** (with **POSProductCard** per product). Product search flow can use **ProductSearch** (same data).
+- **POS route:** `/pos` → `POSPage` → **ProductGrid** (with **POSProductCard** per product). Search is built into the grid.
 - **Data:** Both consume `useInventory().products`, which is **POSProduct**-compatible (see `POSProduct` in `src/components/pos/SizePickerSheet.tsx`). Images come from the list API (`images[]`) or client merge (`productImagesStore`); offline path uses `productsWithLocalImages` so POS still shows images from cache.
 
 ## Scripts (frontend)

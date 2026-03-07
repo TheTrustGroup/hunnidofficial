@@ -12,9 +12,10 @@
  * @see docs/OFFLINE_ARCHITECTURE.md
  */
 
-import { db, setSyncError, getConflictPreference, appendConflictAuditLog } from '../db/inventoryDB';
+import { getDB, clearDbInstance, isTransactionError, setSyncError, getConflictPreference, appendConflictAuditLog } from '../db/inventoryDB';
 import { API_BASE_URL } from '../lib/api';
 import { apiPost, apiPut, apiDelete, apiGet } from '../lib/apiClient';
+import { resizeBase64ToMaxLength } from '../lib/imageResize';
 import { logSync } from '../utils/logger';
 import { recordSyncSuccess, recordSyncFailure, recordConflict } from '../lib/telemetry';
 
@@ -28,22 +29,31 @@ const TABLE_NAMES = /** @type {const} */ (['products']);
 // TODO: Support additional tableNames (e.g. 'orders') and corresponding API paths in syncSingleItem.
 
 /**
- * Max size for a single image (base64) to include in sync payload. Larger images are omitted
- * to avoid 413 / body limit (e.g. Vercel 4.5MB), which often surfaces as "Load failed".
+ * Max size for a single image (base64 data-URL length in chars) so sync stays under body limit.
+ * We resize larger images instead of omitting them (data integrity).
  */
-const MAX_IMAGE_SIZE_SYNC = 100_000; // ~100KB per image
+const MAX_IMAGE_SIZE_SYNC = 95_000; // ~95KB to stay under typical 100KB target
+const MAX_IMAGES_PER_PRODUCT = 5;
 
 /**
- * Build API payload from Dexie product record. Images are stripped or limited so sync POST
- * stays under server body limit (avoids "Load failed" after first few products with large images).
+ * Build API payload from Dexie product record. Images over limit are resized (not omitted)
+ * so sync stays under server body limit without silent data loss.
  * @param {Object} data - Record from sync queue (product shape)
- * @returns {Record<string, unknown>}
+ * @returns {Promise<Record<string, unknown>>}
  */
-function buildProductPayload(data) {
+async function buildProductPayload(data) {
   const rawImages = Array.isArray(data.images) ? data.images : [];
-  const images = rawImages
-    .filter((img) => typeof img === 'string' && img.length <= MAX_IMAGE_SIZE_SYNC)
-    .slice(0, 5);
+  const images = [];
+  for (let i = 0; i < Math.min(rawImages.length, MAX_IMAGES_PER_PRODUCT); i++) {
+    const img = rawImages[i];
+    if (typeof img !== 'string') continue;
+    if (img.length <= MAX_IMAGE_SIZE_SYNC) {
+      images.push(img);
+      continue;
+    }
+    const resized = await resizeBase64ToMaxLength(img, MAX_IMAGE_SIZE_SYNC);
+    if (resized) images.push(resized);
+  }
   return {
     id: data.id,
     name: data.name ?? '',
@@ -151,7 +161,9 @@ export class SyncService {
       attempts: 0,
       status: 'pending',
     };
-    const id = await db.syncQueue.add(item);
+    const d = await getDB();
+    if (!d) throw new Error('IndexedDB unavailable');
+    const id = await d.syncQueue.add(item);
     return id;
   }
 
@@ -175,14 +187,14 @@ export class SyncService {
 
     try {
       if (operation === 'CREATE') {
-        const payload = buildProductPayload(data);
+        const payload = await buildProductPayload(data);
         const result = await apiPost(API_BASE_URL, basePath, payload, {
           idempotencyKey: data.id,
         });
         return { success: true, data: result };
       }
       if (operation === 'UPDATE') {
-        const payload = buildProductPayload(data);
+        const payload = await buildProductPayload(data);
         await apiPut(API_BASE_URL, `${basePath}/${idForApi}`, payload);
         return { success: true, data: payload };
       }
@@ -273,7 +285,8 @@ export class SyncService {
    * @param {ConflictResolution} resolution
    * @returns {Promise<boolean>} true if resolved (queue item removed), false otherwise
    */
-  async _applyConflictResolution(queueId, item, resolution) {
+  async _applyConflictResolution(queueId, item, resolution, d) {
+    if (!d) return false;
     const { strategy, mergedPayload, serverDeleted } = resolution;
     const { operation, tableName, data } = item;
     const basePath = '/api/products';
@@ -286,22 +299,22 @@ export class SyncService {
 
     try {
       if (serverDeleted && strategy === 'keep_server') {
-        await db.products.delete(data.id);
-        await db.syncQueue.delete(queueId);
+        await d.products.delete(data.id);
+        await d.syncQueue.delete(queueId);
         return true;
       }
       if (serverDeleted && strategy === 'keep_local') {
         const payload = toPayload(data);
         const created = await apiPost(API_BASE_URL, basePath, payload, { idempotencyKey: data.id });
         const serverId = created?.id ?? idForApi;
-        await db.products.update(data.id, { serverId, syncStatus: 'synced' });
-        await db.syncQueue.delete(queueId);
+        await d.products.update(data.id, { serverId, syncStatus: 'synced' });
+        await d.syncQueue.delete(queueId);
         return true;
       }
       if (strategy === 'keep_server') {
         const serverData = mergedPayload || (await apiGet(API_BASE_URL, `${basePath}/${idForApi}`));
         const productId = data.id;
-        await db.products.update(productId, {
+        await d.products.update(productId, {
           name: serverData.name,
           sku: serverData.sku,
           category: serverData.category,
@@ -312,25 +325,25 @@ export class SyncService {
           serverId: serverData.id ?? idForApi,
           lastModified: serverData.updatedAt ? new Date(serverData.updatedAt).getTime() : Date.now(),
         });
-        await db.syncQueue.delete(queueId);
+        await d.syncQueue.delete(queueId);
         return true;
       }
       if (strategy === 'merge' && mergedPayload) {
         const payload = toPayload(mergedPayload);
         await apiPut(API_BASE_URL, `${basePath}/${idForApi}`, payload);
-        await db.products.update(data.id, {
+        await d.products.update(data.id, {
           ...mergedPayload,
           syncStatus: 'synced',
           serverId: idForApi,
           lastModified: Date.now(),
         });
-        await db.syncQueue.delete(queueId);
+        await d.syncQueue.delete(queueId);
         return true;
       }
       if (strategy === 'last_write_wins' && item.data) {
         const serverData = await this._fetchServerVersion(idForApi);
         if (!serverData) {
-          await db.syncQueue.update(queueId, { status: 'pending', error: 'Could not fetch server version' });
+          await d.syncQueue.update(queueId, { status: 'pending', error: 'Could not fetch server version' });
           return false;
         }
         const resolved = this.handleConflict(data, serverData);
@@ -339,9 +352,9 @@ export class SyncService {
         if (keepLocal || resolved === data) {
           const payload = toPayload(data);
           await apiPut(API_BASE_URL, `${basePath}/${idForApi}`, payload);
-          await db.products.update(data.id, { syncStatus: 'synced', serverId: idForApi });
+          await d.products.update(data.id, { syncStatus: 'synced', serverId: idForApi });
         } else {
-          await db.products.update(data.id, {
+          await d.products.update(data.id, {
             name: resolved.name,
             sku: resolved.sku,
             category: resolved.category,
@@ -352,19 +365,19 @@ export class SyncService {
             lastModified: resolved.updatedAt ? new Date(resolved.updatedAt).getTime() : Date.now(),
           });
         }
-        await db.syncQueue.delete(queueId);
+        await d.syncQueue.delete(queueId);
         return true;
       }
       if (strategy === 'keep_local') {
         const payload = toPayload(data);
         await apiPut(API_BASE_URL, `${basePath}/${idForApi}`, payload);
-        await db.products.update(data.id, { syncStatus: 'synced', serverId: idForApi });
-        await db.syncQueue.delete(queueId);
+        await d.products.update(data.id, { syncStatus: 'synced', serverId: idForApi });
+        await d.syncQueue.delete(queueId);
         return true;
       }
     } catch (err) {
-      if (import.meta.env?.DEV) console.warn('[SyncService] Apply conflict resolution failed:', err);
-      await db.syncQueue.update(queueId, { status: 'pending', error: err?.message ?? String(err) });
+      if (import.meta.env.DEV) console.warn('[SyncService] Apply conflict resolution failed:', err);
+      if (d) await d.syncQueue.update(queueId, { status: 'pending', error: err?.message ?? String(err) });
       return false;
     }
     return false;
@@ -404,7 +417,33 @@ export class SyncService {
       return summary;
     }
 
-    const items = await db.syncQueue.where('status').equals('pending').sortBy('timestamp');
+    const d = await getDB();
+    if (!d) {
+      logSync('sync skipped', { reason: 'IndexedDB unavailable' });
+      this._emit('sync-failed', { reason: 'IndexedDB unavailable', summary });
+      return summary;
+    }
+
+    try {
+      return await this._processSyncQueueWithDb(d, startMs, summary);
+    } catch (e) {
+      if (isTransactionError(e)) {
+        clearDbInstance();
+        if (import.meta.env?.DEV) console.warn('[SyncService] Cleared DB after transaction error');
+      }
+      this._emit('sync-failed', { reason: 'idb_error', error: e?.message ?? String(e), summary });
+      return summary;
+    }
+  }
+
+  /**
+   * @param {Awaited<ReturnType<typeof getDB>>} d
+   * @param {number} startMs
+   * @param {{ synced: number[], failed: number[], pending: number[] }} summary
+   * @returns {Promise<typeof summary>}
+   */
+  async _processSyncQueueWithDb(d, startMs, summary) {
+    const items = await d.syncQueue.where('status').equals('pending').sortBy('timestamp');
     const total = items.length;
     if (total === 0) {
       logSync('sync completed', { reason: 'empty' });
@@ -420,7 +459,7 @@ export class SyncService {
       const queueId = item.id;
 
       // Mark as syncing (optional; we don't have a 'syncing' state in schema but we can update status for UI)
-      await db.syncQueue.update(queueId, { status: 'syncing' });
+      await d.syncQueue.update(queueId, { status: 'syncing' });
 
       const result = await this.syncSingleItem(item);
 
@@ -428,19 +467,19 @@ export class SyncService {
         if (item.tableName === 'products' && item.operation === 'CREATE' && result.data?.id) {
           const serverId = result.data.id;
           const localId = item.data.id;
-          await db.products.update(localId, {
+          await d.products.update(localId, {
             serverId,
             syncStatus: 'synced',
           });
         } else if (item.tableName === 'products' && (item.operation === 'UPDATE' || item.operation === 'CREATE')) {
           const id = item.data.id;
           const serverId = result.data?.id ?? item.data.serverId ?? id;
-          await db.products.update(id, {
+          await d.products.update(id, {
             serverId,
             syncStatus: 'synced',
           });
         }
-        await db.syncQueue.delete(queueId);
+        await d.syncQueue.delete(queueId);
         summary.synced.push(queueId);
       } else if (result.status === 409 && item.tableName === 'products') {
         recordConflict().catch(() => {});
@@ -459,7 +498,7 @@ export class SyncService {
           const applied = await this._applyConflictResolution(queueId, item, {
             strategy: 'last_write_wins',
             mergedPayload: resolved,
-          });
+          }, d);
           if (applied) summary.synced.push(queueId);
           else summary.pending.push(queueId);
         } else if (serverDeleted) {
@@ -470,11 +509,11 @@ export class SyncService {
               serverData: null,
               serverDeleted: true,
             });
-            const applied = await this._applyConflictResolution(queueId, item, resolution);
+            const applied = await this._applyConflictResolution(queueId, item, resolution, d);
             if (applied) summary.synced.push(queueId);
             else summary.pending.push(queueId);
           } catch (err) {
-            await db.syncQueue.update(queueId, { status: 'pending', error: null });
+            await d.syncQueue.update(queueId, { status: 'pending', error: null });
             summary.pending.push(queueId);
           }
         } else {
@@ -484,8 +523,8 @@ export class SyncService {
               (k) => String(localData[k] ?? '') === String(serverData[k] ?? '')
             );
           if (identical) {
-            await db.products.update(localData.id, { syncStatus: 'synced', serverId: idForApi });
-            await db.syncQueue.delete(queueId);
+            await d.products.update(localData.id, { syncStatus: 'synced', serverId: idForApi });
+            await d.syncQueue.delete(queueId);
             summary.synced.push(queueId);
           } else {
             try {
@@ -494,33 +533,64 @@ export class SyncService {
                 localData,
                 serverData,
               });
-              const applied = await this._applyConflictResolution(queueId, item, resolution);
+              const applied = await this._applyConflictResolution(queueId, item, resolution, d);
               if (applied) summary.synced.push(queueId);
               else summary.pending.push(queueId);
             } catch (err) {
-              await db.syncQueue.update(queueId, { status: 'pending', error: null });
+              await d.syncQueue.update(queueId, { status: 'pending', error: null });
               summary.pending.push(queueId);
             }
           }
         }
       } else if (result.status === 404 && item.operation === 'DELETE') {
-        await db.syncQueue.delete(queueId);
+        await d.syncQueue.delete(queueId);
         summary.synced.push(queueId);
+      } else if (result.status === 404 && (item.operation === 'UPDATE' || item.operation === 'CREATE')) {
+        const friendlyMsg =
+          item.operation === 'CREATE'
+            ? 'Product not found on server (create may have failed).'
+            : 'Product not found on server (it may have been deleted elsewhere).';
+        const errorMsg = `[404] ${friendlyMsg}`;
+        const attempts = (item.attempts || 0) + 1;
+        const isFinalFailure = attempts > MAX_ATTEMPTS;
+        await d.syncQueue.update(queueId, {
+          attempts,
+          error: errorMsg,
+          status: isFinalFailure ? 'failed' : 'pending',
+        });
+        if (item.data?.id) {
+          try {
+            await setSyncError(item.data.id, errorMsg);
+          } catch (_) {}
+        }
+        if (isFinalFailure) {
+          summary.failed.push(queueId);
+          recordSyncFailure().catch(() => {});
+          this._emit('sync-failed', { queueId, error: errorMsg, item });
+        } else {
+          summary.pending.push(queueId);
+          this._emit('sync-failed', { queueId, error: errorMsg, item, finalFailure: false });
+          const backoffSeconds = Math.pow(2, attempts);
+          await delay(backoffSeconds * 1000);
+        }
       } else {
         const attempts = (item.attempts || 0) + 1;
         const status = result.status;
         const rawMsg = result.error || 'Unknown error';
+        const is413 = status === 413;
         const errorMsg =
-          status != null && status >= 400
-            ? `[${status}] ${rawMsg}`
-            : rawMsg;
+          is413
+            ? '[413] Request too large. Images were resized for sync; if retry still fails, remove some product images and save again.'
+            : status != null && status >= 400
+              ? `[${status}] ${rawMsg}`
+              : rawMsg;
         const isFinalFailure = attempts > MAX_ATTEMPTS;
         if (status >= 400 && status < 500 && item.data?.id) {
           try {
             await setSyncError(item.data.id, errorMsg);
           } catch (_) {}
         }
-        await db.syncQueue.update(queueId, {
+        await d.syncQueue.update(queueId, {
           attempts,
           error: errorMsg,
           status: isFinalFailure ? 'failed' : 'pending',
@@ -580,12 +650,19 @@ export class SyncService {
    * @returns {Promise<{pending: number, syncing: number, failed: number}>}
    */
   async getQueueStatus() {
-    const [pending, syncing, failed] = await Promise.all([
-      db.syncQueue.where('status').equals('pending').count(),
-      db.syncQueue.where('status').equals('syncing').count(),
-      db.syncQueue.where('status').equals('failed').count(),
-    ]);
-    return { pending, syncing, failed };
+    const d = await getDB();
+    if (!d) return { pending: 0, syncing: 0, failed: 0 };
+    try {
+      const [pending, syncing, failed] = await Promise.all([
+        d.syncQueue.where('status').equals('pending').count(),
+        d.syncQueue.where('status').equals('syncing').count(),
+        d.syncQueue.where('status').equals('failed').count(),
+      ]);
+      return { pending, syncing, failed };
+    } catch (e) {
+      if (isTransactionError(e)) clearDbInstance();
+      return { pending: 0, syncing: 0, failed: 0 };
+    }
   }
 }
 

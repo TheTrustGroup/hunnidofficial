@@ -18,6 +18,7 @@ import { getUserFriendlyMessage } from '../lib/errorMessages';
 import { reportError } from '../lib/errorReporting';
 import { apiRequest } from '../lib/apiClient';
 import { API_BASE_URL } from '../lib/api';
+import { getApiCircuitBreaker } from '../lib/circuit';
 
 const is401 = (e: unknown) => (e as { status?: number })?.status === 401;
 
@@ -46,8 +47,8 @@ interface CriticalDataInternalType extends CriticalDataContextType {
 const CriticalDataInternalContext = createContext<CriticalDataInternalType | undefined>(undefined);
 
 const MAX_RETRIES = 3;
-/** Longer timeout for first load after login (serverless cold start + mobile). */
-const INITIAL_LOAD_TIMEOUT_MS = 60_000;
+/** Longer timeout for first load after login (serverless cold start + slow/mobile networks). */
+const INITIAL_LOAD_TIMEOUT_MS = 90_000;
 
 /** Lightweight health check to wake serverless before the main load. No auth; failures ignored. */
 function apiWarmup(): Promise<void> {
@@ -82,9 +83,9 @@ export function CriticalDataGate({ children }: { children: ReactNode }) {
     internal.setCriticalDataLoading(true);
     internal.setCriticalDataError(null);
     try {
-      // Phase 1: warmup + scope (stores, warehouses) — block so nav/selectors work
+      // Phase 1: scope (stores, warehouses). Warmup runs in parallel but does not block (reduces cold-start wait).
+      apiWarmup();
       await Promise.all([
-        apiWarmup(),
         withRetry(() => refreshStores(initialOpts), MAX_RETRIES),
         withRetry(() => refreshWarehouses(initialOpts), MAX_RETRIES),
       ]);
@@ -105,8 +106,8 @@ export function CriticalDataGate({ children }: { children: ReactNode }) {
     } catch (err) {
       if (is401(err) && (await tryRefreshSession())) {
         try {
+          apiWarmup();
           await Promise.all([
-            apiWarmup(),
             withRetry(() => refreshStores(initialOpts), MAX_RETRIES),
             withRetry(() => refreshWarehouses(initialOpts), MAX_RETRIES),
           ]);
@@ -180,6 +181,7 @@ export function CriticalDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const reloadCriticalData = useCallback(async () => {
+    getApiCircuitBreaker().reset();
     triggerReload();
   }, [triggerReload]);
 

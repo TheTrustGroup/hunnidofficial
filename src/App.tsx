@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { StoreProvider } from './contexts/StoreContext';
 import { WarehouseProvider, useWarehouse } from './contexts/WarehouseContext';
+import { RealtimeProvider } from './contexts/RealtimeContext';
 import { InventoryProvider } from './contexts/InventoryContext';
 import { API_BASE_URL } from './lib/api';
 import { POSProvider } from './contexts/POSContext';
@@ -15,6 +16,7 @@ import { ToastProvider, useToast } from './contexts/ToastContext';
 import { NetworkStatusProvider } from './contexts/NetworkStatusContext';
 import { QUOTA_EVENT } from './lib/offlineQuota';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { WarehouseGuard } from './components/WarehouseGuard';
 import { RouteErrorBoundary } from './components/ui/RouteErrorBoundary';
 import { Button } from './components/ui/Button';
 import { Layout } from './components/layout/Layout';
@@ -181,21 +183,25 @@ function ProtectedRoutes() {
   }
 
   return (
-    <CriticalDataProvider>
-      <StoreProvider>
-        <WarehouseProvider>
-          <InventoryProvider>
-            <POSProvider>
-              <OrderProvider>
-                <CriticalDataGate>
-                  <Layout />
-                </CriticalDataGate>
-              </OrderProvider>
-            </POSProvider>
-          </InventoryProvider>
-        </WarehouseProvider>
-      </StoreProvider>
-    </CriticalDataProvider>
+    <WarehouseGuard>
+      <CriticalDataProvider>
+        <StoreProvider>
+          <WarehouseProvider>
+            <RealtimeProvider>
+              <InventoryProvider>
+                <POSProvider>
+                  <OrderProvider>
+                    <CriticalDataGate>
+                      <Layout />
+                    </CriticalDataGate>
+                  </OrderProvider>
+                </POSProvider>
+              </InventoryProvider>
+            </RealtimeProvider>
+          </WarehouseProvider>
+        </StoreProvider>
+      </CriticalDataProvider>
+    </WarehouseGuard>
   );
 }
 

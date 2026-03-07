@@ -274,7 +274,7 @@ Create this user in your backend admin panel with these exact credentials.`;
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <UsersIcon className="w-6 h-6 text-primary-600" />
-            <h2 className="text-xl font-bold text-slate-900">User Management</h2>
+            <h2 className="text-xl font-bold text-slate-900" style={{ fontFamily: 'var(--font-d)' }}>User Management</h2>
           </div>
           <Button
             type="button"
@@ -293,7 +293,7 @@ Create this user in your backend admin panel with these exact credentials.`;
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <UsersIcon className="w-8 h-8 text-slate-400" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Users are managed in your backend</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2" style={{ fontFamily: 'var(--font-d)' }}>Users are managed in your backend</h3>
           <p className="text-slate-600 mb-6 max-w-md mx-auto">
             User accounts are created and managed in your backend admin panel. Use the "Add User" button above to copy credentials for creating new users in your backend.
           </p>
@@ -377,7 +377,7 @@ Create this user in your backend admin panel with these exact credentials.`;
       {/* Add User Form */}
       {showAddUser && (
         <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
-          <h3 className="font-semibold text-slate-900 mb-2">Add New User</h3>
+          <h3 className="font-semibold text-slate-900 mb-2" style={{ fontFamily: 'var(--font-d)' }}>Add New User</h3>
           {!import.meta.env.PROD && (
             <p className="text-sm text-slate-600 mb-4">
               {newUser.role !== 'admin' ? (
@@ -550,7 +550,7 @@ Create this user in your backend admin panel with these exact credentials.`;
       <div className="mt-8 pt-8 border-t border-slate-200">
         <div className="flex items-center gap-2 mb-3">
           <MapPin className="w-5 h-5 text-primary-600" aria-hidden />
-          <h3 className="text-lg font-semibold text-slate-900">Store & warehouse access</h3>
+          <h3 className="text-lg font-semibold text-slate-900" style={{ fontFamily: 'var(--font-d)' }}>Store & warehouse access</h3>
         </div>
         <p className="text-sm text-slate-600 mb-2">
           Assign which store(s) and warehouse(s) a user can use in POS. No assignment = access to all (legacy). Enter the user&apos;s login email below.

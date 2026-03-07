@@ -8,9 +8,9 @@ interface TopProductsTableProps {
 
 export function TopProductsTable({ report }: TopProductsTableProps) {
   return (
-    <div className="table-container animate-fade-in-up">
-      <h3 className="text-lg font-semibold text-slate-900 mb-6 px-6 pt-6 flex items-center gap-2">
-        <TrendingUp className="w-5 h-5 text-emerald-600" strokeWidth={2} />
+    <div className="table-container rounded-xl border overflow-hidden animate-fade-in-up" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+      <h3 className="text-lg font-semibold mb-6 px-6 pt-6 flex items-center gap-2" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>
+        <TrendingUp className="w-5 h-5" style={{ color: 'var(--green)' }} strokeWidth={2} />
         Top Selling Products
       </h3>
       <div className="table-scroll-wrap">

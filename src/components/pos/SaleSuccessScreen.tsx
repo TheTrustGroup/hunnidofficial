@@ -818,19 +818,16 @@ export default function SaleSuccessScreen({
           </button>
         </div>
 
-        {/* New sale — primary CTA */}
+        {/* New sale — primary CTA (Hunnid blue, Syne) */}
         <button
           type="button"
           onClick={onNewSale}
-          className="
-            w-full h-14 rounded-2xl
-            bg-primary-500 hover:bg-primary-600
-            text-white text-[16px] font-extrabold
-            flex items-center justify-center gap-2.5
-            shadow-[0_4px_20px_rgba(92,172,250,0.35)]
-            active:scale-[0.98]
-            transition-all duration-150
-          "
+          className="w-full h-14 rounded-2xl text-white text-[16px] font-extrabold flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all duration-150"
+          style={{
+            background: 'var(--blue)',
+            fontFamily: 'var(--font-d)',
+            boxShadow: '0 4px 20px var(--blue-glow)',
+          }}
         >
           <IconPlus />
           New Sale

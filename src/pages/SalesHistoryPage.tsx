@@ -185,16 +185,22 @@ function PayBadge({ method, mixBreakdown }: { method: string; mixBreakdown?: { c
 
 // ── Summary card ───────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, sub, accent }: {
-  label: string; value: string; sub?: string; accent?: string;
+function SummaryCard({ label, value, sub, accent = false }: {
+  label: string; value: string; sub?: string; accent?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl px-4 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.06)] flex flex-col gap-1">
-      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{label}</p>
-      <p className={`text-[20px] font-extrabold tabular-nums leading-tight ${accent ?? 'text-slate-900'}`}>
+    <div
+      className="rounded-xl px-4 py-4 flex flex-col gap-1 border transition-all duration-200 hover:-translate-y-0.5"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>{label}</p>
+      <p
+        className="text-[20px] font-extrabold tabular-nums leading-tight"
+        style={{ color: accent ? 'var(--blue)' : 'var(--text)', fontFamily: 'var(--font-m)' }}
+      >
         {value}
       </p>
-      {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
+      {sub && <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>{sub}</p>}
     </div>
   );
 }
@@ -230,7 +236,7 @@ function SaleRow({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-slate-100">
+    <div className="rounded-xl overflow-hidden border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       {/* Main row */}
       <button
         type="button"
@@ -524,13 +530,13 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 pb-12">
+    <div className="min-h-screen pb-12" style={{ background: 'var(--bg)' }}>
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div>
-            <h1 className="text-[20px] font-bold text-slate-900">Sales History</h1>
+            <h1 className="text-[20px] font-bold text-slate-900" style={{ fontFamily: 'var(--font-d)' }}>Sales History</h1>
             {/* Warehouse selector */}
             <div className="relative mt-0.5">
               <button type="button" onClick={() => setWhDropdown(v => !v)}
@@ -563,7 +569,8 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
               <IconRefresh/>
             </button>
             <button type="button" onClick={handleExport} disabled={displayed.length === 0}
-                    className="h-9 px-3 rounded-xl bg-slate-900 text-white text-[13px] font-semibold flex items-center gap-1.5 hover:bg-slate-700 disabled:opacity-40 transition-colors">
+                    className="h-9 px-3 rounded-xl text-white text-[13px] font-semibold flex items-center gap-1.5 disabled:opacity-40 transition-colors"
+                    style={{ background: 'var(--blue)', fontFamily: 'var(--font-d)' }}>
               <IconDownload/> Export
             </button>
           </div>
@@ -574,9 +581,8 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
           {DATE_TABS.map(t => (
             <button key={t.key} type="button" onClick={() => setDateFilter(t.key)}
                     className={`flex-1 h-8 rounded-xl text-[12px] font-bold transition-all duration-150
-                      ${dateFilter === t.key
-                        ? 'bg-primary-500 text-white shadow-[0_2px_8px_rgba(92,172,250,0.3)]'
-                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                      ${dateFilter === t.key ? 'text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                    style={dateFilter === t.key ? { background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' } : undefined}>
               {t.label}
             </button>
           ))}
@@ -587,7 +593,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
 
         {/* ── Summary cards ── */}
         <div className="grid grid-cols-2 gap-3">
-          <SummaryCard label="Revenue" value={fmt(totalRevenue)} sub={`${displayed.length} transactions`} accent="text-primary-500" />
+          <SummaryCard label="Revenue" value={fmt(totalRevenue)} sub={`${displayed.length} transactions`} accent />
           <SummaryCard label="Items sold" value={totalItems.toLocaleString()} sub={`Avg ${fmt(avgSale)}/sale`} />
           <SummaryCard label="Cash" value={fmt(cashTotal)} />
           <SummaryCard label="MoMo" value={fmt(momoTotal)} />

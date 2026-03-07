@@ -12,6 +12,8 @@ export interface POSHeaderProps {
   canChangeWarehouse?: boolean;
   /** Optional: called when user taps the Scan pill (e.g. focus barcode scanner). */
   onScanClick?: () => void;
+  /** Optional: when user presses Enter in search, call with current value (single input for search + barcode scan). */
+  onBarcodeSubmit?: () => void;
   /** Optional: called when user taps Log out. */
   onLogout?: () => void;
 }
@@ -43,8 +45,16 @@ export default function POSHeader({
   onCartTap,
   canChangeWarehouse = true,
   onScanClick,
+  onBarcodeSubmit,
   onLogout,
 }: POSHeaderProps) {
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && (onBarcodeSubmit ?? onScanClick) && search.trim()) {
+      e.preventDefault();
+      (onBarcodeSubmit ?? onScanClick)?.();
+    }
+  };
+
   return (
     <header className="flex-shrink-0 bg-white border-b border-[rgba(0,0,0,0.07)] h-14 px-4 flex items-center gap-2">
       {/* Location badge: green dot + name (spec: 30px height, 6px radius, green bg) */}
@@ -77,6 +87,7 @@ export default function POSHeader({
           type="search"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
           placeholder="Search products or scan barcode…"
           className="w-full h-9 pl-9 pr-[70px] rounded-lg bg-[#F4F6F9] border border-[rgba(0,0,0,0.11)] text-[13px] text-[#0D1117] placeholder:text-[#8892A0] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[rgba(92,172,250,0.35)] focus:shadow-[0_0_0_3px_rgba(92,172,250,0.10)]"
           aria-label="Search products or scan barcode"

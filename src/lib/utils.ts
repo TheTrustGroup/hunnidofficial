@@ -35,6 +35,31 @@ export function formatCurrency(amount: number | undefined | null): string {
 }
 
 /**
+ * Deduplicate category strings and return options for selects (value/label).
+ */
+export function getDeduplicatedCategoryOptions(raw: string[]): Array<{ value: string; label: string }> {
+  const seen = new Set<string>();
+  const out: Array<{ value: string; label: string }> = [];
+  for (const s of raw) {
+    const v = (s ?? '').trim() || 'Uncategorized';
+    if (seen.has(v)) continue;
+    seen.add(v);
+    out.push({ value: v, label: v });
+  }
+  return out.sort((a, b) => a.value.localeCompare(b.value));
+}
+
+/**
+ * Match product color to filter (case-insensitive, trim); "Uncategorized" matches empty.
+ */
+export function colorMatchesFilter(productColor: string | null | undefined, filter: string): boolean {
+  const c = (productColor ?? '').trim().toLowerCase();
+  const f = (filter ?? '').trim().toLowerCase();
+  if (f === 'uncategorized') return !c;
+  return c === f;
+}
+
+/**
  * Normalize category to a display string (API may return object { id, name, slug }).
  */
 export function getCategoryDisplay(category: unknown): string {
@@ -47,55 +72,6 @@ export function getCategoryDisplay(category: unknown): string {
     return (category as { slug: string }).slug;
   }
   return String(category);
-}
-
-/**
- * Normalize color for comparison: lowercase, trim, and map common variants (e.g. Gray ↔ Grey).
- * Use when matching product.color to a filter chip so "Black" matches "black" and "Grey" matches "Gray".
- */
-function normalizeColorForMatch(color: string | null | undefined): string {
-  const t = (color ?? '').trim().toLowerCase();
-  if (!t) return '';
-  if (t === 'gray') return 'grey';
-  return t;
-}
-
-/**
- * Returns true when productColor matches the filter value (case-insensitive, with Gray/Grey alias).
- * Use for POS and any client-side color filter. For "all" filter, caller should not call this.
- */
-export function colorMatchesFilter(
-  productColor: string | null | undefined,
-  filterValue: string
-): boolean {
-  const filterNorm = normalizeColorForMatch(filterValue);
-  if (!filterNorm) return false;
-  const productNorm = normalizeColorForMatch(productColor);
-  if (!productNorm) return false;
-  return productNorm === filterNorm;
-}
-
-/** Title-case for filter labels (e.g. "slippers" → "Slippers"). */
-export function toTitleCase(s: string): string {
-  const t = (s ?? '').trim();
-  if (!t) return t;
-  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
-}
-
-/**
- * Dedupe categories case-insensitively for filter UI; returns options with value (canonical) and label (display).
- * Use value when filtering; compare product.category lowercase to value lowercase.
- */
-export function getDeduplicatedCategoryOptions(rawCategories: string[]): Array<{ value: string; label: string }> {
-  const byLower = new Map<string, string>();
-  for (const c of rawCategories) {
-    const r = (c ?? '').trim() || 'Uncategorized';
-    const lower = r.toLowerCase();
-    if (!byLower.has(lower)) byLower.set(lower, r);
-  }
-  return Array.from(byLower.entries())
-    .map(([_, value]) => ({ value, label: toTitleCase(value) }))
-    .sort((a, b) => (a.label === 'Uncategorized' ? 1 : b.label === 'Uncategorized' ? -1 : a.label.localeCompare(b.label)));
 }
 
 /** Default location shape when API omits it */

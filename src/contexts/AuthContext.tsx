@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useRef, ReactNode, useEffect, useC
 import { User } from '../types';
 import { ROLES, PERMISSIONS, Permission } from '../types/permissions';
 import { API_BASE_URL, getAuthToken, handleApiResponse } from '../lib/api';
+import { setOnUnauthorized, clearSessionStorage } from '../lib/onUnauthorized';
 import { parseLoginResponse, parseAuthUserPayload } from '../lib/apiSchemas';
 
 const DEMO_ROLE_KEY = 'warehouse_demo_role';
@@ -146,6 +147,12 @@ function getEffectiveRole(user: User | null): string {
   return DEFAULT_ROLE;
 }
 
+/** Roles that use POS and should have a single warehouse (skip location selector). */
+function isPosRoleWithSingleWarehouse(role: User['role'] | string | undefined): boolean {
+  const r = (role ?? '').toString().trim().toLowerCase();
+  return r === 'cashier' || r === 'sales_person' || r === 'salesperson';
+}
+
 /** Default landing path by role (for redirects after login and when access is forbidden). */
 export function getDefaultPathForRole(role: User['role']): string {
   switch (role) {
@@ -244,7 +251,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuthStatus();
   }, []);
 
-  // Global 401 from any API call (e.g. expired token on dashboard): clear session so ProtectedRoutes redirects to login; show session-expired on login page.
+  // Global 401 from any API call: clear session so ProtectedRoutes redirects to login.
+  useEffect(() => {
+    setOnUnauthorized(() => {
+      clearSessionStorage();
+      setUser(null);
+    });
+    return () => setOnUnauthorized(null);
+  }, []);
+
+  // Legacy: session-expired event (e.g. inactivity timeout) — show message on login page.
   useEffect(() => {
     const onSessionExpired = () => {
       setSessionExpired(true);
@@ -408,6 +424,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           return;
         }
+        // Cashier/POS role: enrich warehouseId from /api/auth/user if first response didn't include it.
+        if (isPosRoleWithSingleWarehouse(normalizedUser.role) && !normalizedUser.warehouseId) {
+          try {
+            const userRes = await fetch(`${API_BASE_URL}/api/auth/user`, opts);
+            if (userRes.ok) {
+              const enrichedData = await handleApiResponse<Record<string, unknown>>(userRes);
+              const wid = (enrichedData?.warehouse_id ?? enrichedData?.warehouseId) as string | undefined;
+              if (typeof wid === 'string' && wid.trim()) {
+                normalizedUser = { ...normalizedUser, warehouseId: wid.trim() };
+              }
+            }
+          } catch {
+            // keep normalizedUser as is
+          }
+        }
         setAuthError(null);
         if (typeof localStorage !== 'undefined') localStorage.removeItem(DEMO_ROLE_KEY);
         lastActivityRef.current = Date.now();
@@ -416,6 +447,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.setItem('user_role', normalizedUser.role ?? DEFAULT_ROLE);
           sessionStorage.setItem('user_email', normalizedUser.email ?? '');
+        }
+        // Store token from /me or /api/auth/user so cross-origin API receives Authorization: Bearer
+        const rawBody = userData as unknown as Record<string, unknown> | null;
+        const sessionToken =
+          typeof rawBody?.token === 'string'
+            ? rawBody.token
+            : typeof rawBody?.access_token === 'string'
+              ? rawBody.access_token
+              : rawBody?.data != null && typeof rawBody.data === 'object'
+                ? (rawBody.data as Record<string, unknown>).token ?? (rawBody.data as Record<string, unknown>).access_token
+                : undefined;
+        if (typeof sessionToken === 'string' && sessionToken.trim()) {
+          localStorage.setItem('auth_token', sessionToken.startsWith('Bearer ') ? sessionToken : `Bearer ${sessionToken}`);
         }
       } else {
         setAuthError(null);
@@ -645,13 +689,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!response.ok) return false;
       const userData = await handleApiResponse<User>(response);
       const payload = parseAuthUserPayload(userData ?? {});
-      const normalizedUser = normalizeUserData(payload);
+      let normalizedUser = normalizeUserData(payload);
       if (!normalizedUser) return false;
+      if (isPosRoleWithSingleWarehouse(normalizedUser.role) && !normalizedUser.warehouseId) {
+        try {
+          const userRes = await fetch(`${API_BASE_URL}/api/auth/user`, opts);
+          if (userRes.ok) {
+            const enrichedData = await handleApiResponse<Record<string, unknown>>(userRes);
+            const wid = (enrichedData?.warehouse_id ?? enrichedData?.warehouseId) as string | undefined;
+            if (typeof wid === 'string' && wid.trim()) {
+              normalizedUser = { ...normalizedUser, warehouseId: wid.trim() };
+            }
+          }
+        } catch {
+          // keep as is
+        }
+      }
       setUser(normalizedUser);
       localStorage.setItem('current_user', JSON.stringify(normalizedUser));
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem('user_role', normalizedUser.role ?? DEFAULT_ROLE);
         sessionStorage.setItem('user_email', normalizedUser.email ?? '');
+      }
+      const rawBody = userData as unknown as Record<string, unknown> | null;
+      const sessionToken =
+        typeof rawBody?.token === 'string'
+          ? rawBody.token
+          : typeof rawBody?.access_token === 'string'
+            ? rawBody.access_token
+            : rawBody?.data != null && typeof rawBody.data === 'object'
+              ? (rawBody.data as Record<string, unknown>).token ?? (rawBody.data as Record<string, unknown>).access_token
+              : undefined;
+      if (typeof sessionToken === 'string' && sessionToken.trim()) {
+        localStorage.setItem('auth_token', sessionToken.startsWith('Bearer ') ? sessionToken : `Bearer ${sessionToken}`);
       }
       return true;
     } catch {

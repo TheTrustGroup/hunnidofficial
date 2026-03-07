@@ -41,8 +41,6 @@ export function Sidebar() {
   const canSwitchWarehouse = showWarehouseSwitcher && warehouses.length > 1;
   const [warehouseDropdownOpen, setWarehouseDropdownOpen] = useState(false);
 
-  const isAdminRole =
-    user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'manager';
   const canSeeSwitchRole = user?.role === 'admin' || user?.role === 'super_admin';
 
   const navigation = BASE_NAVIGATION.filter(
@@ -61,10 +59,10 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 w-[244px] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20"
+      className="fixed left-0 top-0 w-[240px] min-w-[240px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20"
       style={{ background: 'var(--sidebar-bg)' }}
     >
-      {/* Logo: H monogram + wordmark */}
+      {/* Logo: H monogram + HUNNID OFFICIAL branding (existing — do not replace) */}
       <div className="flex items-center gap-[11px] px-4 pt-[17px] pb-[15px] border-b border-white/[0.06] flex-shrink-0">
         <div
           className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0"
@@ -79,17 +77,17 @@ export function Sidebar() {
           <span
             className="font-extrabold text-white truncate"
             style={{
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'var(--font-d)',
               fontSize: '14px',
               letterSpacing: '0.02em',
             }}
           >
-            Hunnid
+            HUNNID
           </span>
           <span
             className="font-semibold uppercase truncate"
             style={{
-              fontFamily: 'Syne, sans-serif',
+              fontFamily: 'var(--font-d)',
               fontSize: '10px',
               letterSpacing: '0.12em',
               color: 'var(--blue)',
@@ -100,12 +98,12 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Warehouse / Location selector */}
+      {/* Warehouse / Location selector (sizes match EDK) */}
       {showWarehouseSwitcher && (
-        <div className="px-3 pt-[14px] pb-1.5 flex-shrink-0">
+        <div className="px-3 pt-3 pb-1 flex-shrink-0">
           <span
             className="block pl-0.5 mb-1.5 text-[9px] font-semibold uppercase"
-            style={{ letterSpacing: '0.18em', color: 'rgba(255,255,255,0.20)' }}
+            style={{ letterSpacing: '0.18em', color: 'rgba(255,255,255,0.22)' }}
           >
             {isPosPage ? 'Location' : 'Warehouse'}
           </span>
@@ -115,17 +113,17 @@ export function Sidebar() {
                 <button
                   type="button"
                   onClick={() => setWarehouseDropdownOpen((o) => !o)}
-                  className="w-full flex items-center gap-2 py-2 px-2.5 rounded-[7px] transition-colors hover:bg-white/[0.06]"
+                  className="w-full flex items-center gap-1.5 h-9 pl-2.5 pr-2.5 rounded-[7px] transition-colors hover:bg-white/[0.06]"
                   style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'var(--blue-dim)',
+                    border: '1px solid rgba(92,172,250,0.25)',
                   }}
                   aria-expanded={warehouseDropdownOpen}
                   aria-haspopup="listbox"
                   aria-label="Select warehouse"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] flex-shrink-0" aria-hidden />
-                  <span className="flex-1 text-left text-[12px] font-medium text-white/80 truncate">
+                  <span className="flex-1 text-left text-xs font-medium text-white/80 truncate">
                     {warehouseName}
                   </span>
                   <span className="text-white/[0.28] text-[10px]" aria-hidden>▾</span>
@@ -166,14 +164,14 @@ export function Sidebar() {
               </>
             ) : (
               <div
-                className="flex items-center gap-2 py-2 px-2.5 rounded-[7px]"
+                className="flex items-center gap-1.5 h-9 px-2.5 rounded-[7px]"
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--blue-dim)',
+                  border: '1px solid rgba(92,172,250,0.25)',
                 }}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] flex-shrink-0" aria-hidden />
-                <span className="flex-1 text-[12px] font-medium text-white/80 truncate">
+                <span className="flex-1 text-xs font-medium text-white/80 truncate">
                   {warehouseName}
                 </span>
               </div>
@@ -190,22 +188,28 @@ export function Sidebar() {
               key={item.name}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[7px] text-[13px] transition-colors duration-[120ms] ${
+                `flex items-center gap-2 py-2 px-3.5 mx-2 rounded-[7px] text-[13px] transition-colors duration-150 ${
                   isActive
                     ? 'text-white'
                     : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'
                 }`
               }
               style={({ isActive }) => ({
-                fontFamily: "'DM Sans', sans-serif",
-                ...(isActive ? { background: 'var(--sidebar-active-bg)', fontWeight: 500 } : {}),
+                fontFamily: 'var(--font-d)',
+                borderLeft: '3px solid ' + (isActive ? 'var(--blue)' : 'transparent'),
+                ...(isActive
+                  ? {
+                      background: 'rgba(92,172,250,0.08)',
+                      fontWeight: 600,
+                    }
+                  : {}),
               })}
             >
               {({ isActive }) => (
                 <>
                   <span
                     className="w-4 h-4 flex-shrink-0 flex items-center justify-center opacity-60"
-                    style={isActive ? { color: 'var(--sidebar-active-icon)', opacity: 1 } : undefined}
+                    style={isActive ? { color: 'var(--blue)', opacity: 1 } : undefined}
                   >
                     <item.icon className="w-4 h-4" strokeWidth={2} />
                   </span>
@@ -218,25 +222,28 @@ export function Sidebar() {
 
         {adminNav.length > 0 && (
           <>
-            <div
-              className="my-2 mx-3 h-px flex-shrink-0"
-              style={{ background: 'rgba(255,255,255,0.06)' }}
-            />
+            <div className="h-px bg-white/[0.06] mx-3 my-2 flex-shrink-0" aria-hidden />
             <div className="px-0">
               {adminNav.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.to}
                   className={({ isActive }) =>
-                    `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[7px] text-[13px] transition-colors duration-[120ms] ${
+                    `flex items-center gap-2 py-2 px-3.5 mx-2 rounded-[7px] text-[13px] transition-colors duration-150 ${
                       isActive
                         ? 'text-white'
                         : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'
                     }`
                   }
                   style={({ isActive }) => ({
-                    fontFamily: "'DM Sans', sans-serif",
-                    ...(isActive ? { background: 'var(--sidebar-active-bg)', fontWeight: 500 } : {}),
+                    fontFamily: 'var(--font-d)',
+                    borderLeft: '3px solid ' + (isActive ? 'var(--blue)' : 'transparent'),
+                    ...(isActive
+                      ? {
+                          background: 'rgba(92,172,250,0.08)',
+                          fontWeight: 600,
+                        }
+                      : {}),
                   })}
                 >
                   {({ isActive }) => (
@@ -244,7 +251,7 @@ export function Sidebar() {
                       <span
                         className="w-4 h-4 flex-shrink-0 flex items-center justify-center opacity-60"
                         style={
-                          isActive ? { color: 'var(--sidebar-active-icon)', opacity: 1 } : undefined
+                          isActive ? { color: 'var(--blue)', opacity: 1 } : undefined
                         }
                       >
                         <item.icon className="w-4 h-4" strokeWidth={2} />
@@ -266,9 +273,9 @@ export function Sidebar() {
           role="presentation"
         >
           <div
-            className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-white font-bold text-[11px] flex-shrink-0"
+            className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-black font-bold text-[11px] flex-shrink-0"
             style={{
-              background: isAdminRole ? 'var(--blue)' : '#424958',
+              background: 'var(--blue)',
             }}
           >
             {user?.fullName?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
@@ -299,12 +306,16 @@ export function Sidebar() {
                 </select>
               </label>
             ) : (
-              <p
-                className="text-[10px] mt-0.5"
-                style={{ color: 'rgba(255,255,255,0.28)' }}
+              <span
+                className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold"
+                style={{
+                  background: 'var(--blue-dim)',
+                  color: 'var(--blue)',
+                  fontFamily: 'var(--font-d)',
+                }}
               >
                 {getRoleDisplayName(user?.role)}
-              </p>
+              </span>
             )}
           </div>
         </div>

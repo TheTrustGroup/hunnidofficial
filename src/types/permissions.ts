@@ -1,6 +1,6 @@
 /**
  * RBAC: permission strings for UI gating. Backend is the authority — never trust client for role.
- * Cashier (POS locations): Orders, POS, Reports, Sales, Deliveries; no Dashboard, Inventory, Users, Settings.
+ * Cashier: POS + view products/orders only. No dashboard, reports, users, settings, inventory editing.
  */
 
 export const PERMISSIONS = {
@@ -31,6 +31,10 @@ export const PERMISSIONS = {
     CANCEL: 'orders.cancel',
     ASSIGN_DRIVER: 'orders.assign_driver',
     VIEW_ALL: 'orders.view_all',
+  },
+  DELIVERIES: {
+    VIEW: 'deliveries.view',
+    UPDATE_STATUS: 'deliveries.update_status',
   },
   REPORTS: {
     VIEW_SALES: 'reports.view_sales',
@@ -107,6 +111,7 @@ export const ROLES: Record<string, Role> = {
       ...Object.values(PERMISSIONS.INVENTORY),
       ...Object.values(PERMISSIONS.POS),
       ...Object.values(PERMISSIONS.ORDERS),
+      ...Object.values(PERMISSIONS.DELIVERIES),
       PERMISSIONS.REPORTS.VIEW_SALES,
       PERMISSIONS.REPORTS.VIEW_INVENTORY,
       PERMISSIONS.REPORTS.VIEW_PROFIT,
@@ -124,7 +129,7 @@ export const ROLES: Record<string, Role> = {
   CASHIER: {
     id: 'cashier',
     name: 'Sales Person / Cashier',
-    description: 'Handle sales and customer service',
+    description: 'Handle sales and customer service. Sidebar: Orders, POS, Sales, Deliveries only.',
     permissions: [
       PERMISSIONS.POS.ACCESS,
       PERMISSIONS.POS.APPLY_DISCOUNT,
@@ -133,6 +138,7 @@ export const ROLES: Record<string, Role> = {
       PERMISSIONS.ORDERS.CREATE,
       PERMISSIONS.ORDERS.UPDATE_STATUS,
       PERMISSIONS.REPORTS.VIEW_SALES,
+      PERMISSIONS.DELIVERIES.VIEW,
     ],
     limits: {
       maxDiscount: 10,
@@ -168,6 +174,7 @@ export const ROLES: Record<string, Role> = {
     permissions: [
       PERMISSIONS.ORDERS.VIEW,
       PERMISSIONS.ORDERS.UPDATE_STATUS,
+      ...Object.values(PERMISSIONS.DELIVERIES),
     ],
     isSystem: true,
   },

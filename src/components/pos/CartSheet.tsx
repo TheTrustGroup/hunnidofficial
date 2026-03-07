@@ -72,7 +72,12 @@ const IconSpinner = () => (<svg width="18" height="18" viewBox="0 0 24 24" fill=
 
 function PayBtn({ method, selected, onSelect }: { method: PaymentMethod; selected: boolean; onSelect: () => void }) {
   return (
-    <button type="button" onClick={onSelect} className={`flex-1 h-14 rounded-2xl border-[1.5px] flex flex-col items-center justify-center gap-1 font-sans text-[12px] font-bold transition-all duration-150 active:scale-95 ${selected ? 'bg-slate-900 border-slate-900 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)]' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`flex-1 h-14 rounded-2xl border-[1.5px] flex flex-col items-center justify-center gap-1 font-sans text-[12px] font-bold transition-all duration-150 active:scale-95 ${selected ? 'border-[var(--blue)] text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
+      style={selected ? { background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' } : undefined}
+    >
       <span className="flex items-center justify-center leading-none"><PayIcon method={method} size={20} /></span>
       <span>{method}</span>
     </button>
@@ -186,7 +191,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
 
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
           <div>
-            <h2 className="text-[18px] font-bold text-slate-900">Cart</h2>
+            <h2 className="text-[18px] font-bold text-slate-900" style={{ fontFamily: 'var(--font-d)' }}>Cart</h2>
             <p className="text-[12px] text-slate-400 font-medium mt-0.5">{itemCount} item{itemCount !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -316,8 +321,9 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
               disabled={isCharging || lines.length === 0 || !canCharge}
               className="w-full h-11 rounded-[7px] border-none text-white text-[14px] font-bold flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150 hover:-translate-y-px"
               style={{
-                background: scheduleDelivery ? '#D97706' : '#5CACFA',
-                boxShadow: scheduleDelivery ? '0 2px 8px rgba(217,119,6,0.25)' : '0 2px 8px rgba(92,172,250,0.25)',
+                fontFamily: 'var(--font-d)',
+                background: scheduleDelivery ? 'var(--amber)' : 'var(--blue)',
+                boxShadow: scheduleDelivery ? '0 2px 8px rgba(217,119,6,0.25)' : '0 2px 8px var(--blue-glow)',
               }}
             >
               {isCharging ? (<><IconSpinner /> Processing…</>) : scheduleDelivery ? (<><IconTruck /> Charge & Schedule — {fmt(total)}</>) : (`Charge ${fmt(total)}`)}

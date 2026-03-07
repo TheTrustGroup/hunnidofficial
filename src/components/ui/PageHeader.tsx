@@ -15,7 +15,7 @@ export function PageHeader({ title, description, extra, className = '' }: PageHe
   return (
     <div className={`animate-fade-in-up ${className}`}>
       <div className="flex flex-wrap items-center gap-3 mb-1">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight" style={{ fontFamily: 'var(--font-d)' }}>
           {title}
         </h1>
         {extra}

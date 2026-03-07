@@ -34,9 +34,6 @@ export function getUserFriendlyMessage(error: unknown): string {
   if (str.includes('404') || str.includes('not found')) {
     return 'The requested item was not found.';
   }
-  if (str.includes('insufficient_stock') || str.includes('insufficient stock')) {
-    return 'Insufficient stock for one or more items. Reduce quantity or remove items and try again.';
-  }
   if (str.includes('409') || str.includes('conflict')) {
     return 'This was changed elsewhere. Please refresh and try again.';
   }
@@ -48,16 +45,6 @@ export function getUserFriendlyMessage(error: unknown): string {
   }
   if (str.includes('500') || str.includes('502') || str.includes('503') || str.includes('504')) {
     return 'Server error. Please try again in a moment.';
-  }
-
-  // Chunk / module load failures (stale deploy, CDN cache, network)
-  if (
-    str.includes('importing a module script failed') ||
-    str.includes('loading chunk') ||
-    str.includes('failed to fetch dynamically imported module') ||
-    str.includes('error loading dynamically imported module')
-  ) {
-    return 'A new version may be available or a file failed to load. Refresh the page to continue.';
   }
 
   // Abort (user navigated away or cancelled)
@@ -87,6 +74,13 @@ export function getUserFriendlyMessage(error: unknown): string {
   }
   if (str.includes('sync') && str.includes('fail')) {
     return 'Sync failed. You can try again when the connection is stable.';
+  }
+  // Size code: DB trigger rejects codes not in size_codes catalog
+  if (str.includes('size_code') && (str.includes('does not exist') || str.includes('size_codes'))) {
+    return 'That size code is not in the catalog. Use a suggested size from the list (e.g. US9, EU42, M, 6Y) or add it in Admin.';
+  }
+  if (str.includes('invalid size') || str.includes('invalid size code')) {
+    return 'That size code is not valid. Use a suggested size from the list (e.g. US9, EU42, M) or check spelling.';
   }
 
   // Generic but safe: use message if it looks user-facing (short, no stack), else fallback

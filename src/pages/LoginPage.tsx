@@ -185,7 +185,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="min-h-[var(--min-h-viewport)] flex flex-col md:flex-row" style={{ fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* ── Dark brand panel ────────────────────────────────── */}
       <div className="relative overflow-hidden md:w-[400px] md:min-h-screen flex-shrink-0

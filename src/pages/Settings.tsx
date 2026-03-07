@@ -56,7 +56,7 @@ export function Settings() {
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in-up">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Settings</h1>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2" style={{ fontFamily: 'var(--font-d)' }}>Settings</h1>
           <p className="text-slate-500 text-sm">Manage your store configuration</p>
         </div>
         <Button
@@ -71,8 +71,8 @@ export function Settings() {
       </div>
 
       {/* Tabs */}
-      <div className="solid-card p-0 overflow-hidden animate-fade-in-up">
-        <nav className="flex gap-2 px-6 border-b border-slate-200/50">
+      <div className="rounded-xl border p-0 overflow-hidden animate-fade-in-up" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <nav className="flex gap-2 px-6 border-b" style={{ borderColor: 'var(--border)' }}>
           {tabs.map(tab => (
             <button
               key={tab.id}

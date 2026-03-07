@@ -1,18 +1,51 @@
-import { Product, Transaction } from '../types';
+import { Product, Transaction, TransactionItem } from '../types';
 import { formatDate, getCategoryDisplay } from '../lib/utils';
+import type { SalesReportApiResponse } from './reportsApi';
+
+/** Map GET /api/reports/sales response to SalesReport (revenue = SUM(line_total), COGS = SUM(cost_price×qty)). */
+export function mapApiReportToSalesReport(api: SalesReportApiResponse): SalesReport {
+  return {
+    totalRevenue: Number(api.revenue ?? 0),
+    totalCogs: Number(api.cogs ?? 0),
+    totalProfit: Number(api.grossProfit ?? 0),
+    totalTransactions: Number(api.transactionCount ?? 0),
+    totalVoided: typeof (api as unknown as { voidedCount?: number }).voidedCount === 'number' ? (api as unknown as { voidedCount: number }).voidedCount : 0,
+    totalItemsSold: Number(api.unitsSold ?? 0),
+    averageOrderValue: Number(api.averageOrderValue ?? 0),
+    topSellingProducts: (api.topProducts ?? []).map((p) => ({
+      productName: String(p.productName ?? ''),
+      quantitySold: Number(p.unitsSold ?? 0),
+      revenue: Number(p.revenue ?? 0),
+      cogs: p.cogs != null ? Number(p.cogs) : undefined,
+      profit: p.profit != null ? Number(p.profit) : undefined,
+      marginPct: p.marginPct != null ? Number(p.marginPct) : undefined,
+    })),
+    salesByCategory: [],
+    salesByDay: (api.salesByDay ?? []).map((d) => ({
+      date: String(d.date ?? ''),
+      revenue: Number(d.revenue ?? 0),
+      transactions: Number(d.transactions ?? 0),
+    })),
+  };
+}
 
 export interface SalesReport {
   totalRevenue: number;
+  /** COGS = cost at time of sale × quantity (from sale_lines). Present when report from API. */
+  totalCogs?: number;
   totalProfit: number;
   totalTransactions: number;
-  /** Count of voided transactions included in totalTransactions so reports depict every transaction. */
-  totalVoided: number;
+  /** Count of voided transactions in the report range (for display only). */
+  totalVoided?: number;
   totalItemsSold: number;
   averageOrderValue: number;
   topSellingProducts: Array<{
     productName: string;
     quantitySold: number;
     revenue: number;
+    cogs?: number;
+    profit?: number;
+    marginPct?: number;
   }>;
   salesByCategory: Array<{
     category: string;
@@ -78,60 +111,77 @@ function isMockTransaction(transaction: Transaction): boolean {
   return false;
 }
 
+/** Safe list of items for a transaction (guards against null/undefined or malformed stored data). */
+function safeItems(t: Transaction | null | undefined): Transaction['items'] {
+  if (t == null || typeof t !== 'object') return [];
+  const items = t.items;
+  if (!Array.isArray(items)) return [];
+  return items.filter((item): item is TransactionItem => item != null && typeof item === 'object');
+}
+
 export function generateSalesReport(
   transactions: Transaction[],
   products: Product[],
   startDate: Date,
   endDate: Date
 ): SalesReport {
-  // All transactions in date range (include voided so reports depict every transaction)
-  const allInRange = transactions.filter(t => {
-    const tDate = new Date(t.createdAt);
-    const inDateRange = tDate >= startDate && tDate <= endDate;
-    const isRealData = !isMockTransaction(t);
-    return inDateRange && isRealData;
-  });
-  const totalTransactions = allInRange.length;
-  const totalVoided = allInRange.filter(t => t.voidedAt != null && String(t.voidedAt).trim() !== '').length;
-
-  // Revenue, profit, and aggregates exclude voided (only completed, non-voided)
-  const filteredTransactions = allInRange.filter(t =>
-    t.status === 'completed' && (t.voidedAt == null || String(t.voidedAt).trim() === '')
+  const safeTransactions = (transactions ?? []).filter(
+    (t): t is Transaction => t != null && typeof t === 'object' && (t.status != null || t.createdAt != null)
   );
+  const safeProducts = (products ?? []).filter((p): p is Product => p != null && typeof p === 'object');
 
-  const totalRevenue = filteredTransactions.reduce((sum, t) => sum + t.total, 0);
-  const totalItemsSold = filteredTransactions.reduce(
-    (sum, t) => sum + t.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+  // Filter transactions: date range, completed status, and exclude mock data
+  const filteredTransactions = safeTransactions.filter(t => {
+    try {
+      const tDate = new Date(t.createdAt);
+      const inDateRange = tDate >= startDate && tDate <= endDate;
+      const isCompleted = t.status === 'completed';
+      const isRealData = !isMockTransaction(t);
+      return inDateRange && isCompleted && isRealData;
+    } catch {
+      return false;
+    }
+  });
+
+  const totalVoided = filteredTransactions.filter(t => t.voidedAt != null && String(t.voidedAt).trim() !== '').length;
+  const nonVoidedTransactions = filteredTransactions.filter(t => !(t.voidedAt != null && String(t.voidedAt).trim() !== ''));
+
+  const totalRevenue = nonVoidedTransactions.reduce((sum, t) => sum + (Number(t.total) || 0), 0);
+  const totalTransactions = filteredTransactions.length;
+  const totalItemsSold = nonVoidedTransactions.reduce(
+    (sum, t) => sum + safeItems(t).reduce((itemSum, item) => itemSum + (Number(item.quantity) || 0), 0),
     0
   );
 
-  // Calculate profit
+  // Calculate profit (exclude voided)
   let totalProfit = 0;
-  filteredTransactions.forEach(transaction => {
-    transaction.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
+  nonVoidedTransactions.forEach(transaction => {
+    safeItems(transaction).forEach(item => {
+      const product = safeProducts.find(p => p.id === item.productId);
       if (product) {
-        const profit = (item.unitPrice - product.costPrice) * item.quantity;
+        const profit = ((Number(item.unitPrice) || 0) - (Number(product.costPrice) || 0)) * (Number(item.quantity) || 0);
         totalProfit += profit;
       }
     });
   });
 
-  const averageOrderValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+  const averageOrderValue = nonVoidedTransactions.length > 0 ? totalRevenue / nonVoidedTransactions.length : 0;
 
-  // Top selling products
+  // Top selling products (exclude voided)
   const productSales = new Map<string, { name: string; quantity: number; revenue: number }>();
-  filteredTransactions.forEach(t => {
-    t.items.forEach(item => {
+  nonVoidedTransactions.forEach(t => {
+    safeItems(t).forEach(item => {
+      const qty = Number(item.quantity) || 0;
+      const rev = Number(item.subtotal) || 0;
       const existing = productSales.get(item.productId);
       if (existing) {
-        existing.quantity += item.quantity;
-        existing.revenue += item.subtotal;
+        existing.quantity += qty;
+        existing.revenue += rev;
       } else {
         productSales.set(item.productId, {
-          name: item.productName,
-          quantity: item.quantity,
-          revenue: item.subtotal,
+          name: item.productName ?? '',
+          quantity: qty,
+          revenue: rev,
         });
       }
     });
@@ -146,21 +196,21 @@ export function generateSalesReport(
       revenue: p.revenue,
     }));
 
-  // Sales by category
+  // Sales by category (exclude voided)
   const categorySales = new Map<string, { revenue: number; quantity: number }>();
-  filteredTransactions.forEach(t => {
-    t.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
+  nonVoidedTransactions.forEach(t => {
+    safeItems(t).forEach(item => {
+      const product = safeProducts.find(p => p.id === item.productId);
       if (product) {
         const catKey = getCategoryDisplay(product.category);
         const existing = categorySales.get(catKey);
         if (existing) {
-          existing.revenue += item.subtotal;
-          existing.quantity += item.quantity;
+          existing.revenue += Number(item.subtotal) || 0;
+          existing.quantity += Number(item.quantity) || 0;
         } else {
           categorySales.set(catKey, {
-            revenue: item.subtotal,
-            quantity: item.quantity,
+            revenue: Number(item.subtotal) || 0,
+            quantity: Number(item.quantity) || 0,
           });
         }
       }
@@ -175,16 +225,21 @@ export function generateSalesReport(
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  // Sales by day
+  // Sales by day (exclude voided for revenue)
   const dailySales = new Map<string, { revenue: number; transactions: number }>();
-  filteredTransactions.forEach(t => {
-    const dateKey = formatDate(t.createdAt);
-    const existing = dailySales.get(dateKey);
-    if (existing) {
-      existing.revenue += t.total;
-      existing.transactions += 1;
-    } else {
-      dailySales.set(dateKey, { revenue: t.total, transactions: 1 });
+  nonVoidedTransactions.forEach(t => {
+    try {
+      const dateKey = formatDate(t.createdAt);
+      const total = Number(t.total) || 0;
+      const existing = dailySales.get(dateKey);
+      if (existing) {
+        existing.revenue += total;
+        existing.transactions += 1;
+      } else {
+        dailySales.set(dateKey, { revenue: total, transactions: 1 });
+      }
+    } catch {
+      /* skip malformed date */
     }
   });
 
@@ -244,24 +299,35 @@ function isMockProduct(product: Product): boolean {
   return false;
 }
 
+/** Quantity for stats: use sum of quantityBySize when sized, else quantity. */
+function getProductQty(p: Product): number {
+  if (p.sizeKind === 'sized' && (p.quantityBySize?.length ?? 0) > 0) {
+    return (p.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
+  }
+  return Number(p.quantity ?? 0) || 0;
+}
+
+/** Inventory report uses cost price (value at cost) for accounting. Dashboard/UI use selling price. */
 export function generateInventoryReport(products: Product[]): InventoryReport {
-  // Filter out mock products
-  const realProducts = products.filter(p => !isMockProduct(p));
-  
+  const safeProducts = (products ?? []).filter((p): p is Product => p != null && typeof p === 'object');
+  const realProducts = safeProducts.filter(p => !isMockProduct(p));
+
   const totalProducts = realProducts.length;
-  const qty = (p: Product) => Number(p.quantity ?? 0) || 0;
   const cost = (p: Product) => Number(p.costPrice ?? 0) || 0;
   const reorder = (p: Product) => Number(p.reorderLevel ?? 0) || 0;
-  const totalStockValue = realProducts.reduce((sum, p) => sum + qty(p) * cost(p), 0);
-  const lowStockItems = realProducts.filter(p => qty(p) > 0 && qty(p) <= reorder(p)).length;
-  const outOfStockItems = realProducts.filter(p => qty(p) === 0).length;
+  const totalStockValue = realProducts.reduce((sum, p) => sum + getProductQty(p) * cost(p), 0);
+  const lowStockItems = realProducts.filter(p => {
+    const q = getProductQty(p);
+    return q > 0 && q <= reorder(p);
+  }).length;
+  const outOfStockItems = realProducts.filter(p => getProductQty(p) === 0).length;
 
   // Products by category (using real products only)
   const categoryStats = new Map<string, { count: number; value: number }>();
   realProducts.forEach(p => {
     const catKey = getCategoryDisplay(p.category);
     const existing = categoryStats.get(catKey);
-    const value = qty(p) * cost(p);
+    const value = getProductQty(p) * cost(p);
     if (existing) {
       existing.count += 1;
       existing.value += value;
@@ -282,8 +348,8 @@ export function generateInventoryReport(products: Product[]): InventoryReport {
   const topValueProducts = [...realProducts]
     .map(p => ({
       name: p.name,
-      quantity: qty(p),
-      value: qty(p) * cost(p),
+      quantity: getProductQty(p),
+      value: getProductQty(p) * cost(p),
     }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);

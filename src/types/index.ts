@@ -56,8 +56,6 @@ export interface Product {
     email: string;
   };
   images: string[];
-  /** Product color for filter (e.g. Red, Black). Optional. */
-  color?: string | null;
   expiryDate: Date | null;
   variants?: {
     size?: string;
@@ -100,7 +98,7 @@ export interface Transaction {
   storeId?: string | null;
   /** Optional (Phase 3). POS device id. */
   posId?: string | null;
-  /** Set when sale was voided (server POS). Reports include voided transactions when requested. */
+  /** When set, sale was voided (excluded from revenue in reports). */
   voidedAt?: string | null;
   voidedBy?: string | null;
 }
@@ -115,7 +113,7 @@ export interface TransactionItem {
 }
 
 export interface Payment {
-  method: 'cash' | 'card' | 'mobile_money' | 'mixed';
+  method: 'cash' | 'card' | 'mobile_money';
   amount: number;
 }
 

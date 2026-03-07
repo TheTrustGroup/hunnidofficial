@@ -22,7 +22,7 @@ export interface SaleFromApi {
   receiptId: string;
   warehouseId: string;
   customerName: string | null;
-  paymentMethod: 'Cash' | 'MoMo' | 'Card' | 'Mix';
+  paymentMethod: 'Cash' | 'MoMo' | 'Card';
   subtotal: number;
   discountPct: number;
   discountAmt: number;
@@ -40,7 +40,6 @@ export interface FetchSalesParams {
   to: string;
   warehouse_id?: string;
   limit?: number;
-  /** When true, include voided sales so reports depict every transaction. */
   include_voided?: boolean;
 }
 
@@ -49,7 +48,6 @@ function paymentMethodForReport(m: string): Payment['method'] {
   if (lower === 'cash') return 'cash';
   if (lower === 'momo' || lower === 'mobile_money') return 'mobile_money';
   if (lower === 'card') return 'card';
-  if (lower === 'mix') return 'mixed';
   return 'cash';
 }
 
@@ -57,7 +55,6 @@ function paymentMethodForReport(m: string): Payment['method'] {
  * Map a sale from GET /api/sales to Transaction for generateSalesReport.
  */
 export function saleToTransaction(sale: SaleFromApi): Transaction {
-  const voided = !!(sale.voidedAt != null && String(sale.voidedAt).trim() !== '');
   return {
     id: sale.id,
     transactionNumber: sale.receiptId ?? sale.id,
@@ -78,7 +75,7 @@ export function saleToTransaction(sale: SaleFromApi): Transaction {
     payments: [{ method: paymentMethodForReport(sale.paymentMethod), amount: sale.total }],
     cashier: sale.soldBy ?? '',
     customer: undefined,
-    status: voided ? 'cancelled' : 'completed',
+    status: 'completed',
     syncStatus: 'synced',
     createdAt: new Date(sale.createdAt),
     completedAt: new Date(sale.createdAt),
@@ -100,12 +97,12 @@ export async function fetchSalesFromApi(
   searchParams.set('to', params.to);
   if (params.warehouse_id) searchParams.set('warehouse_id', params.warehouse_id);
   if (params.limit != null) searchParams.set('limit', String(params.limit));
-  if (params.include_voided) searchParams.set('include_voided', 'true');
+  if (params.include_voided === true) searchParams.set('include_voided', 'true');
 
   const path = `/api/sales?${searchParams.toString()}`;
-  const res = await apiGet<{ data?: SaleFromApi[]; total?: number }>(baseUrl, path);
-  const data = Array.isArray(res?.data) ? res.data : [];
-  const total = typeof res?.total === 'number' ? res.total : data.length;
+  const res = await apiGet<SaleFromApi[] | { data?: SaleFromApi[]; total?: number }>(baseUrl, path);
+  const data = Array.isArray(res) ? res : (res && typeof res === 'object' && Array.isArray((res as { data?: SaleFromApi[] }).data) ? (res as { data: SaleFromApi[] }).data : []);
+  const total = typeof (res as { total?: number })?.total === 'number' ? (res as { total: number }).total : data.length;
   return { data, total };
 }
 
