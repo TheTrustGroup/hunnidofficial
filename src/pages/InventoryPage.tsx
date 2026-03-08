@@ -256,24 +256,22 @@ function StatCard({
 }) {
   return (
     <div
-      className="flex-1 min-w-0 px-4 py-4 rounded-[14px] border flex flex-col gap-0.5 shadow-[var(--shadow-sm)]"
+      className="flex-1 min-w-0 px-3 py-3 lg:px-4 lg:py-4 rounded-xl lg:rounded-[14px] border flex flex-col gap-0.5 shadow-[var(--shadow-sm)]"
       style={{
         background: 'var(--surface)',
         borderColor: warning ? 'rgba(217,119,6,0.2)' : 'var(--border)',
       }}
     >
       <p
-        className="text-[10px] font-semibold uppercase tracking-[0.16em]"
+        className="text-[9px] lg:text-[10px] font-semibold uppercase tracking-wider"
         style={{ color: accent ? 'var(--text-3)' : warning ? 'var(--amber)' : 'var(--text-3)' }}
       >
         {label}
       </p>
       <p
-        className="tabular-nums leading-tight truncate"
+        className="tabular-nums leading-tight truncate text-lg lg:text-2xl font-semibold"
         style={{
           fontFamily: 'var(--font-m)',
-          fontSize: '24px',
-          fontWeight: 600,
           letterSpacing: '-0.5px',
           color: accent ? 'var(--blue)' : warning ? 'var(--amber)' : 'var(--text)',
         }}
@@ -281,7 +279,7 @@ function StatCard({
         {value}
       </p>
       {sub && (
-        <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
+        <p className="text-[10px] lg:text-[11px] mt-0.5 lg:mt-1" style={{ color: 'var(--text-3)' }}>
           {sub}
         </p>
       )}
@@ -807,25 +805,25 @@ export default function InventoryPage(_props: InventoryPageProps) {
     <div className="min-h-screen pb-28" style={{ background: 'var(--bg)' }}>
 
       {/* ══ Page header ══ */}
-      <div className="px-4 pt-6 pb-4 lg:px-0">
+      <div className="px-4 pt-4 pb-3 lg:pt-6 lg:pb-4 lg:px-0">
         <div
-          className="flex items-center gap-1.5 text-[12px] mb-3.5"
+          className="flex items-center gap-1.5 text-[11px] mb-2"
           style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
         >
           <span>{warehouse?.name ?? 'Warehouse'}</span>
           <span style={{ color: 'var(--border-md)' }} aria-hidden>›</span>
           <span className="font-medium" style={{ color: 'var(--text)' }}>Inventory</span>
         </div>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1
-              className="text-[21px] font-extrabold tracking-tight"
+              className="text-lg lg:text-[21px] font-extrabold tracking-tight"
               style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}
             >
               Inventory
             </h1>
             <p
-              className="text-[12px] mt-0.5"
+              className="text-[11px] mt-0.5"
               style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
             >
               {totalCount === 0 && !loading && !error
@@ -838,7 +836,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
           <button
             type="button"
             onClick={openAddModal}
-            className="h-[35px] px-3.5 rounded-[10px] text-white text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px"
+            className="h-9 lg:h-[35px] px-3 rounded-lg lg:rounded-[10px] text-white text-[12px] lg:text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px"
             style={{
               fontFamily: 'var(--font-b)',
               background: 'var(--blue)',
@@ -852,7 +850,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
       {/* ══ Stats: full warehouse totals when no filter; else filtered-list stats ══ */}
       {!loading && !error && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5 px-4 lg:px-0">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3 mb-3 lg:mb-5 px-4 lg:px-0">
           <StatCard
             label="SKUs"
             value={totalCount > 0 ? totalCount : 0}
@@ -883,37 +881,40 @@ export default function InventoryPage(_props: InventoryPageProps) {
         </div>
       )}
 
-      {/* ══ Filter toolbar: single row — category pills, Size/Color dropdowns, Sort, count; scroll on narrow so no overflow ══ */}
-      <div className="px-4 pb-4 lg:px-0 overflow-x-auto overflow-y-hidden -mx-4 px-4 lg:mx-0 lg:overflow-visible scrollbar-none">
-        <div className="flex flex-wrap items-center gap-2 min-h-[44px]">
-          <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
-            {(['all', ...CATEGORIES] as string[]).map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategory(cat)}
-                className="flex-shrink-0 min-h-[44px] flex items-center px-4 rounded-[99px] border text-[12px] font-medium whitespace-nowrap transition-all touch-manipulation"
-                style={{
-                  fontFamily: 'var(--font-b)',
-                  ...(category === cat
-                    ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
-                    : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
-                }}
-              >
-                {cat === 'all' ? 'All' : cat}
-              </button>
-            ))}
+      {/* ══ Filter toolbar: row 1 = category pills (scroll); row 2 = Size, Color, Sort, count ══ */}
+      <div className="px-4 pb-3 lg:px-0 lg:pb-4">
+        {/* Row 1: Category pills — horizontal scroll on mobile */}
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0 pb-2" style={{ scrollbarWidth: 'none' }}>
+          {(['all', ...CATEGORIES] as string[]).map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategory(cat)}
+              className="flex-shrink-0 h-8 lg:h-9 flex items-center px-3 lg:px-4 rounded-full border text-[11px] lg:text-[12px] font-medium whitespace-nowrap transition-all touch-manipulation"
+              style={{
+                fontFamily: 'var(--font-b)',
+                ...(category === cat
+                  ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
+                  : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
+              }}
+            >
+              {cat === 'all' ? 'All' : cat}
+            </button>
+          ))}
+        </div>
+        {/* Row 2: Size, Color, Sort — same height; count on the right */}
+        <div className="flex flex-wrap items-center gap-2">
           <select
             id="inv-size-filter"
             value={sizeFilter}
             onChange={(e) => setSizeFilter(e.target.value)}
-            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation bg-transparent"
+            className="h-8 lg:h-9 pl-2.5 pr-7 rounded-full border text-[11px] lg:text-[12px] font-medium appearance-none bg-transparent bg-no-repeat bg-[length:8px_5px] focus:outline-none touch-manipulation"
             style={{
               fontFamily: 'var(--font-b)',
               borderColor: 'var(--border)',
               color: 'var(--text-2)',
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-              backgroundPosition: 'right 10px center',
+              backgroundPosition: 'right 8px center',
             }}
           >
             <option value="all">Size: All</option>
@@ -927,13 +928,13 @@ export default function InventoryPage(_props: InventoryPageProps) {
             id="inv-color-filter"
             value={colorFilter}
             onChange={(e) => setColorFilter(e.target.value)}
-            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation bg-transparent"
+            className="h-8 lg:h-9 pl-2.5 pr-7 rounded-full border text-[11px] lg:text-[12px] font-medium appearance-none bg-transparent bg-no-repeat bg-[length:8px_5px] focus:outline-none touch-manipulation"
             style={{
               fontFamily: 'var(--font-b)',
               borderColor: 'var(--border)',
               color: 'var(--text-2)',
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-              backgroundPosition: 'right 10px center',
+              backgroundPosition: 'right 8px center',
             }}
           >
             <option value="all">Color: All</option>
@@ -945,10 +946,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
             <button
               type="button"
               onClick={() => setSortOpen((o) => !o)}
-              className="flex items-center gap-1.5 min-h-[44px] h-[30px] px-2.5 rounded-[99px] border text-[12px] font-medium transition-colors touch-manipulation hover:border-[var(--border-md)]"
+              className="flex items-center gap-1 h-8 lg:h-9 px-2.5 rounded-full border text-[11px] lg:text-[12px] font-medium transition-colors touch-manipulation hover:border-[var(--border-md)]"
               style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="8" y1="6" x2="21" y2="6" />
                 <line x1="8" y1="12" x2="21" y2="12" />
                 <line x1="8" y1="18" x2="21" y2="18" />
@@ -983,8 +984,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
               </>
             )}
           </div>
-        </div>
-          <span className="text-[11px] whitespace-nowrap" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
+          <span className="ml-auto text-[10px] lg:text-[11px] whitespace-nowrap" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
             Showing <strong className="font-semibold" style={{ color: 'var(--text)' }}>
               {displayed.length === 0 ? 0 : 1}–{displayed.length}
             </strong> of {totalCount}
@@ -1081,7 +1081,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
         {/* Product grid — view-only cards (CHANGE 4: 14px gap, 10px radius cards) */}
         {!loading && !error && displayed.length > 0 && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 lg:gap-3.5">
               {displayed.map(product => (
                 <ProductCard
                   key={product.id}

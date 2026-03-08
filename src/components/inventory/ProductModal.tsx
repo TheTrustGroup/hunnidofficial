@@ -12,6 +12,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useWarehouse } from '../../contexts/WarehouseContext';
 import { getSizeConfigForWarehouse } from '../../constants/warehouseSizes';
 import { SizeQuantityGrid } from '../ui/SizeQuantityGrid';
@@ -1096,30 +1097,33 @@ export default function ProductModal({
 
       </div>
 
-      {/* ── Mobile only: fixed Save/Cancel bar at viewport bottom so always visible ── */}
-      {isOpen && (
-        <div
-          className="sm:hidden fixed bottom-0 left-0 right-0 z-[60] px-4 py-3 border-t border-slate-200 bg-white flex gap-3"
-          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="flex-1 min-h-[44px] h-11 rounded-xl border-[1.5px] border-slate-200 font-sans text-[13px] font-semibold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all duration-150"
+      {/* ── Mobile only: Save/Cancel bar in portal so it sits above BottomNav (z-[200]) ── */}
+      {typeof document !== 'undefined' &&
+        isOpen &&
+        createPortal(
+          <div
+            className="sm:hidden fixed bottom-0 left-0 right-0 z-[210] px-4 py-3 border-t border-slate-200 bg-white flex gap-3"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
           >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="product-form"
-            disabled={isSubmitting}
-            className="flex-[2] min-h-[44px] h-11 rounded-xl border-none bg-primary-500 hover:bg-primary-600 font-sans text-[13px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150"
-          >
-            {isSubmitting ? <><IconSpinner />{isEdit ? 'Saving…' : 'Adding…'}</> : (isEdit ? 'Save changes' : 'Add product')}
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1 min-h-[44px] h-11 rounded-xl border-[1.5px] border-slate-200 font-sans text-[13px] font-semibold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all duration-150"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="product-form"
+              disabled={isSubmitting}
+              className="flex-[2] min-h-[44px] h-11 rounded-xl border-none bg-primary-500 hover:bg-primary-600 font-sans text-[13px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150"
+            >
+              {isSubmitting ? <><IconSpinner />{isEdit ? 'Saving…' : 'Adding…'}</> : (isEdit ? 'Save changes' : 'Add product')}
+            </button>
+          </div>,
+          document.body
+        )}
 
       {/* Spinner keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

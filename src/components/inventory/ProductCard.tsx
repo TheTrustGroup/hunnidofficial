@@ -383,7 +383,7 @@ function ProductCardInner({
           </p>
           <div className="flex items-baseline gap-1.5 mb-2">
             <span
-              className="text-[16px] font-extrabold"
+              className="text-[13px] font-bold"
               style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
             >
               {formatPrice(product.sellingPrice)}
