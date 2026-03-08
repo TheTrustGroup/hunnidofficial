@@ -115,6 +115,15 @@
 }
 
 @layer base {
+  /* Slightly smaller base on mobile for compact, neat UI; standard 16px from md up */
+  html {
+    scroll-behavior: smooth;
+    font-size: 14px;
+  }
+  @media (min-width: 768px) {
+    html { font-size: 16px; }
+  }
+
   body {
     background-color: var(--bg);
     color: var(--text);
@@ -122,10 +131,6 @@
     font-feature-settings: 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  html {
-    scroll-behavior: smooth;
   }
 }
 

@@ -765,10 +765,10 @@ export default function ProductModal({
           </button>
         </div>
 
-        {/* ── Scrollable body (min-h-0 so footer stays visible in flex layout) ── */}
+        {/* ── Scrollable body (on mobile extra pb for fixed footer bar) ── */}
         <div
           ref={scrollRef}
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-5 flex flex-col gap-6"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-5 pb-24 sm:pb-5 flex flex-col gap-6"
         >
           <form id="product-form" onSubmit={handleSubmit} noValidate>
 
@@ -1074,19 +1074,13 @@ export default function ProductModal({
           </form>
         </div>
 
-        {/* ── Footer: Save/Cancel — always visible at bottom (safe-area on mobile) ── */}
-        <div className="flex-shrink-0 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-slate-200 bg-white rounded-b-[20px] flex gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+        {/* ── Footer (desktop): in-flow inside modal ── */}
+        <div className="hidden sm:flex flex-shrink-0 px-5 py-4 border-t border-slate-200 bg-white rounded-b-[20px] gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="
-              flex-1 min-h-[48px] h-12 rounded-xl border-[1.5px] border-slate-200
-              font-sans text-[14px] font-semibold text-slate-600
-              bg-white hover:bg-slate-50
-              disabled:opacity-40
-              transition-all duration-150
-            "
+            className="flex-1 min-h-[48px] h-12 rounded-xl border-[1.5px] border-slate-200 font-sans text-[14px] font-semibold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all duration-150"
           >
             Cancel
           </button>
@@ -1094,28 +1088,38 @@ export default function ProductModal({
             type="submit"
             form="product-form"
             disabled={isSubmitting}
-            className="
-              flex-[2] min-h-[48px] h-12 rounded-xl border-none
-              bg-primary-500 hover:bg-primary-600
-              font-sans text-[14px] font-semibold text-white
-              flex items-center justify-center gap-2
-              disabled:opacity-60 disabled:cursor-not-allowed
-              active:scale-[0.98]
-              transition-all duration-150
-            "
+            className="flex-[2] min-h-[48px] h-12 rounded-xl border-none bg-primary-500 hover:bg-primary-600 font-sans text-[14px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150"
           >
-            {isSubmitting ? (
-              <>
-                <IconSpinner />
-                {isEdit ? 'Saving…' : 'Adding…'}
-              </>
-            ) : (
-              isEdit ? 'Save changes' : 'Add product'
-            )}
+            {isSubmitting ? <><IconSpinner />{isEdit ? 'Saving…' : 'Adding…'}</> : (isEdit ? 'Save changes' : 'Add product')}
           </button>
         </div>
 
       </div>
+
+      {/* ── Mobile only: fixed Save/Cancel bar at viewport bottom so always visible ── */}
+      {isOpen && (
+        <div
+          className="sm:hidden fixed bottom-0 left-0 right-0 z-[60] px-4 py-3 border-t border-slate-200 bg-white flex gap-3"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="flex-1 min-h-[44px] h-11 rounded-xl border-[1.5px] border-slate-200 font-sans text-[13px] font-semibold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40 transition-all duration-150"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="product-form"
+            disabled={isSubmitting}
+            className="flex-[2] min-h-[44px] h-11 rounded-xl border-none bg-primary-500 hover:bg-primary-600 font-sans text-[13px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150"
+          >
+            {isSubmitting ? <><IconSpinner />{isEdit ? 'Saving…' : 'Adding…'}</> : (isEdit ? 'Save changes' : 'Add product')}
+          </button>
+        </div>
+      )}
 
       {/* Spinner keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

@@ -158,7 +158,7 @@ function LayoutContent() {
       )}
       {/* Main: offset by sidebar and topbar; on POS no extra top margin (POS has its own topbar). */}
       <main
-        className={`lg:ml-[240px] pt-16 lg:pt-6 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] lg:px-6 pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))] lg:pb-[max(3rem,calc(var(--safe-bottom)+3rem))] min-h-[calc(var(--min-h-viewport)-48px)] max-w-[1600px] overflow-x-hidden ${
+        className={`lg:ml-[240px] pt-14 lg:pt-6 pl-[max(0.5rem,var(--safe-left))] pr-[max(0.5rem,var(--safe-right))] lg:px-6 pb-[max(3rem,calc(var(--safe-bottom)+3rem))] lg:pb-[max(3rem,calc(var(--safe-bottom)+3rem))] min-h-[calc(var(--min-h-viewport)-48px)] max-w-[1600px] overflow-x-hidden ${
           showDegradedBanner || showSyncingBar ? 'mt-0' : isPOS ? 'mt-0' : 'mt-[calc(48px+var(--safe-top))]'
         }`}
       >

@@ -189,7 +189,7 @@ export default function LoginPage() {
 
       {/* ── Dark brand panel ────────────────────────────────── */}
       <div className="relative overflow-hidden md:w-[400px] md:min-h-screen flex-shrink-0
-                      flex flex-col justify-between px-8 py-9 md:px-12 md:py-14
+                      flex flex-col justify-between px-5 py-6 md:px-12 md:py-14
                       bg-[#0A0E1A]">
 
         {/* Background grid */}
@@ -214,7 +214,7 @@ export default function LoginPage() {
         {/* Brand block — full logo (icon + wordmark); tagline + bullets desktop only */}
         <div className="relative z-10">
           <div className="md:hidden">
-            <HunnidLogoFull width={200} />
+            <HunnidLogoFull width={160} />
           </div>
           <div className="hidden md:block">
             <HunnidLogoFull width={280} />
@@ -242,17 +242,17 @@ export default function LoginPage() {
       </div>
 
       {/* ── Form panel ──────────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center bg-slate-50 px-6 py-12 md:py-0">
-        <div className={`w-full max-w-[380px] transition-all duration-500
+      <div className="flex-1 flex items-center justify-center bg-slate-50 px-4 py-8 md:py-0 md:px-6">
+        <div className={`w-full max-w-[340px] md:max-w-[380px] transition-all duration-500
                          ${ready ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}
              style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)' }}>
 
           {/* Form header */}
-          <div className="mb-8">
-            <h2 className="text-[30px] font-black text-slate-900 tracking-tight leading-tight">
+          <div className="mb-6">
+            <h2 className="text-xl md:text-[30px] font-black text-slate-900 tracking-tight leading-tight">
               Welcome back
             </h2>
-            <p className="text-slate-400 text-[14px] mt-1.5 font-medium">
+            <p className="text-slate-400 text-[13px] md:text-[14px] mt-1 font-medium">
               Sign in to your workspace
             </p>
           </div>
@@ -331,11 +331,10 @@ export default function LoginPage() {
                   placeholder="admin@hunnidofficial.com"
                   autoComplete="email"
                   disabled={loading}
-                  className="w-full pl-11 pr-4 rounded-2xl border-[1.5px] border-slate-200 bg-white
-                             text-[15px] text-slate-900 placeholder:text-slate-300
+                  className="w-full pl-11 pr-4 rounded-xl md:rounded-2xl border-[1.5px] border-slate-200 bg-white
+                             text-[14px] md:text-[15px] text-slate-900 placeholder:text-slate-300
                              focus:outline-none focus:border-primary-400 focus:ring-[3px] focus:ring-primary-100
-                             disabled:opacity-50 transition-all duration-150"
-                  style={{ height: '52px' }}
+                             disabled:opacity-50 transition-all duration-150 h-11 md:h-[52px]"
                 />
               </div>
             </div>
@@ -359,11 +358,10 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={loading}
-                  className="w-full pl-11 pr-12 rounded-2xl border-[1.5px] border-slate-200 bg-white
-                             text-[15px] text-slate-900 placeholder:text-slate-300
+                  className="w-full pl-11 pr-12 rounded-xl md:rounded-2xl border-[1.5px] border-slate-200 bg-white
+                             text-[14px] md:text-[15px] text-slate-900 placeholder:text-slate-300
                              focus:outline-none focus:border-primary-400 focus:ring-[3px] focus:ring-primary-100
-                             disabled:opacity-50 transition-all duration-150"
-                  style={{ height: '52px' }}
+                             disabled:opacity-50 transition-all duration-150 h-11 md:h-[52px]"
                 />
                 <button type="button" tabIndex={-1}
                         onClick={() => setShowPw(v => !v)}
@@ -379,13 +377,12 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-2xl border-none bg-primary-500 hover:bg-primary-600
-                           text-white text-[16px] font-extrabold tracking-wide
-                           flex items-center justify-center gap-3
+                className="w-full rounded-xl md:rounded-2xl border-none bg-primary-500 hover:bg-primary-600
+                           text-white text-[14px] md:text-[16px] font-extrabold tracking-wide
+                           flex items-center justify-center gap-3 h-12 md:h-[56px]
                            disabled:bg-slate-200 disabled:text-slate-400
                            active:scale-[0.98] transition-all duration-150"
                 style={{
-                  height: '56px',
                   boxShadow: loading ? 'none' : '0 4px 20px rgba(92,172,250,0.35)',
                 }}
               >
