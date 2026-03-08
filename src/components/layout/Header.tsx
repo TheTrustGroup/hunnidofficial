@@ -80,11 +80,11 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 left-0 lg:left-[244px] right-0 h-12 grid grid-cols-[1fr_auto_1fr] items-center gap-2 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] lg:px-4 pt-[var(--safe-top)] z-50 border-b shadow-[var(--shadow-sm)]"
+      className="sticky top-0 left-0 lg:left-[244px] right-0 border-b shadow-[var(--shadow-sm)] z-50 grid grid-rows-[auto_auto] grid-cols-[1fr_auto] gap-x-2 gap-y-2 md:grid-rows-1 md:grid-cols-[1fr_auto_1fr] md:items-center pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] lg:px-4 pt-[var(--safe-top)] py-2 md:py-0 min-h-12 md:h-12"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
-      {/* Left: breadcrumb */}
-      <nav className="min-w-0 flex items-center" aria-label="Breadcrumb">
+      {/* Col 1 row 1: breadcrumb. On md: col 1 */}
+      <nav className="min-w-0 flex items-center h-10 md:h-auto col-start-1 row-start-1" aria-label="Breadcrumb">
         <ol className="flex items-center gap-1.5 text-[12px] font-medium truncate" style={{ fontFamily: 'var(--font-b)' }}>
           {breadcrumb.parent != null ? (
             <>
@@ -100,8 +100,61 @@ export function Header() {
         </ol>
       </nav>
 
-      {/* Center: search bar — centered in header */}
-      <div className="flex justify-center min-w-0 px-2">
+      {/* Col 2 row 1 on mobile: status + bell + logout. Row 2 on mobile: search. On md: col 2 = search, col 3 = icons */}
+      <div className="flex items-center gap-2 flex-shrink-0 col-start-2 row-start-1 md:col-start-3 md:row-start-1">
+        <span
+          className="flex items-center gap-1.5 h-7 px-2 rounded-md border text-[10px] font-bold uppercase shrink-0"
+          style={{
+            fontFamily: 'var(--font-d)',
+            ...(isDegraded
+              ? { background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.2)', color: 'var(--red-status)' }
+              : { background: 'rgba(22,163,74,0.08)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }),
+          }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden />
+          {isDegraded ? 'Offline' : 'Live'}
+        </span>
+        <button
+          type="button"
+          className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors min-w-[36px] min-h-[36px] shrink-0"
+          style={{
+            background: 'var(--elevated)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-2)',
+          }}
+          aria-label="View notifications"
+          title="Notifications"
+          disabled
+        >
+          <Bell className="w-4 h-4" strokeWidth={2} />
+          <span
+            className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--surface)]"
+            style={{ background: 'var(--red-status)' }}
+            aria-hidden
+          />
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="flex items-center justify-center gap-1.5 h-9 px-2.5 rounded-lg border transition-colors min-h-[36px] shrink-0"
+          style={{
+            background: 'var(--elevated)',
+            borderColor: 'var(--border)',
+            color: 'var(--text-2)',
+            fontFamily: 'var(--font-b)',
+            fontSize: '11px',
+          }}
+          title="Log out"
+          aria-label="Log out"
+        >
+          <LogOut className="w-4 h-4" strokeWidth={2} />
+          <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
+        </button>
+      </div>
+
+      {/* Row 2 col 1-2 on mobile: search full width. On md: col 2 row 1 */}
+      <div className="col-span-2 col-start-1 row-start-2 md:col-span-1 md:col-start-2 md:row-start-1 flex justify-center min-w-0">
         <form onSubmit={handleSearchSubmit} className="relative w-full max-w-[380px] group">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
@@ -138,62 +191,6 @@ export function Header() {
             ⌘K
           </span>
         </form>
-      </div>
-
-      {/* Right: Online/Offline pill, Bell, Log out */}
-      <div className="flex items-center gap-2 justify-end min-w-0">
-        {/* Status pill */}
-        <span
-          className="flex items-center gap-1.5 h-7 px-2 rounded-md border text-[10px] font-bold uppercase shrink-0"
-          style={{
-            fontFamily: 'var(--font-d)',
-            ...(isDegraded
-              ? { background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.2)', color: 'var(--red-status)' }
-              : { background: 'rgba(22,163,74,0.08)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }),
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden />
-          {isDegraded ? 'Offline' : 'Live'}
-        </span>
-
-        <button
-          type="button"
-          className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors min-w-[36px] min-h-[36px] shrink-0"
-          style={{
-            background: 'var(--elevated)',
-            borderColor: 'var(--border)',
-            color: 'var(--text-2)',
-          }}
-          aria-label="View notifications"
-          title="Notifications"
-          disabled
-        >
-          <Bell className="w-4 h-4" strokeWidth={2} />
-          <span
-            className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--surface)]"
-            style={{ background: 'var(--red-status)' }}
-            aria-hidden
-          />
-        </button>
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-          className="flex items-center justify-center gap-1.5 h-9 px-2.5 rounded-lg border transition-colors min-h-[36px] shrink-0"
-          style={{
-            background: 'var(--elevated)',
-            borderColor: 'var(--border)',
-            color: 'var(--text-2)',
-            fontFamily: 'var(--font-b)',
-            fontSize: '11px',
-          }}
-          title="Log out"
-          aria-label="Log out"
-        >
-          <LogOut className="w-4 h-4" strokeWidth={2} />
-          <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
-        </button>
       </div>
     </header>
   );

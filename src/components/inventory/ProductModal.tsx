@@ -764,10 +764,10 @@ export default function ProductModal({
           </button>
         </div>
 
-        {/* ── Scrollable body ── */}
+        {/* ── Scrollable body (min-h-0 so footer stays visible in flex layout) ── */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto overscroll-contain px-5 py-5 flex flex-col gap-6"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 py-5 flex flex-col gap-6"
         >
           <form id="product-form" onSubmit={handleSubmit} noValidate>
 
@@ -1073,8 +1073,8 @@ export default function ProductModal({
           </form>
         </div>
 
-        {/* ── Sticky footer ── */}
-        <div className="flex-shrink-0 px-5 py-4 border-t border-slate-100 bg-white rounded-b-[20px] flex gap-3">
+        {/* ── Sticky footer (safe-area on mobile so Save/Cancel stay visible) ── */}
+        <div className="flex-shrink-0 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-slate-100 bg-white rounded-b-[20px] flex gap-3">
           <button
             type="button"
             onClick={onClose}
