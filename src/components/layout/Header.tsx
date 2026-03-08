@@ -1,7 +1,7 @@
-// src/components/layout/Header.tsx — TopBar: breadcrumb, search, status pill, bell, New Sale (light theme)
+// src/components/layout/Header.tsx — TopBar: breadcrumb, search (centered), status pill, bell, log out
 import { useState, FormEvent } from 'react';
-import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
-import { Search, Bell, LogOut, ShoppingCart } from 'lucide-react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Search, Bell, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useApiStatus } from '../../contexts/ApiStatusContext';
 
@@ -80,11 +80,11 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 left-0 lg:left-[244px] right-0 h-12 flex items-center gap-2 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] lg:px-4 pt-[var(--safe-top)] z-50 border-b shadow-[var(--shadow-sm)]"
+      className="sticky top-0 left-0 lg:left-[244px] right-0 h-12 grid grid-cols-[1fr_auto_1fr] items-center gap-2 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] lg:px-4 pt-[var(--safe-top)] z-50 border-b shadow-[var(--shadow-sm)]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       {/* Left: breadcrumb */}
-      <nav className="flex-shrink-0 min-w-0" aria-label="Breadcrumb">
+      <nav className="min-w-0 flex items-center" aria-label="Breadcrumb">
         <ol className="flex items-center gap-1.5 text-[12px] font-medium truncate" style={{ fontFamily: 'var(--font-b)' }}>
           {breadcrumb.parent != null ? (
             <>
@@ -100,8 +100,8 @@ export function Header() {
         </ol>
       </nav>
 
-      {/* Center: search bar */}
-      <div className="flex-1 max-w-[540px] min-w-0 flex justify-center">
+      {/* Center: search bar — centered in header */}
+      <div className="flex justify-center min-w-0 px-2">
         <form onSubmit={handleSearchSubmit} className="relative w-full max-w-[380px] group">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
@@ -140,8 +140,8 @@ export function Header() {
         </form>
       </div>
 
-      {/* Right: Online/Offline pill, Bell, New Sale, Log out */}
-      <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+      {/* Right: Online/Offline pill, Bell, Log out */}
+      <div className="flex items-center gap-2 justify-end min-w-0">
         {/* Status pill */}
         <span
           className="flex items-center gap-1.5 h-7 px-2 rounded-md border text-[10px] font-bold uppercase shrink-0"
@@ -175,24 +175,6 @@ export function Header() {
             aria-hidden
           />
         </button>
-
-        <Link
-          to="/pos"
-          className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg text-white text-[12px] font-semibold transition-all duration-200 hover:-translate-y-px min-h-[36px] shrink-0"
-          style={{
-            background: 'var(--blue)',
-            boxShadow: '0 2px 8px var(--blue-glow)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#1d4ed8';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--blue)';
-          }}
-        >
-          <ShoppingCart className="w-4 h-4" strokeWidth={2} />
-          <span className="hidden sm:inline">New Sale</span>
-        </Link>
 
         <button
           type="button"

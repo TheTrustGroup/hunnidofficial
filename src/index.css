@@ -350,6 +350,16 @@
     text-align: center;
   }
 
+  /* Size quantity grid: hide number spinners for cleaner look */
+  .size-qty-input::-webkit-outer-spin-button,
+  .size-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .size-qty-input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
   /* Skeleton Loading */
   .skeleton {
     @apply animate-pulse bg-slate-200 rounded;

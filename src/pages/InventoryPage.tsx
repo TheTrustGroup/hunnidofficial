@@ -907,10 +907,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
             id="inv-size-filter"
             value={sizeFilter}
             onChange={(e) => setSizeFilter(e.target.value)}
-            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
+            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation bg-transparent"
             style={{
               fontFamily: 'var(--font-b)',
-              background: 'var(--surface)',
               borderColor: 'var(--border)',
               color: 'var(--text-2)',
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
@@ -928,10 +927,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
             id="inv-color-filter"
             value={colorFilter}
             onChange={(e) => setColorFilter(e.target.value)}
-            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
+            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation bg-transparent"
             style={{
               fontFamily: 'var(--font-b)',
-              background: 'var(--surface)',
               borderColor: 'var(--border)',
               color: 'var(--text-2)',
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,

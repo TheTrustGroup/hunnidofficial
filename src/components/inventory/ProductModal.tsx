@@ -11,7 +11,10 @@
 // - Images: file upload (→ base64) + URL fallback, up to 5 images.
 // ============================================================
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useWarehouse } from '../../contexts/WarehouseContext';
+import { getSizeConfigForWarehouse } from '../../constants/warehouseSizes';
+import { SizeQuantityGrid } from '../ui/SizeQuantityGrid';
 import SizesSection, {
   type SizesSectionValue,
   type SizeCode,
@@ -531,6 +534,20 @@ function ImageUpload({ images, onChange, disabled }: ImageUploadProps) {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
+/** Build record of sizeCode -> quantity from config (all codes) and current quantityBySize array. */
+function quantityBySizeRecordFromForm(
+  config: { label: string; sizes: { code: string; label: string }[] }[],
+  quantityBySize: Array<{ sizeCode: string; quantity: number }>
+): Record<string, number> {
+  const allCodes = config.flatMap((c) => c.sizes.map((s) => s.code));
+  const record: Record<string, number> = {};
+  for (const code of allCodes) record[code] = 0;
+  for (const row of quantityBySize) {
+    if (row?.sizeCode != null) record[row.sizeCode] = Number(row?.quantity ?? 0);
+  }
+  return record;
+}
+
 export default function ProductModal({
   isOpen,
   product,
@@ -539,8 +556,12 @@ export default function ProductModal({
   onSubmit,
   onClose,
 }: ProductModalProps) {
-
   const isEdit = !!product?.id;
+  const { currentWarehouse } = useWarehouse();
+  const sizeConfig = useMemo(
+    () => getSizeConfigForWarehouse(currentWarehouse?.name ?? null),
+    [currentWarehouse?.name]
+  );
 
   const [form, setForm] = useState<FormState>(() => buildInitialForm(product));
   const [attempted, setAttempted] = useState(false);
@@ -549,6 +570,25 @@ export default function ProductModal({
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const hasInitialized = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const quantityBySizeRecord = useMemo(() => {
+    if (!sizeConfig || form.sizes.sizeKind !== 'sized') return {};
+    return quantityBySizeRecordFromForm(sizeConfig, form.sizes.quantityBySize);
+  }, [sizeConfig, form.sizes.sizeKind, form.sizes.quantityBySize]);
+
+  const handleSizeGridChange = useCallback(
+    (next: Record<string, number>) => {
+      const quantityBySize = Object.entries(next)
+        .filter(([, q]) => q > 0)
+        .map(([sizeCode, quantity]) => ({ sizeCode, quantity }));
+      const quantity = Object.values(next).reduce((s, q) => s + q, 0);
+      setForm((prev) => ({
+        ...prev,
+        sizes: { ...prev.sizes, quantityBySize, quantity },
+      }));
+    },
+    []
+  );
 
   useEffect(() => {
     if (!isOpen) {
@@ -948,6 +988,16 @@ export default function ProductModal({
               sizeCodes={sizeCodes}
               onChange={sizes => set('sizes', sizes)}
               showValidation={attempted}
+              customSizedContent={
+                sizeConfig && form.sizes.sizeKind === 'sized' ? (
+                  <SizeQuantityGrid
+                    config={sizeConfig}
+                    value={quantityBySizeRecord}
+                    onChange={handleSizeGridChange}
+                    disabled={isSubmitting}
+                  />
+                ) : undefined
+              }
             />
 
             {/* ── Divider ── */}

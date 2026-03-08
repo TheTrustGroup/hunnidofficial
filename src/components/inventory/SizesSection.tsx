@@ -34,6 +34,8 @@ interface SizesSectionProps {
   onChange: (next: SizesSectionValue) => void;
   disabled?: boolean;
   showValidation?: boolean;     // pass true when user attempts submit
+  /** When set and sizeKind is 'sized', show this instead of the legacy size table (warehouse size grid). */
+  customSizedContent?: React.ReactNode;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -176,6 +178,7 @@ export default function SizesSection({
   onChange,
   disabled = false,
   showValidation = false,
+  customSizedContent,
 }: SizesSectionProps) {
 
   // Focus the last added row's size input (or select in dropdown mode)
@@ -329,8 +332,11 @@ export default function SizesSection({
         />
       )}
 
-      {/* Content — sized */}
-      {value.sizeKind === 'sized' && (
+      {/* Content — sized: warehouse size grid or legacy table */}
+      {value.sizeKind === 'sized' && customSizedContent != null && (
+        <div>{customSizedContent}</div>
+      )}
+      {value.sizeKind === 'sized' && customSizedContent == null && (
         <div>
           {/* Datalist for autocomplete (manual mode) */}
           <datalist id={datalistId}>
