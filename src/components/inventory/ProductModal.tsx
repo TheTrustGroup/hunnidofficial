@@ -707,7 +707,7 @@ export default function ProductModal({
         onClick={() => !isSubmitting && onClose()}
       />
 
-      {/* Modal — bottom sheet on mobile, centered on desktop */}
+      {/* Modal — bottom sheet on mobile (fixed height so footer is visible), centered on desktop */}
       <div
         className="
           fixed z-50
@@ -719,7 +719,8 @@ export default function ProductModal({
           rounded-t-[24px] sm:rounded-[20px]
           shadow-2xl
           flex flex-col
-          max-h-[92vh] sm:max-h-[90vh]
+          h-[85dvh] min-h-[320px] max-h-[92vh]
+          sm:h-auto sm:min-h-0 sm:max-h-[90vh]
           transition-transform duration-300
         "
         onClick={e => e.stopPropagation()}
@@ -1073,15 +1074,15 @@ export default function ProductModal({
           </form>
         </div>
 
-        {/* ── Sticky footer (safe-area on mobile so Save/Cancel stay visible) ── */}
-        <div className="flex-shrink-0 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-slate-100 bg-white rounded-b-[20px] flex gap-3">
+        {/* ── Footer: Save/Cancel — always visible at bottom (safe-area on mobile) ── */}
+        <div className="flex-shrink-0 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-slate-200 bg-white rounded-b-[20px] flex gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
             className="
-              flex-1 h-12 rounded-xl border-[1.5px] border-slate-200
-              font-sans text-[14px] font-semibold text-slate-500
+              flex-1 min-h-[48px] h-12 rounded-xl border-[1.5px] border-slate-200
+              font-sans text-[14px] font-semibold text-slate-600
               bg-white hover:bg-slate-50
               disabled:opacity-40
               transition-all duration-150
@@ -1094,7 +1095,7 @@ export default function ProductModal({
             form="product-form"
             disabled={isSubmitting}
             className="
-              flex-[2] h-12 rounded-xl border-none
+              flex-[2] min-h-[48px] h-12 rounded-xl border-none
               bg-primary-500 hover:bg-primary-600
               font-sans text-[14px] font-semibold text-white
               flex items-center justify-center gap-2
