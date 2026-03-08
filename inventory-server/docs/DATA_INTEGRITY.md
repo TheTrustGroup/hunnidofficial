@@ -53,7 +53,17 @@ Diagnostics that look for "duplicate products" must use **(name, color, sku)** (
 - **Constraints:** `chk_warehouse_inventory_by_size_quantity_non_negative` and `chk_warehouse_inventory_quantity_non_negative` enforce `quantity >= 0`. Migration one-time corrects any existing negative values to 0 before adding constraints.
 - **Reconciliation:** If `warehouse_inventory.quantity` has drifted from `SUM(warehouse_inventory_by_size.quantity)` (phase2 diagnostic query 6), run `supabase/scripts/backfill_warehouse_inventory_from_by_size.sql` to resync totals from by_size.
 
-### 5. Cost at time of sale (sale_lines.cost_price)
+### 5. Quantity drift prevention (inv ↔ by_size)
+
+- **Migration:** `20260308100000_drift_prevention_triggers.sql`
+- **Problem:** `warehouse_inventory.quantity` can get out of sync with `SUM(warehouse_inventory_by_size.quantity)`, or a product can have quantity only in `warehouse_inventory` with no `warehouse_inventory_by_size` rows. That causes wrong total stock value or the UI not showing quantity (views/API use “by_size when present, else inv”).
+- **Behaviour (two triggers):**
+  1. **Sync inv from by_size:** On every INSERT/UPDATE/DELETE on `warehouse_inventory_by_size`, set `warehouse_inventory.quantity` = sum of by_size for that (warehouse_id, product_id). So by_size is the source of truth when it has rows.
+  2. **Backfill by_size from inv:** On INSERT or UPDATE of `warehouse_inventory.quantity`, if quantity > 0 and there are no `warehouse_inventory_by_size` rows for that (warehouse_id, product_id), insert one row with size_code `'OS'` and that quantity. So “inv-only” state does not persist; UI and views see the quantity.
+- **Prerequisite:** Size code `'OS'` must exist in `size_codes` (seed migrations).
+- **Fix existing drift:** Run `FIX_DRIFT_BACKFILL_BY_SIZE_FROM_INV.sql` (inv has qty but no by_size) and/or `RECALCULATE_STOCK_VALUE_AND_FIX_DRIFT.sql` (sync inv from by_size), then verify with `VERIFY_TOTAL_STOCK_VALUE.sql` section 4.
+
+### 6. Cost at time of sale (sale_lines.cost_price)
 
 - **Migrations:** `20260306110000_sale_lines_cost_price.sql` (add column), `20260306120000_record_sale_cost_price.sql` (record_sale_impl sets it per line), `20260306170000_sale_lines_cost_price_constraint.sql` (CHECK cost_price >= 0 when not NULL).
 - **Behaviour:** Each sale line stores `cost_price` from the product at sale time. COGS and profit in reports must use `sale_lines.cost_price`, not current product cost. Negative cost is forbidden at the DB level.
