@@ -99,7 +99,7 @@ function LayoutContent() {
       <div className="hidden lg:block">
         <Sidebar />
       </div>
-      <Header />
+      {!isPOS && <Header />}
       {/* Slim hint while phase 2 (inventory, orders) syncs in background after login */}
       {isSyncingCriticalData && (
         <div
