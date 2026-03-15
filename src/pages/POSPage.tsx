@@ -150,9 +150,9 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
 
   // ── API ───────────────────────────────────────────────────────────────────
 
-  const apiFetch = useCallback(async <T = unknown>(path: string, init?: RequestInit): Promise<T> => {
+  const apiFetch = useCallback(async <T = unknown>(path: string, init?: RequestInit, timeoutMs = 15_000): Promise<T> => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(`${API_BASE_URL}${path}`, {
         ...init,
@@ -257,6 +257,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     let insufficientStockShown = false;
 
     // Step 1: POST /api/sales → record_sale() RPC atomically deducts stock in DB
+    // Use longer timeout for large carts (many lines can take 20–40s on cold start / slow DB).
     try {
       const result = await apiFetch<{
         id:        string;
@@ -290,7 +291,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
             imageUrl:  l.imageUrl ?? null,
           })),
         }),
-      });
+      }, 45_000);
 
       const saleId = result.id ?? (result as { saleId?: string }).saleId;
       if (!saleId || typeof saleId !== 'string') {
@@ -322,6 +323,9 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       } else if (msg.includes('400') || msg.includes('warehouseId')) {
         insufficientStockShown = true;
         showToast(msg.length > 80 ? 'Invalid sale data. Check warehouse and try again.' : msg, 'err');
+      } else if (msg.includes('timed out') || msg.includes('Request timed out')) {
+        insufficientStockShown = true;
+        showToast('Sale took too long (many items). Try again or split into smaller sales.', 'err');
       }
     }
 
