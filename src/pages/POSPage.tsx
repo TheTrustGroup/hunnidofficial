@@ -46,7 +46,10 @@ import POSHeader                                  from '../components/pos/POSHea
 import ProductGrid                                from '../components/pos/ProductGrid';
 import CartPanel                                  from '../components/pos/CartPanel';
 import CartBar                                    from '../components/pos/CartBar';
-import { type POSProduct, type CartLineInput } from '../components/pos/SizePickerSheet';
+import SizePickerSheet, {
+  type POSProduct,
+  type CartLineInput,
+} from '../components/pos/SizePickerSheet';
 import CartSheet, {
   type CartLine,
   type SalePayload,
@@ -126,6 +129,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   const [colorFilter, setColorFilter]     = useState('all');
   const [cart, setCart]                   = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen]           = useState(false);
+  const [activeProduct, setActiveProduct] = useState<POSProduct | null>(null);
   const [saleResult, setSaleResult]       = useState<CompletedSale | null>(null);
   const [charging, setCharging]           = useState(false);
 
@@ -221,26 +225,22 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     showToast(`${input.name}${input.sizeLabel ? ` · ${input.sizeLabel}` : ''} added`);
   }
 
-  /** Tap on product: add one to cart (no size picker sheet). Sized products use first in-stock size. */
+  /** Tap on product: open size picker sheet for sized products; add to cart directly for non-sized. */
   function handleProductSelect(product: POSProduct) {
-    const base = {
-      productId: product.id,
-      name: product.name,
-      sku: product.sku,
-      unitPrice: product.sellingPrice,
-      qty: 1,
-      imageUrl: product.images?.[0] ?? null,
-    };
     const isSized = product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0;
-    if (isSized && product.quantityBySize?.length) {
-      const first = product.quantityBySize.find((r) => r.quantity > 0) ?? product.quantityBySize[0];
-      handleAddToCart({
-        ...base,
-        sizeCode: first.sizeCode ?? null,
-        sizeLabel: first.sizeLabel ?? first.sizeCode ?? null,
-      });
+    if (isSized) {
+      setActiveProduct(structuredClone(product));
     } else {
-      handleAddToCart({ ...base, sizeCode: null, sizeLabel: null });
+      handleAddToCart({
+        productId: product.id,
+        name: product.name,
+        sku: product.sku,
+        unitPrice: product.sellingPrice,
+        qty: 1,
+        imageUrl: product.images?.[0] ?? null,
+        sizeCode: null,
+        sizeLabel: null,
+      });
     }
   }
 
@@ -528,6 +528,12 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
           onOpenCharge={() => cartCount > 0 && setCartOpen(true)}
         />
       </div>
+
+      <SizePickerSheet
+        product={activeProduct}
+        onAdd={handleAddToCart}
+        onClose={() => setActiveProduct(null)}
+      />
 
       <CartSheet
         isOpen={cartOpen}
