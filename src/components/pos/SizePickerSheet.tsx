@@ -77,10 +77,6 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
     });
   }, []);
 
-  const removePending = useCallback((index: number) => {
-    setPending((prev) => prev.filter((_, i) => i !== index));
-  }, []);
-
   const handleAddToCart = useCallback(() => {
     if (!product) return;
     const base = {
@@ -190,14 +186,6 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                             className="h-7 w-7 rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
                           >
                             +
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removePending(i)}
-                            className="h-7 px-2 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-                            aria-label="Remove"
-                          >
-                            ✕
                           </button>
                         </div>
                       </li>
