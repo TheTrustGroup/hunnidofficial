@@ -27,6 +27,10 @@
 4. **Reports performance:** Sales report uses a 2000-item limit; for very high volume, add date-range guidance or pagination on the server.
 5. **Session UX:** Bound POS has no session picker; optional “Start day” or “Shift” label (non-blocking) could be added later for audit without adding a modal.
 
+## Large cart (bulk checkout) support
+
+- **POST /api/sales** uses `maxDuration = 120` (inventory-server); requests with &gt; 500 line items return 422. POS uses a 125s timeout for the sales request and surfaces "Too many line items" when the API returns 422.
+
 ## Optimizations applied
 
 - **Skip `/api/warehouses` when bound:** At POS locations (Main Store / Main Town), the app no longer waits for the warehouse list; it sets `isLoading` false and uses `KNOWN_WAREHOUSE_NAMES` for the location label. POS product load can start as soon as auth is ready.

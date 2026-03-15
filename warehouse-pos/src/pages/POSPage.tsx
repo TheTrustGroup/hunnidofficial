@@ -53,6 +53,7 @@ import SizePickerSheet, {
 import CartSheet, {
   type CartLine,
   type SalePayload,
+  type ChargeStatus,
 }                                                 from '../components/pos/CartSheet';
 import SaleSuccessScreen, { type CompletedSale }  from '../components/pos/SaleSuccessScreen';
 
@@ -132,6 +133,9 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   const [activeProduct, setActiveProduct] = useState<POSProduct | null>(null);
   const [saleResult, setSaleResult]       = useState<CompletedSale | null>(null);
   const [charging, setCharging]           = useState(false);
+  const [chargeStatus, setChargeStatus]   = useState<ChargeStatus>('idle');
+  const [lastChargeError, setLastChargeError] = useState<string | null>(null);
+  const lastChargePayloadRef = useRef<SalePayload | null>(null);
 
   const { toast, show: showToast } = useToast();
   const isMounted = useRef(true);
@@ -150,9 +154,10 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
 
   // ── API ───────────────────────────────────────────────────────────────────
 
-  const apiFetch = useCallback(async <T = unknown>(path: string, init?: RequestInit): Promise<T> => {
+  const apiFetch = useCallback(async <T = unknown>(path: string, init?: RequestInit, options?: { timeoutMs?: number }): Promise<T> => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const timeoutMs = options?.timeoutMs ?? 15_000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const res = await fetch(`${API_BASE_URL}${path}`, {
         ...init,
@@ -249,6 +254,9 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   async function handleCharge(payload: SalePayload) {
     if (charging) return;
     setCharging(true);
+    setChargeStatus('processing');
+    setLastChargeError(null);
+    lastChargePayloadRef.current = payload;
 
     let serverSaleId:    string | undefined;
     let serverReceiptId: string | undefined;
@@ -290,7 +298,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
             imageUrl:  l.imageUrl ?? null,
           })),
         }),
-      });
+      }, { timeoutMs: 125_000 }); // 120s server maxDuration for 100+ line items
 
       const saleId = result.id ?? (result as { saleId?: string }).saleId;
       if (!saleId || typeof saleId !== 'string') {
@@ -307,7 +315,12 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       syncOk = false;
       serverReceiptId = 'LOCAL-' + Date.now().toString(36).toUpperCase();
       completedAt = new Date().toISOString();
-      if (isInsufficientStock) {
+      setChargeStatus('error');
+      setLastChargeError(msg);
+      if (msg.includes('Too many line items')) {
+        insufficientStockShown = true;
+        showToast(msg, 'err');
+      } else if (isInsufficientStock) {
         insufficientStockShown = true;
         showToast('Insufficient stock for one or more items. Reduce quantity or remove items and try again.', 'err');
       } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
@@ -359,35 +372,34 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       });
     }
 
-    // Step 3: Clear cart + close sheet only when sale synced; preserve cart on failure so user can retry
-    if (syncOk) {
-      setCart([]);
-      setCartOpen(false);
-    }
-    setCharging(false);
-
     if (!syncOk) {
+      setCharging(false);
       if (!insufficientStockShown) {
         showToast('Sale failed to sync — check connection and try again. Cart preserved.', 'err');
       }
       return;
     }
 
-    // Step 4: Wait for sheet close animation
-    await new Promise(r => setTimeout(r, 350));
-
-    if (!isMounted.current) return;
-
-    // Step 5: Show success screen only when sync succeeded
-    setSaleResult({
-      ...payload,
-      saleId:         serverSaleId,
-      receiptId:      serverReceiptId,
-      completedAt,
-      deliveryStatus: payload.deliveryStatus ?? 'delivered',
-    });
-    // So Dashboard and Inventory refetch and show updated stock value / quantities
-    notifyInventoryUpdated();
+    // Success: show "Sale complete" in cart for 2s, then close and show receipt
+    setChargeStatus('success');
+    const successPayload = payload;
+    const successResult = { serverSaleId, serverReceiptId, completedAt };
+    setTimeout(() => {
+      if (!isMounted.current) return;
+      setCart([]);
+      setCartOpen(false);
+      setCharging(false);
+      setChargeStatus('idle');
+      lastChargePayloadRef.current = null;
+      setSaleResult({
+        ...successPayload,
+        saleId:         successResult.serverSaleId,
+        receiptId:      successResult.serverReceiptId,
+        completedAt:    successResult.completedAt,
+        deliveryStatus: successPayload.deliveryStatus ?? 'delivered',
+      });
+      notifyInventoryUpdated();
+    }, 2000);
   }
 
   // ── New sale ──────────────────────────────────────────────────────────────
@@ -464,7 +476,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
           cartCount={cartCount}
           onSearchChange={setSearch}
           onWarehouseTap={() => !isWarehouseBoundToSession && setSessionOpen(true)}
-          onCartTap={() => cartCount > 0 && setCartOpen(true)}
+          onCartTap={() => { if (cartCount > 0) { setCartOpen(true); setChargeStatus('idle'); setLastChargeError(null); } }}
           canChangeWarehouse={!isWarehouseBoundToSession}
           onLogout={async () => {
             await logout();
@@ -496,7 +508,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         <div className="lg:hidden flex-shrink-0">
           <CartBar
             lines={cart}
-            onOpen={() => cartCount > 0 && setCartOpen(true)}
+            onOpen={() => { if (cartCount > 0) { setCartOpen(true); setChargeStatus('idle'); setLastChargeError(null); } }}
           />
         </div>
       </div>
@@ -508,7 +520,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
           onUpdateQty={handleUpdateQty}
           onRemoveLine={handleRemoveLine}
           onClearCart={handleClearCart}
-          onOpenCharge={() => cartCount > 0 && setCartOpen(true)}
+          onOpenCharge={() => { if (cartCount > 0) { setCartOpen(true); setChargeStatus('idle'); setLastChargeError(null); } }}
         />
       </div>
 
@@ -523,11 +535,14 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         isOpen={cartOpen}
         lines={cart}
         warehouseId={warehouse.id}
+        chargeStatus={chargeStatus}
+        lastChargeError={lastChargeError}
+        onRetry={() => { const p = lastChargePayloadRef.current; if (p) handleCharge(p); }}
         onUpdateQty={handleUpdateQty}
         onRemoveLine={handleRemoveLine}
         onClearCart={handleClearCart}
         onCharge={handleCharge}
-        onClose={() => !charging && setCartOpen(false)}
+        onClose={() => chargeStatus !== 'processing' && setCartOpen(false)}
       />
 
       <SaleSuccessScreen

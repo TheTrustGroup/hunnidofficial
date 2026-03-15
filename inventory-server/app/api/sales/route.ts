@@ -15,8 +15,8 @@ import { toSafeError } from '@/lib/safeError';
 import { invalidateDashboardCacheForWarehouse } from '@/lib/cache/warehouseStatsCache';
 
 export const dynamic = 'force-dynamic';
-/** Large cart support: allow up to 60s so checkouts with 70+ line items can complete. */
-export const maxDuration = 60;
+/** Large cart support: allow up to 120s so checkouts with 100+ line items can complete. Max 500 line items per sale. */
+export const maxDuration = 120;
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
@@ -82,6 +82,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'paymentMethod must be Cash, MoMo, Card, or Mix' }, { status: 400, headers: h });
   if (!Array.isArray(lines) || lines.length === 0)
     return NextResponse.json({ error: 'lines must be non-empty array' }, { status: 400, headers: h });
+  const MAX_LINE_ITEMS = 500;
+  if (lines.length > MAX_LINE_ITEMS)
+    return NextResponse.json(
+      { error: `Too many line items (${lines.length}). Maximum ${MAX_LINE_ITEMS}. Split into multiple sales.` },
+      { status: 422, headers: h }
+    );
 
   const rawMix = body.paymentMixBreakdown as Record<string, unknown> | undefined;
   let paymentMixBreakdown: { cash: number; momo: number; card: number } | null = null;

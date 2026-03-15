@@ -29,8 +29,8 @@
 
 ## Large cart (bulk checkout) support
 
-- **POST /api/sales** uses `maxDuration = 60` (inventory-server) so checkouts with 70+ line items can complete. If the deployment platform caps function duration lower (e.g. 15s on some plans), increase the platform limit or document the cap and set the client timeout in POSPage above it so users see "Taking longer than usual" instead of an early abort.
-- **Client timeout:** POS uses 65_000 ms so the request is not aborted before the server (60s) can respond. On timeout, the toast shows: "Sale took too long (many items). Try again or split into smaller sales."
+- **POST /api/sales** uses `maxDuration = 120` (inventory-server) so checkouts with 100+ line items can complete. Requests with more than 500 line items are rejected with 422 and a message asking the user to split into multiple sales.
+- **Client timeout:** POS uses 125_000 ms so the request is not aborted before the server (120s) can respond. On timeout or 422 "Too many line items", the toast shows the API message or "Sale took too long (many items). Try again or split into smaller sales."
 
 ## POS UI minimalism (sleek, one-path flow)
 

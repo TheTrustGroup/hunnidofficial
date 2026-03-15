@@ -317,7 +317,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
             imageUrl:  l.imageUrl ?? null,
           })),
         }),
-      }, 65_000); // Must be >= server maxDuration (60s) for large carts
+      }, 125_000); // Must be >= server maxDuration (120s) for large carts (100+ items)
 
       const saleId = result.id ?? (result as { saleId?: string }).saleId;
       if (!saleId || typeof saleId !== 'string') {
@@ -334,7 +334,10 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       syncOk = false;
       serverReceiptId = 'LOCAL-' + Date.now().toString(36).toUpperCase();
       completedAt = new Date().toISOString();
-      if (isInsufficientStock) {
+      if (msg.includes('Too many line items')) {
+        insufficientStockShown = true;
+        showToast(msg, 'err');
+      } else if (isInsufficientStock) {
         insufficientStockShown = true;
         showToast('Insufficient stock for one or more items. Reduce quantity or remove items and try again.', 'err');
       } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
