@@ -237,11 +237,13 @@ function SaleRow({
 
   return (
     <div className="rounded-xl overflow-hidden border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      {/* Main row */}
-      <button
-        type="button"
+      {/* Main row: div so Print/Void buttons inside expanded section are not nested in a button */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-slate-50 transition-colors text-left"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v); } }}
+        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-slate-50 transition-colors text-left cursor-pointer"
       >
         <div className="flex items-start gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0">
@@ -277,7 +279,7 @@ function SaleRow({
             <IconChevron down={expanded} />
           </span>
         </div>
-      </button>
+      </div>
 
       {/* Expanded lines */}
       {expanded && (
@@ -320,11 +322,11 @@ function SaleRow({
             </div>
           </div>
 
-          {/* Print + Void */}
+          {/* Print + Void — stopPropagation so row doesn't collapse when clicking */}
           <div className="px-4 pb-3 flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => onPrint(sale)}
+              onClick={(e) => { e.stopPropagation(); onPrint(sale); }}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-slate-200 hover:bg-slate-300
                          text-[12px] font-semibold text-slate-700 transition-colors"
             >
@@ -334,7 +336,7 @@ function SaleRow({
               <button
                 type="button"
                 disabled={isVoiding}
-                onClick={() => onVoid(sale)}
+                onClick={(e) => { e.stopPropagation(); onVoid(sale); }}
                 className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-rose-100 hover:bg-rose-200
                            text-[12px] font-semibold text-rose-700 transition-colors disabled:opacity-60"
               >
