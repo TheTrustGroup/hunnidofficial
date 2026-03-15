@@ -125,7 +125,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
         </div>
         <div className="p-4">
           <div className="mb-4 flex items-center gap-4">
-            <span className="text-sm text-slate-600">Qty per tap</span>
+            <span className="text-sm text-slate-600">Qty</span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -162,9 +162,6 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                         }`}
                     >
                       <span className="block">{row.sizeLabel ?? row.sizeCode}</span>
-                      <span className={`text-xs ${outOfStock ? 'text-red-500 font-medium' : 'text-slate-500'}`}>
-                        {outOfStock ? 'Out of stock' : `Stock: ${row.quantity}`}
-                      </span>
                     </button>
                   );
                 })}
