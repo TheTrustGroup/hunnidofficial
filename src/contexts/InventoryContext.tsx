@@ -352,6 +352,16 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     const timeoutMs = options?.timeoutMs;
     const wid = useSentinelForProductsRef.current ? SENTINEL_EMPTY_WAREHOUSE_ID : effectiveWarehouseIdRef.current;
 
+    // Sentinel is not a real warehouse; API would return 400. Show empty list without calling API.
+    if (wid === SENTINEL_EMPTY_WAREHOUSE_ID) {
+      setProducts([]);
+      setProductsTotal(0);
+      setIsLoading(false);
+      setError(null);
+      setBackgroundRefreshing(false);
+      return;
+    }
+
     const now = Date.now();
     if (!isValidWarehouseId(wid)) {
       setBackgroundRefreshing(false);
