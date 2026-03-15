@@ -44,6 +44,23 @@ function formatPrice(n: number): string {
   })}`;
 }
 
+// ── Stock indicator dot (in=green, low=amber, out=red) ───────────────────────
+
+function StockIndicatorDot({ status }: { status: StockStatus }) {
+  const config = {
+    in:  'bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.3)]',
+    low: 'bg-amber-400 shadow-[0_0_0_2px_rgba(251,191,36,0.35)]',
+    out: 'bg-red-500 shadow-[0_0_0_2px_rgba(239,68,68,0.35)]',
+  }[status];
+  return (
+    <span
+      className={`absolute top-2 left-2 w-2 h-2 rounded-full ${config}`}
+      aria-hidden
+      title={status === 'in' ? 'In stock' : status === 'low' ? 'Low stock' : 'Out of stock'}
+    />
+  );
+}
+
 // ── Stock Badge ────────────────────────────────────────────────────────────
 
 function StockBadge({ status, qty }: { status: StockStatus; qty: number }) {
@@ -139,6 +156,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
         ) : (
           <ImagePlaceholder />
         )}
+        <StockIndicatorDot status={status} />
         <StockBadge status={status} qty={totalQty} />
       </div>
 

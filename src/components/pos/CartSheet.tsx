@@ -4,6 +4,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from 'react';
+import { Trash2 } from 'lucide-react';
 import { PayIcon } from './PaymentIcons';
 
 export interface CartLine {
@@ -102,7 +103,7 @@ function CartLineItem({ line, onUpdateQty, onRemove }: { line: CartLine; onUpdat
             type="button"
             onClick={() => onUpdateQty(line.key, -1)}
             disabled={line.qty <= 1}
-            className="min-w-[36px] min-h-[36px] w-9 h-9 rounded-lg border text-sm font-bold flex items-center justify-center active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+            className="min-w-[44px] min-h-[44px] rounded-lg border text-sm font-bold flex items-center justify-center active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 touch-manipulation"
             style={{ background: 'var(--border)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
           >
             −
@@ -111,7 +112,7 @@ function CartLineItem({ line, onUpdateQty, onRemove }: { line: CartLine; onUpdat
           <button
             type="button"
             onClick={() => onUpdateQty(line.key, 1)}
-            className="min-w-[36px] min-h-[36px] w-9 h-9 rounded-lg border text-sm font-bold flex items-center justify-center active:scale-90 transition-all duration-150"
+            className="min-w-[44px] min-h-[44px] rounded-lg border text-sm font-bold flex items-center justify-center active:scale-95 transition-all duration-150 touch-manipulation"
             style={{ background: 'var(--border)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
           >
             +
@@ -119,7 +120,16 @@ function CartLineItem({ line, onUpdateQty, onRemove }: { line: CartLine; onUpdat
         </div>
       </div>
       <div className="flex flex-col items-end gap-2 flex-shrink-0 pt-0.5">
-        <button type="button" onClick={() => onRemove(line.key)} className="min-w-[36px] min-h-[36px] w-9 h-9 rounded-lg flex items-center justify-center active:scale-90 transition-colors" style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }} aria-label="Remove line"><IconX /></button>
+        <button
+          type="button"
+          onClick={() => onRemove(line.key)}
+          className="min-w-[44px] min-h-[44px] rounded-lg flex items-center justify-center gap-1.5 active:scale-95 transition-colors touch-manipulation text-[11px] font-semibold"
+          style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }}
+          aria-label={`Remove ${line.name}${line.sizeLabel ? ` (${line.sizeLabel})` : ''} from cart`}
+        >
+          <Trash2 className="w-4 h-4 flex-shrink-0" strokeWidth={2} />
+          <span>Remove</span>
+        </button>
         <p className="text-[14px] font-bold tabular-nums" style={{ color: 'var(--blue)', fontFamily: 'var(--font-m)' }}>{fmt(line.unitPrice * line.qty)}</p>
       </div>
     </div>

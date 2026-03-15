@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 
 /**
  * POS product shape. Inventory Product (from useInventory) passed into POS views
@@ -50,6 +50,13 @@ function normalizeSizeKey(sizeCode: string): string {
   return sizeCode.trim().toUpperCase();
 }
 
+interface SizeRowState {
+  sizeCode: string;
+  sizeLabel: string | null;
+  quantity: number;
+  selected: boolean;
+}
+
 export default function SizePickerSheet({
   product,
   onAdd,
@@ -60,6 +67,29 @@ export default function SizePickerSheet({
 
   const isSized = product?.sizeKind === 'sized' && (product?.quantityBySize?.length ?? 0) > 0;
   const sizes = product?.quantityBySize ?? [];
+
+  const [sizeRows, setSizeRows] = useState<SizeRowState[]>(() =>
+    sizes.map((row) => ({
+      sizeCode: row.sizeCode,
+      sizeLabel: row.sizeLabel ?? null,
+      quantity: 1,
+      selected: false,
+    }))
+  );
+  useEffect(() => {
+    setSizeRows(
+      sizes.map((row) => ({
+        sizeCode: row.sizeCode,
+        sizeLabel: row.sizeLabel ?? null,
+        quantity: 1,
+        selected: false,
+      }))
+    );
+  }, [product?.id, sizes.length]);
+
+  const setRow = useCallback((index: number, update: Partial<SizeRowState>) => {
+    setSizeRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...update } : r)));
+  }, []);
 
   /** Per-size remaining = stock − inCart. Size is unavailable when remaining <= 0. */
   const remainingBySize = useMemo(() => {
@@ -72,7 +102,7 @@ export default function SizePickerSheet({
     return map;
   }, [sizes, qtyInCartBySize]);
 
-  /** Tap a size → add min(qty, remaining) to cart and close. No extra step. */
+  /** Single size add → add and close. */
   const handleSizeTap = useCallback(
     (sizeCode: string | null, sizeLabel: string | null) => {
       if (!product) return;
@@ -96,6 +126,51 @@ export default function SizePickerSheet({
     },
     [product, qty, sizes, qtyInCartBySize, onAdd, onClose]
   );
+
+  /** Add one size only (with its row qty) and close. */
+  const handleAddOne = useCallback(
+    (sizeCode: string | null, sizeLabel: string | null, addQty: number) => {
+      if (!product || addQty <= 0) return;
+      onAdd({
+        productId: product.id,
+        name: product.name,
+        sku: product.sku,
+        sizeCode: sizeCode ?? undefined,
+        sizeLabel: sizeLabel ?? undefined,
+        unitPrice: product.sellingPrice,
+        qty: addQty,
+        imageUrl: product.images?.[0] ?? null,
+      });
+      onClose();
+    },
+    [product, onAdd, onClose]
+  );
+
+  /** Add all selected sizes (each with its row qty) and close. */
+  const handleAddSelected = useCallback(() => {
+    if (!product) return;
+    const toAdd = sizeRows.filter((r) => r.selected && r.quantity > 0);
+    if (toAdd.length === 0) return;
+    toAdd.forEach((r) => {
+      const remaining = remainingBySize[r.sizeCode] ?? 0;
+      const addQty = Math.min(r.quantity, remaining);
+      if (addQty > 0) {
+        onAdd({
+          productId: product.id,
+          name: product.name,
+          sku: product.sku,
+          sizeCode: r.sizeCode,
+          sizeLabel: r.sizeLabel ?? undefined,
+          unitPrice: product.sellingPrice,
+          qty: addQty,
+          imageUrl: product.images?.[0] ?? null,
+        });
+      }
+    });
+    onClose();
+  }, [product, sizeRows, remainingBySize, onAdd, onClose]);
+
+  const selectedCount = sizeRows.filter((r) => r.selected && r.quantity > 0).length;
 
   if (!product) return null;
 
@@ -161,44 +236,72 @@ export default function SizePickerSheet({
 
           {isSized ? (
             <>
-              <span className="text-sm font-medium text-slate-600 mb-3 block">Size</span>
-              <div className="grid grid-cols-3 gap-3">
-                {sizes.map((row) => {
+              <p className="text-xs text-slate-500 mb-3">Tap a size to add that size only, or select several and use &quot;Add selected to cart&quot;.</p>
+              <div className="space-y-2 mb-4">
+                {sizes.map((row, index) => {
                   const remaining = remainingBySize[row.sizeCode] ?? 0;
-                  const stock = row.quantity;
                   const unavailable = remaining <= 0;
+                  const state = sizeRows[index] ?? { sizeCode: row.sizeCode, sizeLabel: row.sizeLabel ?? null, quantity: 1, selected: false };
                   const label = row.sizeLabel ?? row.sizeCode;
 
                   return (
-                    <button
+                    <div
                       key={row.sizeCode}
-                      type="button"
-                      disabled={unavailable}
-                      onClick={() => handleSizeTap(row.sizeCode, row.sizeLabel ?? null)}
-                      className={`
-                        flex min-h-[52px] flex-col items-center justify-center rounded-xl border-2 py-3 px-2
-                        text-center transition-all duration-150
-                        min-w-0
-                        ${unavailable
-                          ? 'cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400'
-                          : 'border-slate-200 bg-white text-slate-900 hover:border-primary-400 hover:bg-primary-50/70 hover:shadow-soft active:scale-[0.98]'
-                        }
-                      `}
+                      className={`flex flex-wrap items-center gap-2 rounded-xl border-2 p-3 transition-colors ${
+                        unavailable ? 'border-slate-200 bg-slate-50 opacity-60' : 'border-slate-200 bg-white'
+                      }`}
                     >
-                      <span className="block text-[15px] font-semibold leading-tight truncate w-full">
-                        {label}
-                      </span>
-                      <span
-                        className={`mt-0.5 block text-xs font-medium ${
-                          unavailable ? 'text-slate-400' : 'text-slate-500'
-                        }`}
-                      >
-                        {stock <= 0 ? 'Out of stock' : remaining <= 0 ? '0 left' : `${remaining} left`}
-                      </span>
-                    </button>
+                      <label className="flex items-center gap-2 min-h-[44px] cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={state.selected}
+                          onChange={(e) => setRow(index, { selected: e.target.checked })}
+                          disabled={unavailable}
+                          className="h-4 w-4 rounded border-slate-300"
+                        />
+                        <span className="text-[15px] font-semibold text-slate-900">{label}</span>
+                        <span className="text-xs text-slate-500">Stock: {row.quantity}</span>
+                      </label>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <button
+                          type="button"
+                          disabled={unavailable || state.quantity <= 1}
+                          onClick={() => setRow(index, { quantity: Math.max(1, state.quantity - 1) })}
+                          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 font-medium text-slate-700 active:scale-95 disabled:opacity-50 touch-manipulation"
+                        >
+                          −
+                        </button>
+                        <span className="w-8 text-center text-sm font-semibold text-slate-900 tabular-nums">{state.quantity}</span>
+                        <button
+                          type="button"
+                          disabled={unavailable || state.quantity >= remaining}
+                          onClick={() => setRow(index, { quantity: Math.min(remaining, state.quantity + 1) })}
+                          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 font-medium text-slate-700 active:scale-95 disabled:opacity-50 touch-manipulation"
+                        >
+                          +
+                        </button>
+                        <button
+                          type="button"
+                          disabled={unavailable}
+                          onClick={() => handleAddOne(row.sizeCode, row.sizeLabel ?? null, state.quantity)}
+                          className="min-h-[44px] px-3 rounded-xl bg-primary-500 text-white text-xs font-bold active:scale-95 disabled:opacity-50 touch-manipulation"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
+              {selectedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleAddSelected}
+                  className="w-full min-h-[48px] rounded-xl bg-primary-500 py-3 font-bold text-white active:scale-[0.98] transition-transform touch-manipulation"
+                >
+                  Add selected to cart ({selectedCount} size{selectedCount !== 1 ? 's' : ''})
+                </button>
+              )}
             </>
           ) : (
             <button
