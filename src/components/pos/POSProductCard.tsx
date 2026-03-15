@@ -142,14 +142,14 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
         <StockBadge status={status} qty={totalQty} />
       </div>
 
-      <div className="px-2.5 pt-2 pb-2.5">
+      <div className="p-3 flex flex-col gap-1">
         <p
-          className="text-[12px] font-semibold truncate leading-snug mb-1"
+          className="text-xs font-semibold truncate leading-snug"
           style={{ fontFamily: 'var(--font-b)', color: 'var(--text)' }}
         >
           {product.name}
         </p>
-        <div className="flex items-end justify-between gap-1">
+        <div className="flex items-end justify-between gap-2">
           <span
             className="text-[14px] font-extrabold leading-none"
             style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
@@ -164,7 +164,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
           </span>
         </div>
         {sizeBreakdown && (
-          <p className="text-[10px] mt-1 truncate" style={{ color: 'var(--text-3)' }} title={sizeBreakdown}>
+          <p className="text-xs truncate" style={{ color: 'var(--text-3)' }} title={sizeBreakdown}>
             {sizeBreakdown}
           </p>
         )}
@@ -184,7 +184,7 @@ export function POSProductCardSkeleton() {
       style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
     >
       <div className="w-full aspect-square animate-pulse" style={{ background: 'var(--elevated)' }} />
-      <div className="px-2.5 pt-2 pb-2.5 flex flex-col gap-2">
+      <div className="p-3 flex flex-col gap-2">
         <div className="h-3 w-4/5 rounded animate-pulse" style={{ background: 'var(--overlay)' }} />
         <div className="h-3.5 w-1/2 rounded animate-pulse" style={{ background: 'var(--overlay)' }} />
       </div>

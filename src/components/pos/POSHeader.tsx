@@ -47,7 +47,7 @@ export default function POSHeader({
 }: POSHeaderProps) {
   return (
     <header
-      className="flex-shrink-0 h-14 px-4 flex items-center gap-2 border-b"
+      className="flex-shrink-0 min-h-14 h-14 px-4 flex items-center gap-3 border-b"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
@@ -85,14 +85,14 @@ export default function POSHeader({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search products or scan barcode…"
-          className="w-full h-9 pl-9 pr-[70px] rounded-[10px] text-[13px] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[var(--blue)] focus:shadow-[0_0_0_3px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
+          className="w-full min-h-touch h-11 pl-10 pr-20 rounded-xl text-sm outline-none transition-[border-color,box-shadow] duration-150 focus:border-[var(--blue)] focus:shadow-[0_0_0_3px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
           style={{ background: 'var(--elevated)', border: '1px solid var(--border)', color: 'var(--text)' }}
           aria-label="Search products or scan barcode"
         />
         <button
           type="button"
           onClick={onScanClick}
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-[23px] px-2 rounded text-white text-[10px] font-bold uppercase tracking-wide"
+          className="absolute right-2 top-1/2 -translate-y-1/2 min-h-touch min-w-[44px] py-2 px-3 rounded-lg text-white text-xs font-bold uppercase tracking-wide"
           style={{ background: 'var(--text)' }}
           aria-label="Scan barcode"
         >
@@ -102,7 +102,7 @@ export default function POSHeader({
       <button
         type="button"
         onClick={onCartTap}
-        className="relative flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-white text-[13px] font-semibold transition-all hover:-translate-y-px flex-shrink-0"
+        className="relative flex items-center gap-2 min-h-touch min-w-touch px-4 rounded-xl text-white text-sm font-semibold transition-all hover:-translate-y-px flex-shrink-0"
         style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
         aria-label={cartCount > 0 ? `Cart: ${cartCount} items` : 'Cart'}
       >
@@ -116,7 +116,7 @@ export default function POSHeader({
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
           type="button"
-          className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors"
+          className="relative min-w-touch min-h-touch w-10 h-10 rounded-xl border flex items-center justify-center transition-colors"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
           aria-label="Notifications"
           disabled
@@ -126,7 +126,7 @@ export default function POSHeader({
         <button
           type="button"
           onClick={onLogout}
-          className="flex items-center gap-1.5 h-9 px-3 rounded-lg border text-[12px] font-medium transition-colors"
+          className="flex items-center gap-2 min-h-touch min-w-touch px-4 rounded-xl border text-sm font-medium transition-colors"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
           aria-label="Log out"
         >

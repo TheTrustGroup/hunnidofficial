@@ -95,7 +95,7 @@ function ProductGridInner({
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-4 flex-1 content-start">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 flex-1 content-start">
           {Array.from({ length: 9 }, (_, i) => (
             <POSProductCardSkeleton key={i} />
           ))}
@@ -159,7 +159,7 @@ function ProductGridInner({
               key={opt.value}
               type="button"
               onClick={() => onCategoryChange(opt.value)}
-              className="flex-shrink-0 h-[30px] px-3 rounded-md border text-[12px] font-medium whitespace-nowrap transition-all"
+              className="flex-shrink-0 min-h-touch py-2 px-4 rounded-lg border text-xs font-medium whitespace-nowrap transition-all"
               style={{
                 fontFamily: 'var(--font-b)',
                 ...(category === opt.value
@@ -215,7 +215,7 @@ function ProductGridInner({
         </select>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-4 flex-1 content-start">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 flex-1 content-start">
         {filtered.map((p) => (
           <POSProductCard key={p.id} product={p} onSelect={onSelect} />
         ))}

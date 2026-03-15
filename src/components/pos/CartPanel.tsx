@@ -61,14 +61,14 @@ export default function CartPanel({
           Current Sale
         </h2>
         {lines.length > 0 && (
-          <button
-            type="button"
-            onClick={onClearCart}
-            className="text-[11px] font-medium px-2 py-1.5 rounded border transition-colors hover:bg-[var(--overlay)]"
-            style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)', borderColor: 'var(--border)' }}
-          >
-            Clear all
-          </button>
+            <button
+              type="button"
+              onClick={onClearCart}
+              className="min-h-touch min-w-[44px] text-xs font-medium px-3 py-2 rounded-lg border transition-colors hover:bg-[var(--overlay)]"
+              style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)', borderColor: 'var(--border)' }}
+            >
+              Clear all
+            </button>
         )}
       </div>
 
@@ -121,23 +121,23 @@ export default function CartPanel({
                     >
                       {fmt(line.unitPrice * line.qty)}
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => onUpdateQty(line.key, -1)}
                         disabled={line.qty <= 1}
-                        className="pos-cart-qty-btn w-[22px] h-[22px] rounded flex items-center justify-center font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="pos-cart-qty-btn min-w-[36px] min-h-[36px] w-9 h-9 rounded-lg flex items-center justify-center font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         style={{ borderColor: 'var(--border)', background: 'var(--border)', color: 'var(--text-2)' }}
                       >
                         −
                       </button>
-                      <span className="text-[12px] font-semibold min-w-[14px] text-center tabular-nums" style={{ color: 'var(--text)' }}>
+                      <span className="text-sm font-semibold min-w-[18px] text-center tabular-nums" style={{ color: 'var(--text)' }}>
                         {line.qty}
                       </span>
                       <button
                         type="button"
                         onClick={() => onUpdateQty(line.key, 1)}
-                        className="pos-cart-qty-btn w-[22px] h-[22px] rounded flex items-center justify-center font-semibold border transition-colors"
+                        className="pos-cart-qty-btn min-w-[36px] min-h-[36px] w-9 h-9 rounded-lg flex items-center justify-center font-semibold border transition-colors"
                         style={{ borderColor: 'var(--border)', background: 'var(--border)', color: 'var(--text-2)' }}
                       >
                         +
@@ -185,11 +185,11 @@ export default function CartPanel({
                   <polyline points="9 18 15 12 9 6"/>
                 </svg>
               </button>
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={onOpenCharge}
-                  className="flex-1 h-8 rounded-[10px] border text-[11px] font-medium transition-colors"
+                  className="flex-1 min-h-touch rounded-xl border text-xs font-medium transition-colors"
                   style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
                 >
                   + Discount
@@ -197,7 +197,7 @@ export default function CartPanel({
                 <button
                   type="button"
                   onClick={onHoldSale}
-                  className="flex-1 h-8 rounded-[10px] border text-[11px] font-medium transition-colors"
+                  className="flex-1 min-h-touch rounded-xl border text-xs font-medium transition-colors"
                   style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
                 >
                   Hold Sale

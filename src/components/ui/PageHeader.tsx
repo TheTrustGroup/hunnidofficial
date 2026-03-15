@@ -13,15 +13,15 @@ interface PageHeaderProps {
  */
 export function PageHeader({ title, description, extra, className = '' }: PageHeaderProps) {
   return (
-    <div className={`animate-fade-in-up ${className}`}>
-      <div className="flex flex-wrap items-center gap-3 mb-1">
+    <div className={`animate-fade-in-up flex flex-col gap-2 ${className}`}>
+      <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight" style={{ fontFamily: 'var(--font-d)' }}>
           {title}
         </h1>
         {extra}
       </div>
       {description && (
-        <p className="text-slate-500 text-sm mt-0.5">
+        <p className="text-slate-500 text-sm">
           {description}
         </p>
       )}

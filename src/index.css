@@ -2,6 +2,8 @@
  * Phase 6: One font (Inter), 8pt grid, equal card heights, button/icon consistency, mobile-first.
  * Design tokens: vertical rhythm, spacing over borders, one primary action per screen.
  *
+ * Layout rules: see docs/UI_UX_LAYOUT_RULES.md for 8pt grid, touch targets (44px), typography hierarchy, cards/sheets.
+ *
  * CONSISTENCY (Phase 6)
  * --------------------
  * - One font family: Inter (body + Tailwind font-sans). No other font imports.

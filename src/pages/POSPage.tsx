@@ -29,7 +29,7 @@
 //   Bound POS users must not see any warehouse dropdown or "select warehouse" UI on this page.
 // ============================================================
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { InfiniteData } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
@@ -49,6 +49,7 @@ import CartBar                                    from '../components/pos/CartBa
 import SizePickerSheet, {
   type POSProduct,
   type CartLineInput,
+  type QtyInCartBySize,
 } from '../components/pos/SizePickerSheet';
 import CartSheet, {
   type CartLine,
@@ -224,6 +225,18 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     addLineToCart(input);
     showToast(`${input.name}${input.sizeLabel ? ` · ${input.sizeLabel}` : ''} added`);
   }
+
+  /** Qty in cart per size for the active product (for SizePickerSheet remaining = stock − inCart). */
+  const qtyInCartBySizeForPicker = useMemo((): QtyInCartBySize => {
+    if (!activeProduct?.id) return {};
+    const map: QtyInCartBySize = {};
+    for (const line of cart) {
+      if (line.productId !== activeProduct.id || line.sizeCode == null) continue;
+      const key = line.sizeCode.trim().toUpperCase();
+      map[key] = (map[key] ?? 0) + line.qty;
+    }
+    return map;
+  }, [activeProduct?.id, cart]);
 
   /** Tap on product: open size picker sheet for sized products; add to cart directly for non-sized. */
   function handleProductSelect(product: POSProduct) {
@@ -533,6 +546,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         product={activeProduct}
         onAdd={handleAddToCart}
         onClose={() => setActiveProduct(null)}
+        qtyInCartBySize={qtyInCartBySizeForPicker}
       />
 
       <CartSheet

@@ -80,7 +80,7 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 left-0 lg:left-[244px] right-0 border-b shadow-[var(--shadow-sm)] z-50 grid grid-rows-[auto_auto] grid-cols-[1fr_auto] gap-x-2 gap-y-2 md:grid-rows-1 md:grid-cols-[1fr_auto_1fr] md:items-center pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] lg:px-4 pt-[var(--safe-top)] py-2 md:py-0 min-h-12 md:h-12"
+      className="sticky top-0 left-0 lg:left-[244px] right-0 border-b shadow-[var(--shadow-sm)] z-50 grid grid-rows-[auto_auto] grid-cols-[1fr_auto] gap-x-2 gap-y-2 md:grid-rows-1 md:grid-cols-[1fr_auto_1fr] md:items-center pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-4 pt-[var(--safe-top)] py-3 md:py-0 min-h-12 md:min-h-[56px]"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       {/* Col 1 row 1: breadcrumb. On md: col 1 */}
@@ -116,7 +116,7 @@ export function Header() {
         </span>
         <button
           type="button"
-          className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors min-w-[36px] min-h-[36px] shrink-0"
+          className="relative min-w-touch min-h-touch w-10 h-10 rounded-xl border flex items-center justify-center transition-colors shrink-0"
           style={{
             background: 'var(--elevated)',
             borderColor: 'var(--border)',
@@ -137,7 +137,7 @@ export function Header() {
           type="button"
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="flex items-center justify-center gap-1.5 h-9 px-2.5 rounded-lg border transition-colors min-h-[36px] shrink-0"
+          className="flex items-center justify-center gap-2 min-h-touch min-w-touch px-4 rounded-xl border transition-colors shrink-0"
           style={{
             background: 'var(--elevated)',
             borderColor: 'var(--border)',
@@ -157,7 +157,7 @@ export function Header() {
       <div className="col-span-2 col-start-1 row-start-2 md:col-span-1 md:col-start-2 md:row-start-1 flex justify-center min-w-0">
         <form onSubmit={handleSearchSubmit} className="relative w-full max-w-[380px] group">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
             style={{ color: 'var(--text-3)' }}
             strokeWidth={2}
             strokeLinecap="round"
@@ -168,7 +168,7 @@ export function Header() {
             value={searchValue}
             onChange={(e) => handleSearchInput(e.target.value)}
             placeholder="Search products, SKU, or barcode…"
-            className="w-full h-9 pl-9 pr-12 rounded-lg border outline-none transition-[duration-150] focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
+            className="w-full min-h-touch h-11 pl-10 pr-14 rounded-xl border outline-none transition-[duration-150] focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
             style={{
               background: 'var(--elevated)',
               borderColor: 'var(--border)',

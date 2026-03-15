@@ -204,7 +204,7 @@ export function Sidebar() {
               key={item.name}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[10px] text-[13px] transition-colors duration-150 border ${
+                `flex items-center gap-2 py-2.5 px-4 mx-2 rounded-xl text-[13px] transition-colors duration-150 border ${
                   isActive
                     ? 'border-[rgba(92,172,250,0.12)]'
                     : 'border-transparent hover:bg-[var(--overlay)]'
@@ -241,31 +241,31 @@ export function Sidebar() {
                   key={item.name}
                   to={item.to}
                   className={({ isActive }) =>
-                    `flex items-center gap-[9px] py-2 px-[13px] mx-2 rounded-[10px] text-[13px] transition-colors duration-150 border ${
-                      isActive
-                        ? 'border-[rgba(92,172,250,0.12)]'
-                        : 'border-transparent hover:bg-[var(--overlay)]'
-                    }`
-                  }
-                  style={({ isActive }) => ({
-                    fontFamily: 'var(--font-b)',
-                    color: isActive ? 'var(--blue)' : 'var(--text-2)',
-                    fontWeight: isActive ? 600 : undefined,
-                    background: isActive ? 'var(--blue-soft)' : undefined,
-                  })}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <span
-                        className="w-4 h-4 flex-shrink-0 flex items-center justify-center"
-                        style={{ color: isActive ? 'var(--blue)' : 'var(--text-2)' }}
-                      >
-                        <item.icon className="w-4 h-4" strokeWidth={2} />
-                      </span>
-                      <span className="flex-1 truncate">{item.name}</span>
-                    </>
-                  )}
-                </NavLink>
+                `flex items-center gap-2 py-2.5 px-4 mx-2 rounded-xl text-[13px] transition-colors duration-150 border ${
+                  isActive
+                    ? 'border-[rgba(92,172,250,0.12)]'
+                    : 'border-transparent hover:bg-[var(--overlay)]'
+                }`
+              }
+              style={({ isActive }) => ({
+                fontFamily: 'var(--font-b)',
+                color: isActive ? 'var(--blue)' : 'var(--text-2)',
+                fontWeight: isActive ? 600 : undefined,
+                background: isActive ? 'var(--blue-soft)' : undefined,
+              })}
+            >
+              {({ isActive }) => (
+                <>
+                  <span
+                    className="w-4 h-4 flex-shrink-0 flex items-center justify-center"
+                    style={{ color: isActive ? 'var(--blue)' : 'var(--text-2)' }}
+                  >
+                    <item.icon className="w-4 h-4" strokeWidth={2} />
+                  </span>
+                  <span className="flex-1 truncate">{item.name}</span>
+                </>
+              )}
+            </NavLink>
               ))}
             </div>
           </>

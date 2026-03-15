@@ -16,16 +16,18 @@ interface EmptyStateProps {
 export function EmptyState({ icon: Icon, title, description, action, className = '' }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center p-8 solid-card max-w-md mx-auto ${className}`}
+      className={`flex flex-col items-center justify-center text-center p-6 sm:p-8 solid-card max-w-md mx-auto gap-4 ${className}`}
       role="status"
       aria-live="polite"
     >
-      <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Icon className="w-7 h-7 text-slate-400" aria-hidden />
+      <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto shrink-0 shadow-soft" style={{ background: 'var(--elevated)', color: 'var(--text-3)' }}>
+        <Icon className="w-7 h-7" aria-hidden />
       </div>
-      <h2 className="text-lg font-semibold text-slate-900 mb-2" style={{ fontFamily: 'var(--font-d)' }}>{title}</h2>
-      {description && <p className="text-slate-600 text-sm mb-6">{description}</p>}
-      {action && <div className="flex justify-center">{action}</div>}
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold text-slate-900" style={{ fontFamily: 'var(--font-d)' }}>{title}</h2>
+        {description && <p className="text-slate-600 text-sm">{description}</p>}
+      </div>
+      {action && <div className="flex justify-center pt-1">{action}</div>}
     </div>
   );
 }

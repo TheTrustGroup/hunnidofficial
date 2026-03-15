@@ -53,7 +53,7 @@ export function BottomNav() {
           WebkitBackdropFilter: 'blur(20px)',
           borderColor: 'var(--border)',
           boxShadow: 'var(--shadow-lg)',
-          padding: '6px 5px',
+          padding: '8px 8px',
           gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)`,
           alignItems: 'end',
         }}

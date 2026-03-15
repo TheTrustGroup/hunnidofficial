@@ -103,7 +103,7 @@ function LayoutContent() {
       {/* Slim hint while phase 2 (inventory, orders) syncs in background after login */}
       {isSyncingCriticalData && (
         <div
-          className="lg:ml-[240px] mt-[calc(48px+var(--safe-top))] bg-primary-50/90 text-primary-900 text-center py-1.5 px-3 text-xs font-medium flex items-center justify-center gap-2 border-b border-primary-200/50"
+          className="lg:ml-[244px] mt-[calc(48px+var(--safe-top))] bg-primary-50/90 text-primary-900 text-center py-1.5 px-3 text-xs font-medium flex items-center justify-center gap-2 border-b border-primary-200/50"
           role="status"
           aria-live="polite"
         >
@@ -114,7 +114,7 @@ function LayoutContent() {
       {/* In-flow banner: reserves layout space so content is never overlapped. Pushes main content down. */}
       {criticalDataError && (
         <div
-          className="lg:ml-[240px] mt-[calc(48px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2 px-3 text-xs font-medium flex items-center justify-center gap-2 flex-wrap min-h-[2.5rem] border-b border-amber-600/20"
+          className="lg:ml-[244px] mt-[calc(48px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2 px-3 text-xs font-medium flex items-center justify-center gap-2 flex-wrap min-h-[2.5rem] border-b border-amber-600/20"
           role="alert"
         >
           <span>Initial load had issues: {criticalDataError}</span>
@@ -125,7 +125,7 @@ function LayoutContent() {
       )}
       {showReconnectingBanner && (
         <div
-          className="lg:ml-[240px] mt-[calc(48px+var(--safe-top))] bg-amber-100 text-amber-900 text-center py-1.5 px-3 text-xs font-medium border-b border-amber-200"
+          className="lg:ml-[244px] mt-[calc(48px+var(--safe-top))] bg-amber-100 text-amber-900 text-center py-1.5 px-3 text-xs font-medium border-b border-amber-200"
           role="status"
           aria-live="polite"
         >
@@ -134,7 +134,7 @@ function LayoutContent() {
       )}
       {showDegradedBanner && (
         <div
-          className="lg:ml-[240px] mt-[calc(48px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2 px-3 text-xs font-medium flex items-center justify-center gap-2 flex-wrap min-h-[2.5rem] border-b border-amber-600/20"
+          className="lg:ml-[244px] mt-[calc(48px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2 px-3 text-xs font-medium flex items-center justify-center gap-2 flex-wrap min-h-[2.5rem] border-b border-amber-600/20"
           role="status"
         >
           <span>Server temporarily unavailable. Last saved data — read-only. Add, edit, and sales disabled until server is back.</span>
@@ -158,7 +158,7 @@ function LayoutContent() {
       )}
       {/* Main: offset by sidebar and topbar; on POS no extra top margin (POS has its own topbar). */}
       <main
-        className={`lg:ml-[240px] pt-14 lg:pt-6 pl-[max(0.5rem,var(--safe-left))] pr-[max(0.5rem,var(--safe-right))] lg:px-6 pb-[max(3rem,calc(var(--safe-bottom)+3rem))] lg:pb-[max(3rem,calc(var(--safe-bottom)+3rem))] min-h-[calc(var(--min-h-viewport)-48px)] max-w-[1600px] overflow-x-hidden ${
+        className={`lg:ml-[244px] pt-14 lg:pt-6 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-6 pb-[max(3rem,calc(var(--safe-bottom)+3rem))] lg:pb-[max(3rem,calc(var(--safe-bottom)+3rem))] min-h-[calc(var(--min-h-viewport)-48px)] max-w-[1600px] overflow-x-hidden ${
           showDegradedBanner || showSyncingBar ? 'mt-0' : isPOS ? 'mt-0' : 'mt-[calc(48px+var(--safe-top))]'
         }`}
       >

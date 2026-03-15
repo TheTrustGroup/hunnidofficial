@@ -20,13 +20,13 @@ export default function CartBar({ lines, onOpen }: CartBarProps) {
   if (itemCount === 0) return null;
 
   return (
-    <div className="flex-shrink-0 p-3 bg-white border-t border-[rgba(0,0,0,0.08)] shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+    <div className="flex-shrink-0 p-4 bg-white border-t border-slate-200 shadow-soft">
       <button
         type="button"
         onClick={onOpen}
         className="w-full min-h-[44px] flex items-center justify-between gap-2 py-2.5 px-4 rounded-xl bg-[#0D1117] text-white hover:bg-[#161B22] active:scale-[0.99] transition-all duration-150 text-left"
       >
-        <span className="text-[12px] font-semibold" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <span className="text-sm font-semibold" style={{ fontFamily: 'var(--font-b)' }}>
           {itemCount} item{itemCount !== 1 ? 's' : ''} · {fmt(total)}
         </span>
         <span className="text-[11px] font-medium text-[#5CACFA] flex items-center gap-0.5 shrink-0">
