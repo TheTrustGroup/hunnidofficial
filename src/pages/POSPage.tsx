@@ -317,7 +317,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
             imageUrl:  l.imageUrl ?? null,
           })),
         }),
-      }, 45_000);
+      }, 65_000); // Must be >= server maxDuration (60s) for large carts
 
       const saleId = result.id ?? (result as { saleId?: string }).saleId;
       if (!saleId || typeof saleId !== 'string') {

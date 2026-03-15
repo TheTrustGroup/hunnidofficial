@@ -14,6 +14,10 @@ import { getScopeForUser } from '@/lib/data/userScopes';
 import { toSafeError } from '@/lib/safeError';
 import { invalidateDashboardCacheForWarehouse } from '@/lib/cache/warehouseStatsCache';
 
+export const dynamic = 'force-dynamic';
+/** Large cart support: allow up to 60s so checkouts with 70+ line items can complete. */
+export const maxDuration = 60;
+
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
   Object.entries(h).forEach(([k, v]) => res.headers.set(k, v));
