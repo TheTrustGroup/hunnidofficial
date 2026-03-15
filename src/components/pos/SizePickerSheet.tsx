@@ -127,25 +127,6 @@ export default function SizePickerSheet({
     [product, qty, sizes, qtyInCartBySize, onAdd, onClose]
   );
 
-  /** Add one size only (with its row qty) and close. */
-  const handleAddOne = useCallback(
-    (sizeCode: string | null, sizeLabel: string | null, addQty: number) => {
-      if (!product || addQty <= 0) return;
-      onAdd({
-        productId: product.id,
-        name: product.name,
-        sku: product.sku,
-        sizeCode: sizeCode ?? undefined,
-        sizeLabel: sizeLabel ?? undefined,
-        unitPrice: product.sellingPrice,
-        qty: addQty,
-        imageUrl: product.images?.[0] ?? null,
-      });
-      onClose();
-    },
-    [product, onAdd, onClose]
-  );
-
   /** Add all selected sizes (each with its row qty) and close. */
   const handleAddSelected = useCallback(() => {
     if (!product) return;
