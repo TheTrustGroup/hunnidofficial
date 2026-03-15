@@ -4,6 +4,8 @@ const { withSentryConfig } = require('@sentry/nextjs');
 const nextConfig = {
   reactStrictMode: true,
   experimental: { instrumentationHook: true },
+  // Avoid ESLint during build (Next passes useEslintrc/extensions that ESLint 10 removed).
+  eslint: { ignoreDuringBuilds: true },
   // SPA fallback when frontend is served from public/ (single Vercel project). API and _next/ and assets/ are not rewritten.
   async rewrites() {
     return [
