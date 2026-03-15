@@ -32,6 +32,18 @@
 - **POST /api/sales** uses `maxDuration = 60` (inventory-server) so checkouts with 70+ line items can complete. If the deployment platform caps function duration lower (e.g. 15s on some plans), increase the platform limit or document the cap and set the client timeout in POSPage above it so users see "Taking longer than usual" instead of an early abort.
 - **Client timeout:** POS uses 65_000 ms so the request is not aborted before the server (60s) can respond. On timeout, the toast shows: "Sale took too long (many items). Try again or split into smaller sales."
 
+## POS UI minimalism (sleek, one-path flow)
+
+- **Size picker (sized products):** Single path only. No global "Quantity" when product has sizes; no per-row "Add" buttons. Rows: checkbox + size + stock; when selected, compact − qty +. One sticky "Add to cart" at bottom (always visible; disabled with "Select sizes above" when nothing selected). One line of copy: "Select sizes and quantity, then tap Add to cart." Layout: scrollable body + sticky footer so the CTA never scrolls away.
+- **Non-sized products:** Single quantity control + one "Add to cart" button with price; no size list.
+
+**Optional future polish (from UX review):**
+
+- **Header vs sidebar:** Warehouse/location ("Main Jeff") appears in both sidebar and POS header; consider showing only in header on POS to reduce duplication.
+- **Categories:** Normalize or merge duplicate labels (e.g. "Sneaker" vs "Sneakers") in category filters so one canonical label per category.
+- **SCAN prominence:** Consider integrating scan as secondary to search (e.g. icon in search bar) for a calmer header.
+- **Product cards:** Consider hiding full size breakdown (EU40:3, EU41:4…) on the card and revealing in the size picker on tap for a cleaner grid.
+
 ## Optimizations applied
 
 - **Skip `/api/warehouses` when bound:** At POS locations (Main Store / Main Town), the app no longer waits for the warehouse list; it sets `isLoading` false and uses `KNOWN_WAREHOUSE_NAMES` for the location label. POS product load can start as soon as auth is ready.

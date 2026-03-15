@@ -182,62 +182,38 @@ export default function SizePickerSheet({
         onClick={onClose}
         aria-hidden
       />
-      {/* Sheet: premium card, clear hierarchy */}
+      {/* Sheet: one path, one CTA. Sticky footer so Add to cart is always visible. */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white shadow-large border-t border-slate-200/80"
+        className="fixed bottom-0 left-0 right-0 z-50 max-h-[88vh] flex flex-col rounded-t-2xl bg-white shadow-large border-t border-slate-200/80"
         role="dialog"
         aria-modal="true"
         aria-labelledby="size-picker-title"
       >
         {/* Header: product name + close */}
-        <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-slate-200/90 bg-white/95 backdrop-blur-sm px-5 py-4">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-200/90 bg-white px-5 py-3.5 flex-shrink-0">
           <h2
             id="size-picker-title"
-            className="text-lg font-semibold text-slate-900 tracking-tight line-clamp-2"
+            className="text-base font-semibold text-slate-900 tracking-tight line-clamp-1"
           >
             {product.name}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 active:bg-slate-200 transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
             aria-label="Close"
           >
             <span className="text-lg leading-none">✕</span>
           </button>
         </div>
 
-        <div className="px-5 py-5 pb-8" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}>
-          {/* Qty: clear label, touch-friendly controls */}
-          <div className="mb-6">
-            <span className="text-sm font-medium text-slate-600 mb-3 block">Quantity</span>
-            <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50/80 p-1">
-              <button
-                type="button"
-                onClick={() => setQty((n) => Math.max(1, n - 1))}
-                className="flex h-11 w-11 items-center justify-center rounded-lg font-medium text-slate-700 hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all min-w-touch min-h-touch"
-                aria-label="Decrease quantity"
-              >
-                −
-              </button>
-              <span className="w-10 text-center text-base font-semibold text-slate-900 tabular-nums" aria-live="polite">
-                {qty}
-              </span>
-              <button
-                type="button"
-                onClick={() => setQty((n) => n + 1)}
-                className="flex h-11 w-11 items-center justify-center rounded-lg font-medium text-slate-700 hover:bg-white hover:shadow-sm active:scale-[0.98] transition-all min-w-touch min-h-touch"
-                aria-label="Increase quantity"
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          {isSized ? (
-            <>
-              <p className="text-xs text-slate-500 mb-3">Tap a size to add that size only, or select several and use &quot;Add selected to cart&quot;.</p>
-              <div className="space-y-2 mb-4">
+        {isSized ? (
+          <>
+            {/* Single instruction; no global qty */}
+            <p className="px-5 pt-3 text-xs text-slate-500 flex-shrink-0">Select sizes and quantity, then tap Add to cart.</p>
+            {/* Scrollable list: compact rows, no per-row Add button */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3">
+              <div className="space-y-1.5">
                 {sizes.map((row, index) => {
                   const remaining = remainingBySize[row.sizeCode] ?? 0;
                   const unavailable = remaining <= 0;
@@ -247,72 +223,84 @@ export default function SizePickerSheet({
                   return (
                     <div
                       key={row.sizeCode}
-                      className={`flex flex-wrap items-center gap-2 rounded-xl border-2 p-3 transition-colors ${
-                        unavailable ? 'border-slate-200 bg-slate-50 opacity-60' : 'border-slate-200 bg-white'
-                      }`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => !unavailable && setRow(index, { selected: !state.selected })}
+                      onKeyDown={(e) => e.key === 'Enter' && !unavailable && setRow(index, { selected: !state.selected })}
+                      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                        unavailable ? 'border-slate-100 bg-slate-50/50 opacity-60 cursor-not-allowed' : 'border-slate-200 bg-white cursor-pointer hover:bg-slate-50/80'
+                      } ${state.selected ? 'ring-2 ring-primary-400 ring-offset-1' : ''}`}
                     >
-                      <label className="flex items-center gap-2 min-h-[44px] cursor-pointer shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={state.selected}
-                          onChange={(e) => setRow(index, { selected: e.target.checked })}
-                          disabled={unavailable}
-                          className="h-4 w-4 rounded border-slate-300"
-                        />
-                        <span className="text-[15px] font-semibold text-slate-900">{label}</span>
-                        <span className="text-xs text-slate-500">Stock: {row.quantity}</span>
-                      </label>
-                      <div className="flex items-center gap-1 ml-auto">
-                        <button
-                          type="button"
-                          disabled={unavailable || state.quantity <= 1}
-                          onClick={() => setRow(index, { quantity: Math.max(1, state.quantity - 1) })}
-                          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 font-medium text-slate-700 active:scale-95 disabled:opacity-50 touch-manipulation"
-                        >
-                          −
-                        </button>
-                        <span className="w-8 text-center text-sm font-semibold text-slate-900 tabular-nums">{state.quantity}</span>
-                        <button
-                          type="button"
-                          disabled={unavailable || state.quantity >= remaining}
-                          onClick={() => setRow(index, { quantity: Math.min(remaining, state.quantity + 1) })}
-                          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 font-medium text-slate-700 active:scale-95 disabled:opacity-50 touch-manipulation"
-                        >
-                          +
-                        </button>
-                        <button
-                          type="button"
-                          disabled={unavailable}
-                          onClick={() => handleAddOne(row.sizeCode, row.sizeLabel ?? null, state.quantity)}
-                          className="min-h-[44px] px-3 rounded-xl bg-primary-500 text-white text-xs font-bold active:scale-95 disabled:opacity-50 touch-manipulation"
-                        >
-                          Add
-                        </button>
-                      </div>
+                      <input
+                        type="checkbox"
+                        checked={state.selected}
+                        onChange={(e) => setRow(index, { selected: e.target.checked })}
+                        disabled={unavailable}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 rounded border-slate-300 flex-shrink-0"
+                      />
+                      <span className="text-sm font-semibold text-slate-900 flex-shrink-0 w-14">{label}</span>
+                      <span className="text-xs text-slate-500 flex-shrink-0">{remaining <= 0 ? '0 left' : `${remaining} left`}</span>
+                      {state.selected && (
+                        <div className="flex items-center gap-0.5 ml-auto" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            disabled={state.quantity <= 1}
+                            onClick={() => setRow(index, { quantity: Math.max(1, state.quantity - 1) })}
+                            className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm font-medium active:scale-95 disabled:opacity-40"
+                          >
+                            −
+                          </button>
+                          <span className="w-7 text-center text-sm font-semibold text-slate-900 tabular-nums">{state.quantity}</span>
+                          <button
+                            type="button"
+                            disabled={state.quantity >= remaining}
+                            onClick={() => setRow(index, { quantity: Math.min(remaining, state.quantity + 1) })}
+                            className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-700 text-sm font-medium active:scale-95 disabled:opacity-40"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
-              {selectedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleAddSelected}
-                  className="w-full min-h-[48px] rounded-xl bg-primary-500 py-3 font-bold text-white active:scale-[0.98] transition-transform touch-manipulation"
-                >
-                  Add selected to cart ({selectedCount} size{selectedCount !== 1 ? 's' : ''})
-                </button>
-              )}
-            </>
-          ) : (
+            </div>
+            {/* Sticky single CTA — always visible */}
+            <div
+              className="flex-shrink-0 border-t border-slate-200 bg-white px-5 py-4"
+              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+            >
+              <button
+                type="button"
+                onClick={handleAddSelected}
+                disabled={selectedCount === 0}
+                className="w-full min-h-[48px] rounded-xl font-semibold text-white transition-all touch-manipulation active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed bg-primary-500 hover:bg-primary-600"
+              >
+                {selectedCount > 0 ? `Add to cart (${selectedCount} size${selectedCount !== 1 ? 's' : ''})` : 'Select sizes above'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="px-5 py-5 flex-shrink-0">
+            <div className="mb-4">
+              <span className="text-sm font-medium text-slate-600 mb-2 block">Quantity</span>
+              <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50/80 p-1">
+                <button type="button" onClick={() => setQty((n) => Math.max(1, n - 1))} className="flex h-11 w-11 items-center justify-center rounded-lg font-medium text-slate-700 hover:bg-white active:scale-[0.98]" aria-label="Decrease quantity">−</button>
+                <span className="w-10 text-center text-base font-semibold text-slate-900 tabular-nums" aria-live="polite">{qty}</span>
+                <button type="button" onClick={() => setQty((n) => n + 1)} className="flex h-11 w-11 items-center justify-center rounded-lg font-medium text-slate-700 hover:bg-white active:scale-[0.98]" aria-label="Increase quantity">+</button>
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => handleSizeTap(null, null)}
-              className="w-full min-h-touch rounded-xl bg-primary-500 py-3.5 px-4 font-semibold text-white shadow-primary hover:bg-primary-600 hover:shadow-primary-hover active:scale-[0.99] transition-all"
+              className="w-full min-h-[48px] rounded-xl bg-primary-500 py-3 font-semibold text-white hover:bg-primary-600 active:scale-[0.98] transition-transform"
             >
               Add to cart — GH₵{(product.sellingPrice * qty).toLocaleString('en-GH', { minimumFractionDigits: 2 })}
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </>
   );
