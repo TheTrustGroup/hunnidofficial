@@ -31,6 +31,7 @@
 
 - **POST /api/sales** uses `maxDuration = 120` (inventory-server) so checkouts with 100+ line items can complete. Requests with more than 500 line items are rejected with 422 and a message asking the user to split into multiple sales.
 - **Client timeout:** POS uses 125_000 ms so the request is not aborted before the server (120s) can respond. On timeout or 422 "Too many line items", the toast shows the API message or "Sale took too long (many items). Try again or split into smaller sales."
+- **Payload size (413):** Vercel has a 4.5 MB request body limit. POS sends `imageUrl: null` for all line items so large carts (e.g. 100+ items) stay under the limit. If you see "413" or a CORS error on charge, the response is often from the gateway before our API runs; reducing payload (e.g. no large fields in lines) fixes it.
 
 ## POS UI minimalism (sleek, one-path flow)
 

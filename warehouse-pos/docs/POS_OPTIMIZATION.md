@@ -30,6 +30,7 @@
 ## Large cart (bulk checkout) support
 
 - **POST /api/sales** uses `maxDuration = 120` (inventory-server); requests with &gt; 500 line items return 422. POS uses a 125s timeout for the sales request and surfaces "Too many line items" when the API returns 422.
+- **Payload size (413):** Vercel has a 4.5 MB request body limit. POS sends `imageUrl: null` for line items so large carts stay under the limit; a 413 or CORS error on charge usually means the gateway rejected the body before our API ran.
 
 ## Optimizations applied
 

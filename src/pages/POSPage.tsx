@@ -314,7 +314,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
             lineTotal: l.unitPrice * l.qty,
             name:      l.name,
             sku:       l.sku ?? '',
-            imageUrl:  l.imageUrl ?? null,
+            imageUrl:  null, // Omit URLs to keep payload under Vercel 4.5 MB limit (large carts)
           })),
         }),
       }, 125_000); // Must be >= server maxDuration (120s) for large carts (100+ items)
