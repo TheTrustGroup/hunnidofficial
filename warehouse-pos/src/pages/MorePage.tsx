@@ -1,12 +1,12 @@
 /**
- * More: excess nav items (Sales, Deliveries, Reports, Users, Settings).
- * Replaces the side menu on mobile; one place for all secondary actions.
+ * More: Settings, reports, warehouse switcher, role switcher, logout.
+ * Layout and typography match reference; HunnidOfficial blue only (no red).
  */
-import { NavLink } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { ChevronRight, MapPin, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWarehouse } from '../contexts/WarehouseContext';
-import { MORE_PAGE_NAV, MapPin } from '../config/navigation';
+import { MORE_PAGE_NAV } from '../config/navigation';
 import { ROLES } from '../types/permissions';
 
 function getRoleDisplayName(roleId: string | undefined): string {
@@ -15,8 +15,12 @@ function getRoleDisplayName(roleId: string | undefined): string {
   return ROLES[key]?.name ?? roleId;
 }
 
+const LABEL_SIZE = 11;
+const MENU_TEXT_SIZE = 13;
+
 export function MorePage() {
-  const { user, hasPermission, hasAnyPermission, switchRole } = useAuth();
+  const navigate = useNavigate();
+  const { user, hasPermission, hasAnyPermission, switchRole, logout } = useAuth();
   const {
     warehouses,
     currentWarehouseId,
@@ -38,20 +42,67 @@ export function MorePage() {
 
   return (
     <div className="animate-fade-in-up max-w-lg mx-auto">
-      <h1 className="text-[24px] font-bold text-slate-900 tracking-tight mb-1 px-0">More</h1>
-      <p className="text-slate-500 text-sm mb-6">Settings, reports, and other options</p>
+      {/* Header: MORE — reference style, no close (full page) */}
+      <header className="flex items-center justify-between mb-6">
+        <h1
+          className="font-bold tracking-tight text-[var(--edk-ink)]"
+          style={{ fontSize: 20 }}
+        >
+          MORE
+        </h1>
+      </header>
 
+      {/* Menu: icon + label, generous padding; active = blue only */}
+      <nav
+        className="rounded-2xl bg-[var(--edk-surface)] border border-[var(--edk-border)] overflow-hidden shadow-sm"
+        aria-label="More options"
+      >
+        <ul className="divide-y divide-[var(--edk-border)]">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.to}>
+                <NavLink
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 w-full py-3.5 px-4 text-left font-medium transition-colors min-h-[48px] ${
+                      isActive
+                        ? 'bg-[var(--blue-soft)] text-[var(--blue)]'
+                        : 'text-[var(--edk-ink)] hover:bg-[var(--edk-bg)]'
+                    }`
+                  }
+                  style={{ fontSize: MENU_TEXT_SIZE }}
+                >
+                  <span className="w-9 h-9 rounded-xl bg-[var(--edk-bg)] flex items-center justify-center flex-shrink-0 text-[var(--edk-ink-2)]">
+                    <Icon className="w-4 h-4" strokeWidth={2} aria-hidden />
+                  </span>
+                  <span className="flex-1">{item.name}</span>
+                  <ChevronRight className="w-5 h-5 text-[var(--edk-ink-3)] flex-shrink-0" strokeWidth={2} aria-hidden />
+                </NavLink>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* WAREHOUSE */}
       {showWarehouseSwitcher && (
-        <div className="mb-6 p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm">
+        <section className="mt-6 rounded-2xl bg-[var(--edk-surface)] border border-[var(--edk-border)] p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
-            <MapPin className="w-4 h-4 text-slate-500 flex-shrink-0" strokeWidth={2} aria-hidden />
-            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Warehouse</span>
+            <MapPin className="w-4 h-4 text-[var(--edk-ink-3)] flex-shrink-0" strokeWidth={2} aria-hidden />
+            <span
+              className="font-semibold uppercase tracking-wide text-[var(--edk-ink-3)]"
+              style={{ fontSize: LABEL_SIZE }}
+            >
+              Warehouse
+            </span>
           </div>
           {canSwitchWarehouse ? (
             <select
               value={currentWarehouseId}
               onChange={(e) => setCurrentWarehouseId(e.target.value)}
-              className="w-full text-sm font-medium text-slate-800 py-2.5 px-3 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#5CACFA] focus:border-transparent"
+              className="w-full h-11 pl-3 pr-8 rounded-xl border border-[var(--edk-border-mid)] bg-[var(--edk-bg)] font-medium text-[var(--edk-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:border-transparent"
+              style={{ fontSize: MENU_TEXT_SIZE }}
               aria-label="Select warehouse"
             >
               {warehouses.map((w) => (
@@ -61,53 +112,41 @@ export function MorePage() {
               ))}
             </select>
           ) : (
-            <p className="text-sm font-medium text-slate-700 truncate" title={currentWarehouse?.name ?? ''}>
+            <p
+              className="font-medium text-[var(--edk-ink-2)] truncate"
+              style={{ fontSize: MENU_TEXT_SIZE }}
+              title={currentWarehouse?.name ?? ''}
+            >
               {currentWarehouse?.name ?? '—'}
             </p>
           )}
-        </div>
+        </section>
       )}
 
-      <nav className="rounded-xl bg-white border border-slate-200/80 shadow-sm overflow-hidden" aria-label="More options">
-        <ul className="divide-y divide-slate-100">
-          {items.map((item) => {
-            const Icon = item.icon;
-            return (
-              <li key={item.to}>
-                <NavLink
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 w-full py-3.5 px-4 text-left text-[15px] font-medium transition-colors ${
-                      isActive ? 'bg-[#FFEBEE] text-[#E53935]' : 'text-slate-800 hover:bg-slate-50'
-                    }`
-                  }
-                >
-                  <span className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 text-slate-600">
-                    <Icon className="w-4 h-4" strokeWidth={2} />
-                  </span>
-                  <span className="flex-1">{item.name}</span>
-                  <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" strokeWidth={2} />
-                </NavLink>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-
-      <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200/60">
+      {/* Role: Super Admin / Switch role (testing) */}
+      <section className="mt-6 rounded-2xl bg-[var(--edk-surface)] border border-[var(--edk-border)] p-4 shadow-sm">
         {user && (
-          <p className="text-xs text-slate-500 mb-2">
-            <span className="font-medium text-slate-600">Role: </span>
+          <p
+            className="text-[var(--edk-ink-3)] mb-2"
+            style={{ fontSize: LABEL_SIZE }}
+          >
+            <span className="font-medium text-[var(--edk-ink-2)]">Role: </span>
             {getRoleDisplayName(user.role)}
           </p>
         )}
         {canSeeSwitchRole && user && (
           <label className="block">
-            <span className="text-xs font-medium text-slate-500 block mb-1.5">Switch role (testing)</span>
+            <span
+              className="font-medium text-[var(--edk-ink-3)] block mb-1.5"
+              style={{ fontSize: LABEL_SIZE }}
+            >
+              Switch role (testing)
+            </span>
             <select
               value={user.role}
               onChange={(e) => switchRole(e.target.value)}
-              className="w-full text-sm font-medium text-slate-900 py-2 px-3 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#5CACFA]"
+              className="w-full h-11 pl-3 pr-8 rounded-xl border border-[var(--edk-border-mid)] bg-[var(--edk-bg)] font-medium text-[var(--edk-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:border-transparent"
+              style={{ fontSize: MENU_TEXT_SIZE }}
               aria-label="Switch role"
             >
               {Object.values(ROLES).map((role) => (
@@ -118,6 +157,22 @@ export function MorePage() {
             </select>
           </label>
         )}
+      </section>
+
+      {/* Log out */}
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={async () => {
+            await logout();
+            navigate('/login', { replace: true });
+          }}
+          className="flex items-center gap-3 w-full py-3.5 px-4 rounded-2xl border border-[var(--edk-border)] bg-[var(--edk-surface)] font-medium text-[var(--edk-ink-2)] hover:bg-[var(--edk-bg)] min-h-[48px] transition-colors text-left"
+          style={{ fontSize: MENU_TEXT_SIZE }}
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0 text-[var(--edk-ink-2)]" strokeWidth={2} aria-hidden />
+          Log out
+        </button>
       </div>
     </div>
   );
