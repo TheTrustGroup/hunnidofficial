@@ -38,6 +38,26 @@ interface SizesSectionProps {
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
+/** EU shoe range for Main Jeff (sneakers/shoes): EU22.5 through EU47. */
+const EU_SHOE_MIN = 22.5;
+const EU_SHOE_MAX = 47;
+
+/** Parse EU size code (e.g. EU23, EU37.5) to numeric value or null. */
+function parseEuSize(sizeCode: string): number | null {
+  const s = String(sizeCode ?? '').trim().toUpperCase();
+  const m = s.match(/^EU(\d{2})(\.5)?$/);
+  if (!m) return null;
+  const whole = parseInt(m[1], 10);
+  const half = m[2] ? 0.5 : 0;
+  return whole + half;
+}
+
+/** True if size code is in the EU shoe range (EU22.5–EU47). */
+function isEuShoeSize(sizeCode: string): boolean {
+  const n = parseEuSize(sizeCode);
+  return n != null && n >= EU_SHOE_MIN && n <= EU_SHOE_MAX;
+}
+
 function totalQty(rows: SizeRow[]): number {
   return rows.reduce((sum, r) => sum + (r.quantity || 0), 0);
 }
@@ -260,15 +280,16 @@ export default function SizesSection({
     });
   }
 
-  /** Pre-fill one row per size code so user only enters quantity (saves time). Keeps existing quantities where size matches. */
+  /** Pre-fill one row per EU shoe size (EU22.5–EU47) so user only enters quantity. Main Jeff = sneakers/shoes only. */
   function handleUseAllSizes() {
-    if (sizeCodes.length === 0) return;
+    const euShoeCodes = sizeCodes.filter(s => isEuShoeSize(s.size_code));
+    if (euShoeCodes.length === 0) return;
     const existingByCode = new Map(
       value.quantityBySize
         .filter(r => (r.sizeCode ?? '').trim() !== '')
         .map(r => [(r.sizeCode ?? '').trim(), r.quantity])
     );
-    const sorted = [...sizeCodes].sort((a, b) => {
+    const sorted = [...euShoeCodes].sort((a, b) => {
       const oa = (a as { size_order?: number }).size_order ?? 0;
       const ob = (b as { size_order?: number }).size_order ?? 0;
       return oa - ob;
@@ -365,8 +386,8 @@ export default function SizesSection({
             ))}
           </datalist>
 
-          {/* Use all sizes: one row per size code so user only enters quantity */}
-          {sizeCodes.length > 0 && (
+          {/* Use all EU shoe sizes (EU22.5–EU47): one row per size, enter quantity only. Main Jeff = sneakers/shoes. */}
+          {sizeCodes.some(s => isEuShoeSize(s.size_code)) && (
             <div className="mb-3">
               <button
                 type="button"
@@ -382,7 +403,7 @@ export default function SizesSection({
                 "
               >
                 <IconLayers />
-                Use all sizes — enter quantity only
+                Use all EU sizes (22.5–47) — enter quantity only
               </button>
             </div>
           )}

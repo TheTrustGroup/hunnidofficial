@@ -560,10 +560,10 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
 
   if (!isOpen) return null;
 
-  /* Modal: opaque panel so form is readable. On mobile, extra bottom padding so Add product / Cancel sit above bottom nav. */
+  /* Modal above bottom nav (nav is z-100): use z-[110] so Cancel / Add product are visible and tappable on mobile. */
   return (
     <div
-      className="fixed inset-0 solid-overlay flex items-center justify-center z-[var(--z-modal,50)] modal-overlay-padding product-form-modal-overlay"
+      className="fixed inset-0 solid-overlay flex items-center justify-center z-[110] modal-overlay-padding product-form-modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="product-form-title"
