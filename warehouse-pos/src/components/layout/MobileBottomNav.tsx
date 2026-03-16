@@ -4,12 +4,12 @@
  */
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { baseNavigation } from '../../config/navigation';
+import { BASE_NAVIGATION } from '../../config/navigation';
 import type { LucideIcon } from 'lucide-react';
 
 const MAX_TABS = 5;
 
-type NavItem = (typeof baseNavigation)[number] & { to: string };
+type NavItem = (typeof BASE_NAVIGATION)[number] & { to: string };
 
 function NavTab({
   icon: Icon,
@@ -41,12 +41,12 @@ export function MobileBottomNav({
 }) {
   const { hasPermission, hasAnyPermission } = useAuth();
 
-  const navigation = baseNavigation.filter(
-    (item) =>
-      (item.permission == null && 'to' in item) ||
-      ('permission' in item && item.permission && hasPermission(item.permission)) ||
-      ('anyPermissions' in item && item.anyPermissions && hasAnyPermission(item.anyPermissions)),
-  ) as NavItem[];
+  const navigation: NavItem[] = BASE_NAVIGATION.filter((item) => {
+    if (!item.permission && !item.anyPermissions) return true;
+    if (item.permission && hasPermission(item.permission)) return true;
+    if (item.anyPermissions && hasAnyPermission(item.anyPermissions)) return true;
+    return false;
+  });
 
   const showMore = navigation.length > MAX_TABS;
 
