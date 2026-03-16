@@ -460,12 +460,12 @@ Create this user in your backend admin panel with these exact credentials.`;
             )}
           </div>
 
-          {/* POS access: assign which store(s) this user can use (Main Town, Store, etc.) */}
+          {/* POS access: assign which store(s) this user can use (Main Jeff, Hunnid Main) */}
           {newUser.role !== 'admin' && newUser.role !== 'super_admin' && (
             <div className="mt-6 pt-4 border-t border-slate-200">
               <h4 className="text-sm font-semibold text-slate-800 mb-1">POS access</h4>
               <p className="text-sm text-slate-600 mb-3">
-                Assign which location(s) this user can use — e.g. Main Town or Store. They will only see these in POS.
+                Assign which location(s) this user can use — e.g. Main Jeff or Hunnid Main. They will only see these in POS.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>

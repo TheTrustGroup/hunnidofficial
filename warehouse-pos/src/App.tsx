@@ -84,7 +84,7 @@ const Users = () => {
 
 const NotFound = lazyWithRetry(() => import('./pages/NotFound').then(m => ({ default: m.NotFound })));
 
-/** Inventory route. Not available at POS locations (Main Store / Main Town bound); redirect to POS. */
+/** Inventory route. Not available at POS locations (Main Jeff / Hunnid Main bound); redirect to POS. */
 function InventoryPageRoute() {
   const { isWarehouseBoundToSession } = useWarehouse();
   if (isWarehouseBoundToSession) return <Navigate to="/pos" replace />;

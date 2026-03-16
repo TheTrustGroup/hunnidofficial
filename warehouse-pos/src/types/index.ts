@@ -159,7 +159,7 @@ export interface User {
   storeId?: string | null;
   /** Optional device/POS id from session (future). */
   deviceId?: string;
-  /** When 'main_town', POS shows fixed "Main Town" only (no store/location dropdown). When 'store' or unset, show dropdowns. */
+  /** When 'main_town', POS shows fixed "Hunnid Main" only (no store/location dropdown). When 'store' or unset, show dropdowns. */
   assignedPos?: 'main_town' | 'store' | null;
 }
 

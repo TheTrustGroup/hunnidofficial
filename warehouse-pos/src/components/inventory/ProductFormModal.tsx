@@ -59,7 +59,7 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
     reorderLevel: 0,
     warehouseId: '' as string,
     location: {
-      warehouse: 'Main Store',
+      warehouse: 'Main Jeff',
       aisle: '',
       rack: '',
       bin: '',
@@ -169,8 +169,8 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
         reorderLevel: currentProduct.reorderLevel,
         warehouseId: (currentProduct as Product & { warehouseId?: string }).warehouseId ?? warehouseId,
         location: currentProduct.location && typeof currentProduct.location === 'object'
-          ? { warehouse: (currentProduct.location as { warehouse?: string }).warehouse ?? 'Main Store', aisle: (currentProduct.location as { aisle?: string }).aisle ?? '', rack: (currentProduct.location as { rack?: string }).rack ?? '', bin: (currentProduct.location as { bin?: string }).bin ?? '' }
-          : { warehouse: 'Main Store', aisle: '', rack: '', bin: '' },
+          ? { warehouse: (currentProduct.location as { warehouse?: string }).warehouse ?? 'Main Jeff', aisle: (currentProduct.location as { aisle?: string }).aisle ?? '', rack: (currentProduct.location as { rack?: string }).rack ?? '', bin: (currentProduct.location as { bin?: string }).bin ?? '' }
+          : { warehouse: 'Main Jeff', aisle: '', rack: '', bin: '' },
         supplier: currentProduct.supplier && typeof currentProduct.supplier === 'object'
           ? { name: (currentProduct.supplier as { name?: string }).name ?? '', contact: (currentProduct.supplier as { contact?: string }).contact ?? '', email: (currentProduct.supplier as { email?: string }).email ?? '' }
           : { name: '', contact: '', email: '' },
@@ -199,7 +199,7 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
         sellingPrice: 0,
         reorderLevel: 0,
         warehouseId,
-        location: { warehouse: 'Main Store', aisle: '', rack: '', bin: '' },
+        location: { warehouse: 'Main Jeff', aisle: '', rack: '', bin: '' },
         supplier: { name: '', contact: '', email: '' },
         images: skipImageOverwrite ? prev.images : [],
         expiryDate: null,
@@ -763,7 +763,7 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
                 className="input-field"
               >
                 {warehouses.length === 0 ? (
-                  <option value={currentWarehouseId}>Main Store</option>
+                  <option value={currentWarehouseId}>Main Jeff</option>
                 ) : (
                   warehouses.map((w) => (
                     <option key={w.id} value={w.id}>{w.name}</option>

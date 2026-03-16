@@ -99,7 +99,7 @@ export function getDeduplicatedCategoryOptions(rawCategories: string[]): Array<{
 }
 
 /** Default location shape when API omits it */
-const DEFAULT_LOCATION = { warehouse: 'Main Store', aisle: '', rack: '', bin: '' };
+const DEFAULT_LOCATION = { warehouse: 'Main Jeff', aisle: '', rack: '', bin: '' };
 
 /**
  * Safe location display string (API may omit location or return partial).

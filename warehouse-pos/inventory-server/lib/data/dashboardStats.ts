@@ -83,7 +83,7 @@ export interface DashboardStatsResult {
   categorySummary: DashboardCategorySummary;
 }
 
-/** Warehouse IDs used for "today by warehouse" summary (match frontend Main Store / Main Town). */
+/** Warehouse IDs used for "today by warehouse" summary (Main Jeff, Hunnid Main). */
 const DEFAULT_WAREHOUSE_IDS = [
   '00000000-0000-0000-0000-000000000001',
   '00000000-0000-0000-0000-000000000002',

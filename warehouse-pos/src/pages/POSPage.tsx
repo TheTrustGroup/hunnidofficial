@@ -25,7 +25,7 @@
 //   - Deploy route_sales.ts as inventory-server/app/api/sales/route.ts
 //
 // POS WAREHOUSE BINDING:
-//   Each POS login is tied to one warehouse (Main Store or Main Town via server).
+//   Each POS login is tied to one warehouse (Main Jeff or Hunnid Main via server).
 //   Bound POS users must not see any warehouse dropdown or "select warehouse" UI on this page.
 // ============================================================
 
@@ -62,7 +62,7 @@ import SaleSuccessScreen, { type CompletedSale }  from '../components/pos/SaleSu
 /** Fallback warehouse when context has not yet loaded a current warehouse. */
 const FALLBACK_WAREHOUSE: Warehouse = {
   id: DEFAULT_WAREHOUSE_ID,
-  name: 'Main Store',
+  name: 'Main Jeff',
   code: 'MAIN',
   createdAt: '',
   updatedAt: '',
@@ -106,7 +106,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   const { currentWarehouse, setCurrentWarehouseId, warehouses, isWarehouseBoundToSession } = useWarehouse();
   const contextWarehouse = currentWarehouse ?? FALLBACK_WAREHOUSE;
 
-  // POS locations (Main Store / Main Town): session bound to one warehouse — skip session screen for fast start.
+  // POS locations (Main Jeff / Hunnid Main): session bound to one warehouse — skip session screen for fast start.
   const [sessionOpen, setSessionOpen] = useState(() => !isWarehouseBoundToSession);
   useEffect(() => {
     if (isWarehouseBoundToSession) setSessionOpen(false);

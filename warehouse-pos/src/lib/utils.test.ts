@@ -137,7 +137,7 @@ describe('getLocationDisplay', () => {
 describe('normalizeProductLocation', () => {
   it('fills missing location with default warehouse', () => {
     const out = normalizeProductLocation({ name: 'P' } as { location?: unknown });
-    expect(out.location).toEqual({ warehouse: 'Main Store', aisle: '', rack: '', bin: '' });
+    expect(out.location).toEqual({ warehouse: 'Main Jeff', aisle: '', rack: '', bin: '' });
   });
   it('preserves existing location fields', () => {
     const out = normalizeProductLocation({

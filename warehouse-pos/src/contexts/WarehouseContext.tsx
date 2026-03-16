@@ -2,10 +2,8 @@
  * Current warehouse (location) for inventory and POS. All product quantities and
  * POS deductions are scoped to the selected warehouse.
  *
- * THE FIX for "Main Town selected but Main Store stats showing":
- *   ROOT CAUSE: Dashboard was fetching warehouse_id=...0001 (Main Store) even when
- *   sidebar showed "Main Town". Sidebar, Dashboard, InventoryPage, and POS each had
- *   disconnected warehouse state.
+ * Single source of truth for warehouse selection. Hunnid Official stores: Main Jeff (...0001), Hunnid Main (...0002).
+ *   Sidebar, Dashboard, InventoryPage, and POS all read from here.
  *   This context is the SINGLE source of truth. Every page (Dashboard, Inventory, POS)
  *   reads from here. When the sidebar changes the warehouse, ALL pages re-fetch.
  *   Selection persists to localStorage so it survives refresh.
@@ -23,7 +21,7 @@ import { API_BASE_URL } from '../lib/api';
 import { apiGet } from '../lib/apiClient';
 import { useOptionalAuth } from './AuthContext';
 
-/** Default warehouse id created by migration (Main Store). Fallback when API has no warehouses yet. */
+/** Default warehouse id (Main Jeff). Fallback when API has no warehouses yet. */
 export const DEFAULT_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
 
 const STORAGE_KEY = 'warehouse_current_id';
@@ -34,7 +32,7 @@ export const KNOWN_WAREHOUSE_NAMES: Record<string, string> = {
   '00000000-0000-0000-0000-000000000002': 'Hunnid Main',
 };
 
-/** DC was consolidated into Main Store; never show in UI (backend also excludes it). */
+/** DC was consolidated; never show in UI (backend also excludes it). */
 function excludeRemovedWarehouses(arr: Warehouse[]): Warehouse[] {
   return arr.filter(
     (w) => w.name !== 'DC' && (w as Warehouse & { code?: string }).code !== 'DC'
@@ -123,7 +121,7 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
     refreshWarehouses();
   }, [authLoading, isAuthenticated, boundWarehouseId, refreshWarehouses]);
 
-  // When session is bound to a warehouse (e.g. Main Town POS), always show that warehouse.
+  // When session is bound to a warehouse (e.g. Hunnid Main POS), always show that warehouse.
   // Set unconditionally so we don't depend on /api/warehouses including it or on stale localStorage.
   useEffect(() => {
     if (boundWarehouseId) {

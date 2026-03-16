@@ -143,20 +143,12 @@ const InventoryContext = createContext<InventoryContextType | undefined>(undefin
 export const ADD_PRODUCT_SAVED_LOCALLY =
   'Product saved locally. It will sync to the server when connection is available.';
 
-/** Sentinel: used when selection is Main Store id but UI shows "Main Town" so we never load Main Store data for that label. API returns [] for this id. */
-const SENTINEL_EMPTY_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000099';
-
+/** Hunnid Official: only Main Jeff and Hunnid Main. We always use the selected warehouse id so products load for both. */
 export function InventoryProvider({ children }: { children: ReactNode }) {
-  const { currentWarehouseId, currentWarehouse } = useWarehouse();
+  const { currentWarehouseId } = useWarehouse();
   const { showToast } = useToast();
   const { tryRefreshSession } = useAuth();
-  const rawWarehouseId = (currentWarehouseId?.trim?.() && currentWarehouseId) ? currentWarehouseId : DEFAULT_WAREHOUSE_ID;
-  const mainStoreNameNorm = 'main store';
-  const isMainStoreIdWithWrongLabel =
-    rawWarehouseId === DEFAULT_WAREHOUSE_ID &&
-    currentWarehouse &&
-    (currentWarehouse.name ?? '').trim().toLowerCase().replace(/\s+/g, ' ') !== mainStoreNameNorm;
-  const effectiveWarehouseId = isMainStoreIdWithWrongLabel ? SENTINEL_EMPTY_WAREHOUSE_ID : rawWarehouseId;
+  const effectiveWarehouseId = (currentWarehouseId?.trim?.() && currentWarehouseId) ? currentWarehouseId : DEFAULT_WAREHOUSE_ID;
 
   // Feature flag: when off, use API-only (state); when on, use offline hook (Dexie). INTEGRATION_PLAN Phase 5/7.
   const offlineEnabled = isOfflineEnabled();
@@ -170,13 +162,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   offlineRef.current = offline;
   /** Mirror of current products for equivalence check during silent refresh (avoids setState when nothing changed → no jitter). */
   const productsRef = useRef<Product[]>([]);
-  /** Refs for loadProducts so request uses current selection; when true, use sentinel id so we never load Main Store data for a "Main Town" selection. */
   const effectiveWarehouseIdRef = useRef(effectiveWarehouseId) as React.MutableRefObject<string>;
-  const useSentinelForProductsRef = useRef<boolean>(isMainStoreIdWithWrongLabel) as React.MutableRefObject<boolean>;
   useEffect(() => {
     effectiveWarehouseIdRef.current = effectiveWarehouseId;
-    useSentinelForProductsRef.current = Boolean(isMainStoreIdWithWrongLabel);
-  }, [effectiveWarehouseId, isMainStoreIdWithWrongLabel]);
+  }, [effectiveWarehouseId]);
   /** Throttle silent refresh so poll + visibility + mount don't cause back-to-back requests (reduces list jitter). */
   const lastSilentRefreshAtRef = useRef<number>(0);
 
@@ -345,13 +334,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     const silent = options?.silent === true;
     const bypassCache = options?.bypassCache === true;
     const timeoutMs = options?.timeoutMs;
-    const wid = useSentinelForProductsRef.current ? SENTINEL_EMPTY_WAREHOUSE_ID : effectiveWarehouseIdRef.current;
+    const wid = effectiveWarehouseIdRef.current;
 
-    // Skip API when warehouse is sentinel or invalid — backend returns 400 for unknown warehouse_id
-    const isInvalidWarehouse =
-      wid === SENTINEL_EMPTY_WAREHOUSE_ID ||
-      !wid ||
-      wid === '00000000-0000-0000-0000-000000000000';
+    // Skip API when warehouse id is missing or all-zeros — backend returns 400 for unknown warehouse_id
+    const isInvalidWarehouse = !wid || wid === '00000000-0000-0000-0000-000000000000';
     if (isInvalidWarehouse) {
       setProducts([]);
       setIsLoading(false);
@@ -463,7 +449,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         if (updated && Date.now() - updated.at < RECENT_UPDATE_WINDOW_MS) {
           merged = merged.map((p) => (p.id === updated.product.id ? updated.product : p));
         }
-        // Fallback only when API returned empty: use only this warehouse's cache so we never show another warehouse's data (e.g. Main Store stats when Main Town is selected).
+        // Fallback only when API returned empty: use only this warehouse's cache so we never show another warehouse's data.
         if (merged.length === 0 && isStorageAvailable()) {
           if (effectiveWarehouseIdRef.current !== wid) {
             setBackgroundRefreshing(false);
@@ -502,7 +488,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           }
         }
         listToSet = listToSet.filter((p) => !recentlyDeletedIdsRef.current.has(p.id));
-        // Do not apply if user switched warehouse (avoids overwriting Main Town with Main Store data from in-flight request).
+        // Do not apply if user switched warehouse (avoids overwriting current selection with in-flight request).
         if (effectiveWarehouseIdRef.current !== wid) {
           setBackgroundRefreshing(false);
           setIsLoading(false);
@@ -578,7 +564,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         message = errMsg || 'Failed to load products. Please check your connection.';
       }
       if (!silent) setError(message);
-      // On failure, only show this warehouse's cache so we never display another warehouse's stats (e.g. Main Store when Main Town is selected).
+      // On failure, only show this warehouse's cache so we never display another warehouse's stats.
       const localRaw = getStoredData<any[]>(productsCacheKey(effectiveWarehouseId), []);
       const localProducts = (Array.isArray(localRaw) ? localRaw : []).map((p: any) => normalizeProduct(p));
       setProducts(localProducts);

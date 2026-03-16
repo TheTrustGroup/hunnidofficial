@@ -31,12 +31,12 @@ export function POS() {
   const [completedTransaction, setCompletedTransaction] = useState<Transaction | null>(null);
   const [isCompletingSale, setIsCompletingSale] = useState(false);
 
-  /** User is assigned to Main Town POS only: show fixed "Main Town" text, no store/warehouse dropdowns. Fallback: single store named "Main town" when API doesn't return assignedPos. */
-  const isMainTownPos =
+  /** User is assigned to Hunnid Main POS only: show fixed "Hunnid Main" text, no store/warehouse dropdowns. Fallback: single store named "Hunnid Main" when API doesn't return assignedPos. */
+  const isHunnidMainPos =
     user?.assignedPos === 'main_town' ||
-    (isSingleStore && currentStore?.name?.trim().toLowerCase() === 'main town');
+    (isSingleStore && currentStore?.name?.trim().toLowerCase() === 'hunnid main');
   /** User has one assigned POS (one store + one warehouse): show fixed location only, no dropdowns. */
-  const hasSinglePOSLocation = !isMainTownPos && isSingleStore && warehouses.length === 1;
+  const hasSinglePOSLocation = !isHunnidMainPos && isSingleStore && warehouses.length === 1;
   /** POS requires warehouse selection when multiple warehouses exist. No silent default. */
   const warehouseRequired = warehouses.length > 1 && !currentWarehouseId;
   const canCompleteSale = !warehouseRequired && !!currentWarehouseId;
@@ -128,10 +128,10 @@ export function POS() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">Point of Sale</h1>
         <p className="text-slate-500 text-sm">Process sales and transactions</p>
-        {(isMainTownPos || currentStore || currentWarehouse) && (
+        {(isHunnidMainPos || currentStore || currentWarehouse) && (
           <p className="text-sm text-slate-600 font-medium mt-1 flex items-center gap-2 flex-wrap">
-            {isMainTownPos ? (
-              <span><MapPin className="w-4 h-4 inline-block mr-1" aria-hidden />Main Town</span>
+            {isHunnidMainPos ? (
+              <span><MapPin className="w-4 h-4 inline-block mr-1" aria-hidden />Hunnid Main</span>
             ) : (
               <>
                 {currentStore && <span><Store className="w-4 h-4 inline-block mr-1" aria-hidden />{currentStore.name}</span>}
@@ -166,20 +166,20 @@ export function POS() {
         </div>
       )}
 
-      {/* Main Town POS: fixed "Selling from: Main Town" only — no store/location dropdowns. */}
-      {isMainTownPos && (
+      {/* Hunnid Main POS: fixed "Selling from: Hunnid Main" only — no store/location dropdowns. */}
+      {isHunnidMainPos && (
         <div className="flex flex-wrap items-center gap-2 text-slate-600 text-sm">
           <MapPin className="w-4 h-4" aria-hidden />
-          <span>Selling from: <strong>Main Town</strong></span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600" title="Assigned to Main Town only">
+          <span>Selling from: <strong>Hunnid Main</strong></span>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600" title="Assigned to Hunnid Main only">
             <Lock className="w-3.5 h-3.5" aria-hidden />
             <span>Assigned POS</span>
           </span>
         </div>
       )}
 
-      {/* When user has a single assigned POS (not Main Town), show fixed store + warehouse — no dropdowns. */}
-      {!isMainTownPos && hasSinglePOSLocation && currentStore && currentWarehouse && (
+      {/* When user has a single assigned POS (not Hunnid Main), show fixed store + warehouse — no dropdowns. */}
+      {!isHunnidMainPos && hasSinglePOSLocation && currentStore && currentWarehouse && (
         <div className="flex flex-wrap items-center gap-2 text-slate-600 text-sm">
           <Store className="w-4 h-4" aria-hidden />
           <span>Store: <strong>{currentStore.name}</strong></span>
@@ -193,7 +193,7 @@ export function POS() {
         </div>
       )}
 
-      {!isMainTownPos && !hasSinglePOSLocation && stores.length > 0 && (
+      {!isHunnidMainPos && !hasSinglePOSLocation && stores.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-slate-600 text-sm">
           <Store className="w-4 h-4" aria-hidden />
           {isSingleStore && currentStore ? (
@@ -217,7 +217,7 @@ export function POS() {
         </div>
       )}
 
-      {!isMainTownPos && !hasSinglePOSLocation && currentWarehouse && !warehouseRequired && (
+      {!isHunnidMainPos && !hasSinglePOSLocation && currentWarehouse && !warehouseRequired && (
         <div className="flex flex-wrap items-center gap-2 text-slate-600 text-sm">
           <MapPin className="w-4 h-4" aria-hidden />
           <span>Selling from: <strong>{currentWarehouse.name}</strong></span>

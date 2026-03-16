@@ -45,7 +45,7 @@ const defaultSystemSettings: SystemSettings = {
   autoBackup: true,
   emailNotifications: true,
   receiptFooter: 'Thank you for shopping with us!',
-  defaultWarehouse: 'Main Store',
+  defaultWarehouse: 'Main Jeff',
   animationsEnabled: true,
   soundEffects: false,
 };

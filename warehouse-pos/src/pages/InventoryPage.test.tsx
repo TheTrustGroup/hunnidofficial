@@ -11,14 +11,14 @@ function renderWithRouter(ui: JSX.Element) {
 }
 
 const MOCK_WAREHOUSE_ID = 'wh-inv-test-123';
-const MOCK_WAREHOUSE_NAME = 'Main Town';
+const MOCK_WAREHOUSE_NAME = 'Hunnid Main';
 
 vi.mock('../contexts/WarehouseContext', () => ({
   useWarehouse: () => ({
     currentWarehouseId: MOCK_WAREHOUSE_ID,
     currentWarehouse: { id: MOCK_WAREHOUSE_ID, name: MOCK_WAREHOUSE_NAME },
     warehouses: [
-      { id: '00000000-0000-0000-0000-000000000001', name: 'Main Store' },
+      { id: '00000000-0000-0000-0000-000000000001', name: 'Main Jeff' },
       { id: MOCK_WAREHOUSE_ID, name: MOCK_WAREHOUSE_NAME },
     ],
     setCurrentWarehouseId: vi.fn(),

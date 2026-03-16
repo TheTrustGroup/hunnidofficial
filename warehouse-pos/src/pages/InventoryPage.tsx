@@ -57,9 +57,10 @@ const EU_HALF_SIZES: SizeCode[] = [
 ];
 
 /** Fallback list when WarehouseContext has not yet loaded. IDs must match backend. */
+/** Hunnid Official: only two stores. Match backend/DB. */
 const FALLBACK_WAREHOUSES: Pick<Warehouse, 'id' | 'name'>[] = [
-  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Store' },
-  { id: '00000000-0000-0000-0000-000000000002', name: 'Main Town' },
+  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Jeff' },
+  { id: '00000000-0000-0000-0000-000000000002', name: 'Hunnid Main' },
 ];
 
 /** Reject empty or all-zeros warehouse id so we never call APIs with an invalid scope. */
@@ -687,7 +688,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-[12px] text-[var(--edk-ink-3)] mb-4 px-0">
-        <span>{warehouse?.name ?? 'Main Store'}</span>
+        <span>{warehouse?.name ?? 'Main Jeff'}</span>
         <span className="opacity-40" aria-hidden>›</span>
         <span className="text-[var(--edk-ink-2)] font-medium">Inventory</span>
       </div>

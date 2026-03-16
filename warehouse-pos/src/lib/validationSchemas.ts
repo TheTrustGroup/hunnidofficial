@@ -26,7 +26,7 @@ export function validateLoginForm(email: string, password: string): { success: t
 
 // ---- Product form (add/edit) ----
 const productFormLocationSchema = z.object({
-  warehouse: z.string().default('Main Store'),
+  warehouse: z.string().default('Main Jeff'),
   aisle: z.string().default(''),
   rack: z.string().default(''),
   bin: z.string().default(''),
