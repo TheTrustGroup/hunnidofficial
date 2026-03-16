@@ -392,10 +392,20 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       });
     }
 
-    // Step 3: Clear cart + close sheet only when sale synced; preserve cart on failure so user can retry
+    // Step 3: Clear cart when synced; after 2s close sheet and show success screen
     if (syncOk) {
       setCart([]);
-      setCartOpen(false);
+      setTimeout(() => {
+        if (!isMounted.current) return;
+        setSaleResult({
+          ...payload,
+          saleId:         serverSaleId!,
+          receiptId:      serverReceiptId!,
+          completedAt:    completedAt!,
+          deliveryStatus: payload.deliveryStatus ?? 'delivered',
+        });
+        setCartOpen(false);
+      }, 2000);
     }
     setCharging(false);
 
@@ -403,24 +413,11 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       if (!insufficientStockShown) {
         showToast('Sale failed to sync — check connection and try again. Cart preserved.', 'err');
       }
-      return;
+      throw new Error('Sale failed to sync');
     }
 
-    // Step 4: Wait for sheet close animation
-    await new Promise(r => setTimeout(r, 350));
-
-    if (!isMounted.current) return;
-
-    // Step 5: Show success screen only when sync succeeded
-    setSaleResult({
-      ...payload,
-      saleId:         serverSaleId,
-      receiptId:      serverReceiptId,
-      completedAt,
-      deliveryStatus: payload.deliveryStatus ?? 'delivered',
-    });
-    // So Dashboard and Inventory refetch and show updated stock value / quantities
-    notifyInventoryUpdated();
+    // Step 4: Notify so Dashboard and Inventory refetch
+    if (syncOk) notifyInventoryUpdated();
   }
 
   // ── New sale ──────────────────────────────────────────────────────────────
@@ -478,7 +475,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden" style={{ background: 'var(--h-cream)' }}>
 
       {!isWarehouseBoundToSession && (
         <SessionScreen
@@ -538,6 +535,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       <div className="hidden lg:block flex-shrink-0">
         <CartPanel
           lines={cart}
+          warehouseName={warehouse.name}
           onUpdateQty={handleUpdateQty}
           onRemoveLine={handleRemoveLine}
           onClearCart={handleClearCart}
@@ -556,6 +554,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         isOpen={cartOpen}
         lines={cart}
         warehouseId={warehouse.id}
+        warehouseName={warehouse.name}
         onUpdateQty={handleUpdateQty}
         onRemoveLine={handleRemoveLine}
         onClearCart={handleClearCart}

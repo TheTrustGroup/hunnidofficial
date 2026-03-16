@@ -73,18 +73,18 @@ export function Orders() {
     failed: orders.filter(o => o.status === 'failed').length,
   };
 
-  const getStatusColor = (status: OrderStatus) => {
-    const colors: Record<OrderStatus, string> = {
-      pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-      confirmed: 'bg-blue-50 text-blue-700 border-blue-200',
-      processing: 'bg-purple-50 text-purple-700 border-purple-200',
-      ready: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-      out_for_delivery: 'bg-orange-50 text-orange-700 border-orange-200',
-      delivered: 'bg-green-50 text-green-700 border-green-200',
-      failed: 'bg-red-50 text-red-700 border-red-200',
-      cancelled: 'bg-gray-50 text-gray-700 border-gray-200',
+  const getStatusStyle = (status: OrderStatus): React.CSSProperties => {
+    const map: Record<OrderStatus, { background: string; color: string }> = {
+      pending: { background: 'var(--h-amber-light)', color: 'var(--h-amber)' },
+      confirmed: { background: 'var(--h-blue-light)', color: 'var(--h-blue)' },
+      processing: { background: 'var(--h-gray-100)', color: 'var(--h-gray-700)' },
+      ready: { background: 'var(--h-blue-light)', color: 'var(--h-blue)' },
+      out_for_delivery: { background: 'var(--h-amber-light)', color: 'var(--h-amber)' },
+      delivered: { background: 'var(--h-green-light)', color: 'var(--h-green)' },
+      failed: { background: 'var(--h-red-light)', color: 'var(--h-red)' },
+      cancelled: { background: 'var(--h-gray-100)', color: 'var(--h-gray-600)' },
     };
-    return colors[status];
+    return { ...map[status], border: '0.5px solid var(--h-gray-200)' };
   };
 
   if (isLoading) {
@@ -125,9 +125,9 @@ export function Orders() {
   return (
     <div className="space-y-6">
       {ordersError && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3" role="alert">
-          <p className="text-amber-900 text-sm font-medium flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-600" aria-hidden />
+        <div className="rounded-[var(--radius-lg)] px-4 py-3 flex flex-wrap items-center justify-between gap-3 border" style={{ background: 'var(--h-amber-light)', border: '0.5px solid var(--h-gray-200)' }} role="alert">
+          <p className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--h-gray-900)' }}>
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--h-amber)' }} aria-hidden />
             {ordersError}
           </p>
           <Button variant="primary" size="sm" onClick={() => refreshOrders()} className="inline-flex items-center gap-2 shrink-0" aria-label="Retry loading orders">
@@ -155,7 +155,7 @@ export function Orders() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <PageHeader
-          title="Orders"
+          title="ORDERS"
           description={`${filteredOrders.length} order${filteredOrders.length !== 1 ? 's' : ''} found`}
         />
         <Button variant="primary" className="inline-flex items-center gap-2 w-full sm:w-auto justify-center" aria-label="New order">
@@ -166,69 +166,69 @@ export function Orders() {
 
       {/* Stats Cards — Phase 6: equal height (min-h), 8pt grid gap, icon stroke consistent */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center">
+        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-yellow-50 rounded-xl flex items-center justify-center shrink-0">
-              <Clock className="w-6 h-6 text-yellow-600" strokeWidth={2} aria-hidden />
+            <div className="p-3 rounded-[var(--radius-md)] flex items-center justify-center shrink-0" style={{ background: 'var(--h-amber-light)' }}>
+              <Clock className="w-6 h-6" strokeWidth={2} aria-hidden style={{ color: 'var(--h-amber)' }} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-slate-600">Pending</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.pending}</p>
+              <p className="text-sm" style={{ color: 'var(--h-gray-600)' }}>Pending</p>
+              <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)', color: 'var(--h-gray-900)' }}>{stats.pending}</p>
             </div>
           </div>
         </div>
 
-        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center">
+        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-50 rounded-xl flex items-center justify-center shrink-0">
-              <Package className="w-6 h-6 text-purple-600" strokeWidth={2} aria-hidden />
+            <div className="p-3 rounded-[var(--radius-md)] flex items-center justify-center shrink-0" style={{ background: 'var(--h-gray-100)' }}>
+              <Package className="w-6 h-6" strokeWidth={2} aria-hidden style={{ color: 'var(--h-gray-600)' }} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-slate-600">Processing</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.processing}</p>
+              <p className="text-sm" style={{ color: 'var(--h-gray-600)' }}>Processing</p>
+              <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)', color: 'var(--h-gray-900)' }}>{stats.processing}</p>
             </div>
           </div>
         </div>
 
-        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center">
+        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-orange-50 rounded-xl flex items-center justify-center shrink-0">
-              <Truck className="w-6 h-6 text-orange-600" strokeWidth={2} aria-hidden />
+            <div className="p-3 rounded-[var(--radius-md)] flex items-center justify-center shrink-0" style={{ background: 'var(--h-amber-light)' }}>
+              <Truck className="w-6 h-6" strokeWidth={2} aria-hidden style={{ color: 'var(--h-amber)' }} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-slate-600">Out for Delivery</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.out_for_delivery}</p>
+              <p className="text-sm" style={{ color: 'var(--h-gray-600)' }}>Out for Delivery</p>
+              <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)', color: 'var(--h-gray-900)' }}>{stats.out_for_delivery}</p>
             </div>
           </div>
         </div>
 
-        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center">
+        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-50 rounded-xl flex items-center justify-center shrink-0">
-              <CheckCircle className="w-6 h-6 text-green-600" strokeWidth={2} aria-hidden />
+            <div className="p-3 rounded-[var(--radius-md)] flex items-center justify-center shrink-0" style={{ background: 'var(--h-green-light)' }}>
+              <CheckCircle className="w-6 h-6" strokeWidth={2} aria-hidden style={{ color: 'var(--h-green)' }} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-slate-600">Delivered</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.delivered}</p>
+              <p className="text-sm" style={{ color: 'var(--h-gray-600)' }}>Delivered</p>
+              <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)', color: 'var(--h-gray-900)' }}>{stats.delivered}</p>
             </div>
           </div>
         </div>
 
-        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center">
+        <div className="solid-card min-h-[7.5rem] flex flex-col justify-center" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-red-50 rounded-xl flex items-center justify-center shrink-0">
-              <XCircle className="w-6 h-6 text-red-600" strokeWidth={2} aria-hidden />
+            <div className="p-3 rounded-[var(--radius-md)] flex items-center justify-center shrink-0" style={{ background: 'var(--h-red-light)' }}>
+              <XCircle className="w-6 h-6" strokeWidth={2} aria-hidden style={{ color: 'var(--h-red)' }} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm text-slate-600">Failed</p>
-              <p className="text-2xl font-bold text-slate-900">{stats.failed}</p>
+              <p className="text-sm" style={{ color: 'var(--h-gray-600)' }}>Failed</p>
+              <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-display)', color: 'var(--h-gray-900)' }}>{stats.failed}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filters — Phase 6: card uses default solid-card padding (≥16px) */}
-      <div className="solid-card">
+      {/* Filters */}
+      <div className="solid-card" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-sm font-medium text-slate-600 mb-1.5">Search</label>
@@ -276,7 +276,8 @@ export function Orders() {
                 <div className="flex items-center gap-3 mb-2">
                   <h3 className="text-lg font-bold text-slate-900">{order.orderNumber}</h3>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(order.status)}`}
+                    className="px-3 py-1 rounded-full text-xs font-semibold"
+                    style={getStatusStyle(order.status)}
                   >
                     {order.status.replace('_', ' ').toUpperCase()}
                   </span>

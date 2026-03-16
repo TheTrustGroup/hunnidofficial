@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
+import './styles/design-system.css';
 import './index.css';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import { API_BASE_URL } from './lib/api';

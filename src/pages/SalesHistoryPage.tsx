@@ -165,11 +165,11 @@ const IconRefresh = () => (
 
 // ── Payment badge ──────────────────────────────────────────────────────────
 
-const PAY_COLORS: Record<string, string> = {
-  Cash: 'bg-emerald-100 text-emerald-800',
-  MoMo: 'bg-amber-100  text-amber-800',
-  Card: 'bg-blue-100   text-blue-800',
-  Mix:  'bg-violet-100 text-violet-800',
+const PAY_STYLES: Record<string, { background: string; color: string }> = {
+  Cash: { background: 'var(--h-green-light)', color: 'var(--h-green)' },
+  MoMo: { background: 'var(--h-amber-light)', color: 'var(--h-amber)' },
+  Card: { background: 'var(--h-blue-light)', color: 'var(--h-blue)' },
+  Mix:  { background: 'var(--h-gray-100)', color: 'var(--h-gray-700)' },
 };
 
 function PayBadge({ method, mixBreakdown }: { method: string; mixBreakdown?: { cash?: number; momo?: number; card?: number } | null }) {
@@ -177,7 +177,11 @@ function PayBadge({ method, mixBreakdown }: { method: string; mixBreakdown?: { c
     ? `Cash ${fmt(mixBreakdown.cash ?? 0)} · MoMo ${fmt(mixBreakdown.momo ?? 0)} · Card ${fmt(mixBreakdown.card ?? 0)}`
     : undefined;
   return (
-    <span className={`inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-bold ${PAY_COLORS[method] ?? 'bg-slate-100 text-slate-600'}`} title={mixTitle}>
+    <span
+      className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-[11px] font-semibold"
+      style={{ ...(PAY_STYLES[method] ?? { background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }) }}
+      title={mixTitle}
+    >
       <PayIcon method={method} size={12} /> {method}
     </span>
   );
@@ -190,17 +194,21 @@ function SummaryCard({ label, value, sub, accent = false }: {
 }) {
   return (
     <div
-      className="rounded-xl px-4 py-4 flex flex-col gap-1 border transition-all duration-200 hover:-translate-y-0.5"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="rounded-[var(--radius-lg)] px-4 py-4 flex flex-col gap-1 border"
+      style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}
     >
-      <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--h-gray-400)' }}>{label}</p>
       <p
-        className="text-[20px] font-extrabold tabular-nums leading-tight"
-        style={{ color: accent ? 'var(--blue)' : 'var(--text)', fontFamily: 'var(--font-m)' }}
+        className="tabular-nums leading-tight"
+        style={{
+          fontSize: 20,
+          fontFamily: 'var(--font-display)',
+          color: accent ? 'var(--h-blue)' : 'var(--h-gray-900)',
+        }}
       >
         {value}
       </p>
-      {sub && <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>{sub}</p>}
+      {sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--h-gray-400)' }}>{sub}</p>}
     </div>
   );
 }
@@ -209,11 +217,11 @@ function SummaryCard({ label, value, sub, accent = false }: {
 
 function DeliveryBadge({ status, expectedDate }: { status: string; expectedDate?: string | null }) {
   if (!status || status === 'delivered') return null;
-  if (status === 'cancelled') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">Cancelled</span>;
+  if (status === 'cancelled') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }}>Cancelled</span>;
   const overdue = expectedDate && new Date(expectedDate) < new Date(new Date().toDateString());
-  if (overdue) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-600">⚠ Overdue</span>;
-  if (status === 'dispatched') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">🚚 Dispatched</span>;
-  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">⏳ Pending delivery</span>;
+  if (overdue) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'var(--h-red-light)', color: 'var(--h-red)' }}>⚠ Overdue</span>;
+  if (status === 'dispatched') return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'var(--h-blue-light)', color: 'var(--h-blue)' }}>🚚 Dispatched</span>;
+  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'var(--h-amber-light)', color: 'var(--h-amber)' }}>⏳ Pending delivery</span>;
 }
 
 function saleWarehouseName(warehouseId: string): string {
@@ -236,54 +244,46 @@ function SaleRow({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-xl overflow-hidden border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      {/* Main row: div so Print/Void buttons inside expanded section are not nested in a button */}
+    <div className="rounded-[var(--radius-md)] overflow-hidden border mb-2" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
       <div
         role="button"
         tabIndex={0}
         onClick={() => setExpanded(v => !v)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v); } }}
-        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-slate-50 transition-colors text-left cursor-pointer"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--h-gray-50)] transition-colors text-left cursor-pointer"
       >
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }}>
             <IconReceipt />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[13px] font-bold text-slate-900">{sale.receiptId}</span>
-              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold" title="POS / Warehouse">
-                {warehouseName}
-              </span>
+              <span className="text-[13px] font-medium tabular-nums" style={{ fontFamily: 'var(--font-body)', color: 'var(--h-gray-900)' }}>{sale.receiptId}</span>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }}>{warehouseName}</span>
               {sale.voidedAt ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700" title={sale.voidedBy ? `Voided by ${sale.voidedBy}` : 'Voided'}>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }} title={sale.voidedBy ? `Voided by ${sale.voidedBy}` : 'Voided'}>
                   Voided
                 </span>
               ) : null}
               <PayBadge method={sale.paymentMethod} mixBreakdown={sale.paymentMixBreakdown} />
               <DeliveryBadge status={sale.deliveryStatus ?? 'delivered'} expectedDate={sale.expectedDate} />
             </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--h-gray-400)' }}>
               {fmtDate(sale.createdAt)}
-              {sale.customerName && <> · {sale.customerName}</>}
-            </p>
-            <p className="text-[11px] text-slate-400">
-              {sale.itemCount} item{sale.itemCount !== 1 ? 's' : ''}
+              {sale.customerName && <> · {sale.customerName}</>} · {sale.itemCount} item{sale.itemCount !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
-
         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-          <span className="text-[15px] font-extrabold text-slate-900 tabular-nums">{fmt(sale.total)}</span>
-          <span className="text-slate-400">
+          <span className="tabular-nums" style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--h-gray-900)' }}>{fmt(sale.total)}</span>
+          <span style={{ color: 'var(--h-gray-400)' }}>
             <IconChevron down={expanded} />
           </span>
         </div>
       </div>
 
-      {/* Expanded lines */}
       {expanded && (
-        <div className="border-t border-slate-100 bg-slate-50">
+        <div className="border-t" style={{ borderTop: '0.5px solid var(--h-gray-200)', background: 'var(--h-gray-50)' }}>
           {/* Line items */}
           <div className="px-4 py-3 space-y-2">
             {sale.lines.map(l => (
@@ -302,33 +302,30 @@ function SaleRow({
             ))}
           </div>
 
-          {/* Totals */}
-          <div className="px-4 py-3 border-t border-slate-200 space-y-1">
+          <div className="px-4 py-3 border-t space-y-1" style={{ borderTop: '0.5px solid var(--h-gray-200)' }}>
             {sale.discountPct > 0 && (
-              <div className="flex justify-between text-[12px]">
-                <span className="text-slate-500">Subtotal</span>
-                <span className="text-slate-600 tabular-nums">{fmt(sale.subtotal)}</span>
+              <div className="flex justify-between text-[12px]" style={{ color: 'var(--h-gray-500)' }}>
+                <span>Subtotal</span>
+                <span className="tabular-nums">{fmt(sale.subtotal)}</span>
               </div>
             )}
             {sale.discountPct > 0 && (
-              <div className="flex justify-between text-[12px]">
-                <span className="text-emerald-600">Discount ({sale.discountPct}%)</span>
-                <span className="text-emerald-600 tabular-nums">−{fmt(sale.discountAmt)}</span>
+              <div className="flex justify-between text-[12px]" style={{ color: 'var(--h-green)' }}>
+                <span>Discount ({sale.discountPct}%)</span>
+                <span className="tabular-nums">−{fmt(sale.discountAmt)}</span>
               </div>
             )}
-            <div className="flex justify-between text-[13px] font-bold pt-1">
-              <span className="text-slate-900">Total</span>
-              <span className="text-slate-900 tabular-nums">{fmt(sale.total)}</span>
+            <div className="flex justify-between text-[13px] font-semibold pt-1" style={{ color: 'var(--h-gray-900)' }}>
+              <span>Total</span>
+              <span className="tabular-nums">{fmt(sale.total)}</span>
             </div>
           </div>
-
-          {/* Print + Void — stopPropagation so row doesn't collapse when clicking */}
           <div className="px-4 pb-3 flex justify-end gap-2">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onPrint(sale); }}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-slate-200 hover:bg-slate-300
-                         text-[12px] font-semibold text-slate-700 transition-colors"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-md)] text-[12px] font-semibold transition-opacity border"
+              style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-700)', border: '0.5px solid var(--h-gray-300)' }}
             >
               <IconPrint /> Print receipt
             </button>
@@ -337,8 +334,8 @@ function SaleRow({
                 type="button"
                 disabled={isVoiding}
                 onClick={(e) => { e.stopPropagation(); onVoid(sale); }}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-rose-100 hover:bg-rose-200
-                           text-[12px] font-semibold text-rose-700 transition-colors disabled:opacity-60"
+                className="flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-md)] text-[12px] font-semibold transition-opacity disabled:opacity-60"
+                style={{ background: 'var(--h-red-light)', color: 'var(--h-red)' }}
               >
                 {isVoiding ? 'Voiding…' : 'Void (restore stock)'}
               </button>
@@ -532,17 +529,17 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
   ];
 
   return (
-    <div className="min-h-screen pb-12" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen pb-12" style={{ background: 'var(--h-cream)' }}>
 
       {/* ── Header ── */}
-      <header className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+      <header className="sticky top-0 z-20 border-b" style={{ background: 'var(--h-white)', borderBottom: '0.5px solid var(--h-gray-200)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div>
-            <h1 className="text-[20px] font-bold text-slate-900" style={{ fontFamily: 'var(--font-d)' }}>Sales History</h1>
-            {/* Warehouse selector */}
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, letterSpacing: '0.04em', color: 'var(--h-gray-900)' }}>SALES</h1>
             <div className="relative mt-0.5">
               <button type="button" onClick={() => setWhDropdown(v => !v)}
-                      className="flex items-center gap-1 text-[12px] font-semibold text-slate-500 hover:text-slate-700 transition-colors">
+                      className="flex items-center gap-1 text-[12px] font-medium transition-colors"
+                      style={{ color: 'var(--h-gray-500)' }}>
                 {currentWh.name}
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <polyline points="6 9 12 15 18 9"/>
@@ -550,13 +547,13 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
               </button>
               {whDropdown && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setWhDropdown(false)}/>
-                  <div className="absolute left-0 top-6 z-20 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 w-44">
+                  <div className="fixed inset-0 z-10" onClick={() => setWhDropdown(false)} aria-hidden />
+                  <div className="absolute left-0 top-6 z-20 py-1.5 w-44 rounded-[var(--radius-md)] border" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
                     {[{ id: ALL_WAREHOUSES_ID, name: 'All warehouses' }, ...WAREHOUSES].map(w => (
                       <button key={w.id || 'all'} type="button"
                               onClick={() => { setWarehouseId(w.id); setWhDropdown(false); }}
-                              className={`w-full px-4 py-2.5 text-left text-[13px] font-medium transition-colors
-                                ${warehouseId === w.id ? 'text-primary-500 bg-primary-50' : 'text-slate-700 hover:bg-slate-50'}`}>
+                              className="w-full px-4 py-2.5 text-left text-[13px] font-medium transition-colors rounded-[var(--radius-sm)]"
+                              style={warehouseId === w.id ? { color: 'var(--h-blue)', background: 'var(--h-blue-light)' } : { color: 'var(--h-gray-700)' }}>
                         {warehouseId === w.id && '✓ '}{w.name}
                       </button>
                     ))}
@@ -567,27 +564,37 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
           </div>
           <div className="flex items-center gap-2">
             <button type="button" onClick={fetchSales}
-                    className="w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-500 flex items-center justify-center hover:bg-slate-50 transition-colors">
+                    className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center transition-opacity"
+                    style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }}>
               <IconRefresh/>
             </button>
             <button type="button" onClick={handleExport} disabled={displayed.length === 0}
-                    className="h-9 px-3 rounded-xl text-white text-[13px] font-semibold flex items-center gap-1.5 disabled:opacity-40 transition-colors"
-                    style={{ background: 'var(--blue)', fontFamily: 'var(--font-d)' }}>
+                    className="h-9 px-3 rounded-[var(--radius-md)] text-white text-[13px] font-medium flex items-center gap-1.5 disabled:opacity-40 transition-opacity"
+                    style={{ background: 'var(--h-blue)' }}>
               <IconDownload/> Export
             </button>
           </div>
         </div>
 
-        {/* Date filter tabs */}
-        <div className="flex gap-1 px-4 pb-3">
-          {DATE_TABS.map(t => (
-            <button key={t.key} type="button" onClick={() => setDateFilter(t.key)}
-                    className={`flex-1 h-8 rounded-xl text-[12px] font-bold transition-all duration-150
-                      ${dateFilter === t.key ? 'text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-                    style={dateFilter === t.key ? { background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' } : undefined}>
+        {/* Period tabs — design system: container gray-100, active blue */}
+        <div className="px-4 pb-3">
+          <div className="inline-flex gap-0.5 p-1 rounded-[var(--radius-md)]" style={{ background: 'var(--h-gray-100)' }}>
+            {DATE_TABS.map(t => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setDateFilter(t.key)}
+              className="h-8 px-3 rounded-[var(--radius-sm)] text-[12px] font-medium transition-colors"
+              style={
+                dateFilter === t.key
+                  ? { background: 'var(--h-blue)', color: 'var(--h-white)' }
+                  : { background: 'transparent', color: 'var(--h-gray-500)' }
+              }
+            >
               {t.label}
             </button>
           ))}
+          </div>
         </div>
       </header>
 
@@ -605,15 +612,22 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
 
         {/* ── Search ── */}
         <div className="relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--h-gray-400)' }}>
             <IconSearch/>
           </span>
-          <input type="search" value={search} onChange={e => setSearch(e.target.value)}
-                 placeholder="Search receipt, customer, product…"
-                 className="w-full h-11 pl-10 pr-4 rounded-xl border-[1.5px] border-slate-200 bg-white
-                            text-[14px] text-slate-900 placeholder:text-slate-300
-                            focus:outline-none focus:border-primary-400 focus:ring-[3px] focus:ring-primary-100
-                            transition-all duration-150"/>
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search receipt, customer, product…"
+            className="w-full h-11 pl-10 pr-4 rounded-[var(--radius-md)] outline-none transition-colors focus:border-[var(--h-blue)]"
+            style={{
+              border: '0.5px solid var(--h-gray-300)',
+              background: 'var(--h-white)',
+              fontSize: 14,
+              color: 'var(--h-gray-900)',
+            }}
+          />
         </div>
 
         {/* ── Results count ── */}
@@ -623,9 +637,9 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
 
         {/* ── Error ── */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-4 text-center">
-            <p className="text-[14px] font-semibold text-red-700">{error}</p>
-            <button type="button" onClick={fetchSales} className="mt-2 text-[13px] font-bold text-red-500 hover:text-red-700">
+          <div className="rounded-[var(--radius-lg)] border px-4 py-4 text-center" style={{ background: 'var(--h-red-light)', border: '0.5px solid var(--h-gray-200)' }}>
+            <p className="text-[14px] font-semibold" style={{ color: 'var(--h-red)' }}>{error}</p>
+            <button type="button" onClick={fetchSales} className="mt-2 text-[13px] font-semibold transition-opacity hover:opacity-90" style={{ color: 'var(--h-red)' }}>
               Retry
             </button>
           </div>

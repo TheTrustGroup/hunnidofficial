@@ -214,9 +214,9 @@ export function Reports() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up">
         <div>
-          <PageHeader title="Reports & Analytics" description="Comprehensive business insights" />
+          <PageHeader title="REPORTS & ANALYTICS" description="Comprehensive business insights" />
           {locationLabel && (
-            <p className="text-sm font-medium text-slate-600 mt-1" aria-live="polite">
+            <p className="text-sm font-medium mt-1" style={{ color: 'var(--h-gray-600)' }} aria-live="polite">
               {locationLabel}
             </p>
           )}
@@ -284,7 +284,7 @@ export function Reports() {
               <SalesChart report={salesReport} />
               <TopProductsTable report={salesReport} />
               {/* Category Performance */}
-              <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
                 <h3 className="text-lg font-semibold mb-6 px-6 pt-6" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>Category Performance</h3>
             <div className="table-scroll-wrap">
               <table className="w-full min-w-[320px]">
@@ -324,7 +324,7 @@ export function Reports() {
           <InventoryMetrics report={effectiveInventoryReport} />
 
           {/* Top Value Products */}
-          <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
             <h3 className="text-lg font-semibold mb-6 px-6 pt-6" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>Highest Value Inventory</h3>
             <div className="table-scroll-wrap">
               <table className="w-full min-w-[280px]">
@@ -351,7 +351,7 @@ export function Reports() {
           </div>
 
           {/* Category Breakdown */}
-          <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="table-container rounded-xl border overflow-hidden" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
             <h3 className="text-lg font-semibold mb-6 px-6 pt-6" style={{ color: 'var(--text)', fontFamily: 'var(--font-d)' }}>Inventory by Category</h3>
             <div className="table-scroll-wrap">
               <table className="w-full min-w-[320px]">

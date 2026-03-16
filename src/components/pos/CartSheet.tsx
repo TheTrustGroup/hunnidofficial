@@ -51,6 +51,7 @@ interface CartSheetProps {
   isOpen:       boolean;
   lines:        CartLine[];
   warehouseId:  string;
+  warehouseName?: string;
   onUpdateQty:  (key: string, delta: number) => void;
   onRemoveLine: (key: string) => void;
   onClearCart:  () => void;
@@ -145,7 +146,7 @@ function FieldRow({ icon, placeholder, value, onChange, type = 'text', min }: { 
   );
 }
 
-export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onRemoveLine, onClearCart, onCharge, onClose }: CartSheetProps) {
+export default function CartSheet({ isOpen, lines, warehouseId, warehouseName, onUpdateQty, onRemoveLine, onClearCart, onCharge, onClose }: CartSheetProps) {
   const [customerName,     setCustomerName]    = useState('');
   const [discountPct,      setDiscountPct]     = useState<number | ''>(0);
   const [paymentMethod,    setPaymentMethod]   = useState<PaymentMethod>('Cash');
@@ -159,10 +160,18 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
   const [deliveryAddress,  setDeliveryAddress] = useState('');
   const [deliveryNotes,    setDeliveryNotes]   = useState('');
   const [expectedDate,     setExpectedDate]    = useState('');
+  const [chargeStatus,     setChargeStatus]    = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
   const customerInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen) { setDiscountPct(0); setPaymentMethod('Cash'); setMixCash(''); setMixMoMo(''); setMixCard(''); setScheduleDelivery(false); setRecipientName(''); setRecipientPhone(''); setDeliveryAddress(''); setDeliveryNotes(''); setExpectedDate(''); }
+    if (isOpen) {
+      setDiscountPct(0);
+      setPaymentMethod('Cash');
+      setMixCash(''); setMixMoMo(''); setMixCard('');
+      setScheduleDelivery(false);
+      setRecipientName(''); setRecipientPhone(''); setDeliveryAddress(''); setDeliveryNotes(''); setExpectedDate('');
+      setChargeStatus('idle');
+    }
   }, [isOpen]);
 
   useEffect(() => { if (isOpen) document.body.style.overflow = 'hidden'; else document.body.style.overflow = ''; return () => { document.body.style.overflow = ''; }; }, [isOpen]);
@@ -189,6 +198,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
     if (lines.length === 0 || isCharging || !canCharge) return;
     if (paymentMethod === 'Mix' && Math.abs(mixSum - total) >= 0.01) return;
     setIsCharging(true);
+    setChargeStatus('processing');
     try {
       const payload: SalePayload = {
         lines, subtotal, discountPct: disc, discountAmt, total,
@@ -204,11 +214,17 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
         payload.paymentMixBreakdown = { cash: mixCashN, momo: mixMoMoN, card: mixCardN };
       }
       await onCharge(payload);
+      setChargeStatus('success');
       setCustomerName(''); setDiscountPct(0); setPaymentMethod('Cash');
       setMixCash(''); setMixMoMo(''); setMixCard('');
       setScheduleDelivery(false); setRecipientName(''); setRecipientPhone('');
       setDeliveryAddress(''); setDeliveryNotes(''); setExpectedDate('');
-    } finally { setIsCharging(false); }
+      // Parent closes sheet after 2s and shows success screen
+    } catch {
+      setChargeStatus('error');
+    } finally {
+      setIsCharging(false);
+    }
   }
 
   return (
@@ -218,14 +234,38 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
 
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
 
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
+        <div
+          className="flex items-center justify-between px-4 py-3 flex-shrink-0 border-b"
+          style={{ borderBottom: '0.5px solid var(--h-gray-100)' }}
+        >
           <div>
-            <h2 className="text-[18px] font-bold text-slate-900">Cart</h2>
-            <p className="text-[12px] text-slate-400 font-medium mt-0.5">{itemCount} item{itemCount !== 1 ? 's' : ''}</p>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--h-gray-900)' }}>SALE</h2>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>
+              {itemCount} item{itemCount !== 1 ? 's' : ''}{warehouseName ? ` · ${warehouseName}` : ''}
+            </p>
           </div>
           <div className="flex items-center gap-2">
-            {lines.length > 0 && <button type="button" onClick={onClearCart} disabled={isCharging} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition-colors duration-150">Clear all</button>}
-            <button type="button" onClick={onClose} disabled={isCharging} className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 transition-all duration-150"><IconX /></button>
+            {lines.length > 0 && (
+              <button
+                type="button"
+                onClick={onClearCart}
+                disabled={isCharging}
+                className="text-[11px] font-semibold disabled:opacity-40 transition-opacity"
+                style={{ color: 'var(--h-red)', fontFamily: 'var(--font-body)' }}
+              >
+                Clear
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isCharging}
+              className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center disabled:opacity-40 transition-opacity"
+              style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }}
+              aria-label="Close"
+            >
+              <IconX />
+            </button>
           </div>
         </div>
 
@@ -341,21 +381,31 @@ export default function CartSheet({ isOpen, lines, warehouseId, onUpdateQty, onR
           </>)}
         </div>
 
-        {/* Charge button */}
+        {/* Charge button — IDLE / PROCESSING / SUCCESS / ERROR */}
         {lines.length > 0 && (
-          <div className="px-5 py-4 border-t flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+          <div
+            className="px-4 py-3 border-t flex-shrink-0"
+            style={{ borderTop: '0.5px solid var(--h-gray-100)', background: 'var(--h-white)' }}
+          >
             <button
               type="button"
               onClick={handleCharge}
-              disabled={isCharging || lines.length === 0 || !canCharge}
-              className="w-full h-12 rounded-[10px] border-none text-white flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-200 hover:-translate-y-px uppercase font-extrabold text-[16px]"
+              disabled={chargeStatus === 'processing' || chargeStatus === 'success' || (chargeStatus === 'idle' && (lines.length === 0 || !canCharge))}
+              className="w-full h-12 rounded-[var(--radius-md)] border-none text-white flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all font-medium text-[16px]"
               style={{
-                fontFamily: 'var(--font-d)',
-                background: scheduleDelivery ? 'var(--amber)' : 'var(--blue)',
-                boxShadow: scheduleDelivery ? '0 4px 14px rgba(217,119,6,0.2)' : '0 4px 14px var(--blue-glow)',
+                fontFamily: chargeStatus === 'success' ? 'var(--font-body)' : 'var(--font-display)',
+                background:
+                  chargeStatus === 'success' ? 'var(--h-green)' :
+                  chargeStatus === 'error' ? 'var(--h-red-light)' :
+                  chargeStatus === 'processing' ? 'var(--h-gray-300)' :
+                  scheduleDelivery ? 'var(--h-amber)' : 'var(--h-blue)',
+                color: chargeStatus === 'error' ? 'var(--h-red)' : 'var(--h-white)',
               }}
             >
-              {isCharging ? (<><IconSpinner /> Processing…</>) : scheduleDelivery ? (<><IconTruck /> Charge & Schedule — {fmt(total)}</>) : (`Charge ${fmt(total)}`)}
+              {chargeStatus === 'processing' && <><IconSpinner /> Processing…</>}
+              {chargeStatus === 'success' && '✓ Sale complete'}
+              {chargeStatus === 'error' && 'Failed — tap to retry'}
+              {chargeStatus === 'idle' && (scheduleDelivery ? <><IconTruck /> Charge & Schedule — {fmt(total)}</> : `Charge ${fmt(total)}`)}
             </button>
           </div>
         )}

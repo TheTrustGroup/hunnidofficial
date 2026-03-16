@@ -130,83 +130,58 @@ async function apiFetch<T = unknown>(path: string): Promise<T> {
   throw lastErr;
 }
 
-// ── Stat card (light theme: primary = blue block, others = white with token colors) ───
+// ── Stat card (design system: white, 0.5px border, Bebas Neue value) ───
 
-function StatCard({
+function DashboardStatCard({
   label,
   value,
   icon: Icon,
-  primary = false,
-  revenue = false,
-  warning = false,
-  danger = false,
+  variant = 'default',
 }: {
-  label:   string;
-  value:   string | number;
-  icon:    LucideIcon;
-  primary?: boolean;
-  revenue?: boolean;
-  warning?: boolean;
-  danger?:  boolean;
+  label: string;
+  value: string | number;
+  icon: LucideIcon;
+  variant?: 'default' | 'primary' | 'green' | 'amber';
 }) {
-  const isPrimary = primary;
-  const valColor = isPrimary
-    ? 'white'
-    : danger
-      ? 'var(--red-status)'
-      : warning
-        ? 'var(--amber)'
-        : revenue
-          ? 'var(--blue)'
-          : 'var(--text)';
-
-  const iconWrapBg = isPrimary
-    ? 'rgba(255,255,255,0.15)'
-    : danger
-      ? 'var(--red-dim)'
-      : warning
-        ? 'var(--amber-dim)'
-        : revenue
-          ? 'var(--blue-dim)'
-          : 'var(--overlay)';
-
-  const iconColor = isPrimary ? 'white' : revenue ? 'var(--blue)' : warning ? 'var(--amber)' : danger ? 'var(--red-status)' : 'var(--text-2)';
-
+  const valueColor = variant === 'primary' ? 'var(--h-blue)' : variant === 'amber' ? 'var(--h-red)' : variant === 'green' ? 'var(--h-green)' : 'var(--h-gray-900)';
   return (
     <div
-      className="flex flex-col justify-between p-3 rounded-xl border transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5"
+      className="relative rounded-[var(--radius-lg)] border overflow-hidden"
       style={{
-        background: isPrimary ? 'var(--blue)' : 'var(--surface)',
-        borderColor: isPrimary ? 'var(--blue)' : 'var(--border)',
-        boxShadow: 'var(--shadow-sm)',
+        background: 'var(--h-white)',
+        border: '0.5px solid var(--h-gray-200)',
+        padding: '20px 24px',
       }}
     >
-      <div className="flex items-center justify-between mb-1.5">
-        <span
-          className="text-[10px] font-semibold uppercase tracking-wider"
-          style={{ color: isPrimary ? 'rgba(255,255,255,0.9)' : 'var(--text-2)' }}
-        >
-          {label}
-        </span>
-        <span
-          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: iconWrapBg }}
-        >
-          <Icon size={18} style={{ color: iconColor }} aria-hidden />
-        </span>
-      </div>
+      <p
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'var(--h-gray-400)',
+          fontFamily: 'var(--font-body)',
+          marginBottom: 8,
+        }}
+      >
+        {label}
+      </p>
       <p
         className="tabular-nums leading-none min-w-0 truncate"
         style={{
-          fontFamily: 'var(--font-m)',
-          fontSize: '20px',
-          fontWeight: 600,
-          color: valColor,
+          fontFamily: 'var(--font-display)',
+          fontSize: 36,
+          color: valueColor,
         }}
         title={typeof value === 'string' ? value : String(value)}
       >
         {value}
       </p>
+      {Icon && (
+        <span className="absolute top-5 right-5 opacity-60" style={{ color: valueColor }} aria-hidden>
+          <Icon size={20} strokeWidth={2} />
+        </span>
+      )}
     </div>
   );
 }
@@ -224,30 +199,30 @@ function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   }
 
   return (
-    <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+    <div className="divide-y" style={{ borderColor: 'var(--h-gray-200)' }}>
       {items.map((p) => {
         const isOut = p.quantity === 0;
         return (
           <div
             key={p.id}
-            className="flex items-center justify-between py-2.5 px-3 transition-colors hover:bg-[var(--elevated)]"
+            className="flex items-center justify-between py-2.5 px-3 transition-colors hover:bg-[var(--h-gray-50)]"
           >
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-bold truncate" style={{ color: 'var(--text)' }}>{p.name}</p>
-              <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--text-3)' }}>{p.category || 'Uncategorised'}</p>
+              <p className="text-[13px] font-medium truncate" style={{ color: 'var(--h-gray-900)', fontFamily: 'var(--font-body)' }}>{p.name}</p>
+              <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>{p.category || 'Uncategorised'}</p>
             </div>
             <div className="flex items-center gap-3 ml-4">
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-bold border"
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
                 style={
                   isOut
-                    ? { background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }
-                    : { background: 'var(--amber-dim)', color: 'var(--amber)', borderColor: 'rgba(217,119,6,0.2)' }
+                    ? { background: 'var(--h-red-light)', color: 'var(--h-red)', letterSpacing: '0.04em' }
+                    : { background: 'var(--h-amber-light)', color: 'var(--h-amber)', letterSpacing: '0.04em' }
                 }
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-current"/>
+                <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden />
                 {isOut ? 'Out of stock' : `${p.quantity} left`}
-              </div>
+              </span>
             </div>
           </div>
         );
@@ -366,33 +341,36 @@ export default function DashboardPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen p-3 sm:p-4" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen p-3 sm:p-4" style={{ background: 'var(--h-cream)' }}>
       <div className="max-w-5xl mx-auto space-y-4">
 
         {/* ── Header ── */}
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <h1 className="text-[18px] font-bold tracking-tight" style={{ color: 'var(--text)' }}>
-                Admin Control Panel
+              <h1
+                className="tracking-[0.04em]"
+                style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: 'var(--h-gray-900)' }}
+              >
+                DASHBOARD
               </h1>
               <span
-                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                style={{ background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid rgba(22,163,74,0.2)' }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                style={{ background: 'var(--h-blue-light)', color: 'var(--h-blue)', letterSpacing: '0.04em' }}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]"/>
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--h-blue)]" aria-hidden />
                 Super Admin
               </span>
             </div>
-            <p className="text-[12px]" style={{ color: 'var(--text-2)' }}>
-              Full system access — inventory, POS, reports, users &amp; settings.
+            <p className="text-[13px] mb-5" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>
+              Full system access — inventory, POS, records, users &amp; settings.
             </p>
           </div>
 
           <a
             href="/pos"
-            className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-white text-[13px] font-bold transition-all hover:-translate-y-px"
-            style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
+            className="flex items-center gap-1.5 h-10 px-5 rounded-[var(--radius-md)] text-white text-[14px] font-medium transition-colors hover:opacity-95"
+            style={{ background: 'var(--h-gray-900)', fontFamily: 'var(--font-body)' }}
           >
             <ShoppingCart className="w-4 h-4" aria-hidden />
             New sale
@@ -402,13 +380,13 @@ export default function DashboardPage() {
         {/* ── Warehouse label + Recalculate ── */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]"/>
-            <p className="text-[12px] font-semibold" style={{ color: 'var(--text-2)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--h-green)]" aria-hidden />
+            <p className="text-[12px] font-medium" style={{ color: 'var(--h-gray-500)', fontFamily: 'var(--font-body)' }}>
               Inventory stats for:{' '}
-              <span className="font-black" style={{ color: 'var(--text)' }}>{warehouseName}</span>
+              <span className="font-semibold" style={{ color: 'var(--h-gray-900)' }}>{warehouseName}</span>
             </p>
             {loading && (
-              <span className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-3)' }}>
+              <span className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>
                 <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
                 Loading…
               </span>
@@ -418,8 +396,8 @@ export default function DashboardPage() {
             type="button"
             onClick={() => loadData(warehouseId, { refresh: true })}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors disabled:opacity-50"
-            style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-2)' }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] text-[13px] font-medium transition-colors disabled:opacity-50"
+            style={{ border: '0.5px solid var(--h-gray-300)', background: 'transparent', color: 'var(--h-gray-700)', fontFamily: 'var(--font-body)' }}
             title="Recalculate totals from database (bypasses cache)"
           >
             <RefreshCw className="w-3 h-3" aria-hidden />
@@ -429,21 +407,21 @@ export default function DashboardPage() {
 
         {/* ── Today's sales by location ── */}
         <div
-          className="rounded-xl border p-4 shadow-[var(--shadow-sm)]"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className="rounded-[var(--radius-lg)] border p-4"
+          style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}
         >
-          <h2 className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-3)' }}>
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>
             Today&apos;s sales by location
           </h2>
           <div className="flex flex-wrap gap-3">
             {WAREHOUSE_IDS_FOR_SUMMARY.map((wid) => (
               <div key={wid} className="flex items-center gap-2">
-                <span className="text-[12px] font-semibold" style={{ color: 'var(--text-2)' }}>
+                <span className="text-[12px] font-medium" style={{ color: 'var(--h-gray-500)', fontFamily: 'var(--font-body)' }}>
                   {locationNameForId(wid)}
                 </span>
                 <span
                   className="text-[14px] font-semibold tabular-nums"
-                  style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}
+                  style={{ fontFamily: 'var(--font-display)', color: 'var(--h-blue)' }}
                 >
                   {todayByWarehouse == null
                     ? '—'
@@ -457,18 +435,18 @@ export default function DashboardPage() {
         {/* ── Error ── */}
         {error && !loading && (
           <div
-            className="flex items-center gap-2 p-3 rounded-xl border"
-            style={{ background: 'var(--red-dim)', borderColor: 'rgba(220,38,38,0.2)' }}
+            className="flex items-center gap-2 p-3 rounded-[var(--radius-lg)] border"
+            style={{ background: 'var(--h-red-light)', border: '0.5px solid var(--h-gray-200)' }}
           >
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--red-status)' }} aria-hidden />
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--h-red)' }} aria-hidden />
             <div>
-              <p className="text-[13px] font-bold" style={{ color: 'var(--red-status)' }}>Failed to load data</p>
-              <p className="text-[11px] mt-0.5" style={{ color: 'var(--red-status)' }}>{error}</p>
+              <p className="text-[13px] font-semibold" style={{ color: 'var(--h-red)', fontFamily: 'var(--font-body)' }}>Failed to load data</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--h-red)', fontFamily: 'var(--font-body)' }}>{error}</p>
             </div>
             <button
               onClick={() => loadData(warehouseId)}
-              className="ml-auto px-4 py-2 rounded-xl text-white text-[12px] font-bold"
-              style={{ background: 'var(--blue)' }}
+              className="ml-auto px-4 py-2 rounded-[var(--radius-md)] text-white text-[12px] font-semibold"
+              style={{ background: 'var(--h-blue)', fontFamily: 'var(--font-body)' }}
             >
               Retry
             </button>
@@ -477,51 +455,53 @@ export default function DashboardPage() {
 
         {/* ── Stat cards ── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard
-            label="Total Stock Value"
+          <DashboardStatCard
+            label="STOCK VALUE"
             value={loading || !stats ? '—' : formatGHCCompact(stats.totalStockValue)}
             icon={DollarSign}
-            primary
+            variant="primary"
           />
-          <StatCard
-            label="Total Products"
+          <DashboardStatCard
+            label="PRODUCTS"
             value={loading || !stats ? '—' : stats.totalProducts}
             icon={Package}
+            variant="default"
           />
-          <StatCard
-            label="Low Stock Items"
+          <DashboardStatCard
+            label="LOW STOCK"
             value={loading || !stats ? '—' : stats.lowStockCount + stats.outOfStockCount}
             icon={AlertTriangle}
-            warning={stats ? stats.lowStockCount + stats.outOfStockCount > 0 : false}
+            variant={stats && stats.lowStockCount + stats.outOfStockCount > 0 ? 'amber' : 'default'}
           />
-          <StatCard
-            label="Today's Sales"
+          <DashboardStatCard
+            label="TODAY'S SALES"
             value={loading || !stats ? '—' : formatGHCCompact(stats.todaysSales)}
             icon={Receipt}
-            revenue
+            variant="primary"
           />
         </div>
 
         {/* ── Low stock alerts ── */}
         <div
-          className="rounded-xl border overflow-hidden shadow-[var(--shadow-sm)]"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className="rounded-[var(--radius-lg)] border overflow-hidden"
+          style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}
         >
           <div
             className="flex items-center justify-between px-4 py-3 border-b"
-            style={{ borderColor: 'var(--border)' }}
+            style={{ borderBottom: '0.5px solid var(--h-gray-200)' }}
           >
             <div>
-              <h2 className="text-[14px] font-bold" style={{ color: 'var(--text)' }}>Stock Alerts</h2>
-              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>
+              <h2 className="text-[14px] font-semibold" style={{ color: 'var(--h-gray-900)', fontFamily: 'var(--font-body)' }}>Stock Alerts</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>
                 {warehouseName} — products at or below reorder level
               </p>
             </div>
             {stats && stats.outOfStockCount > 0 && (
               <span
-                className="px-2.5 py-0.5 rounded-full text-[11px] font-bold border"
-                style={{ background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                style={{ background: 'var(--h-red-light)', color: 'var(--h-red)', letterSpacing: '0.04em' }}
               >
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--h-red)]" aria-hidden />
                 {stats.outOfStockCount} out of stock
               </span>
             )}
@@ -540,12 +520,12 @@ export default function DashboardPage() {
         {/* ── Category breakdown ── */}
         {!loading && dashboard && Object.keys(dashboard.categorySummary).length > 0 && (
           <div
-            className="rounded-xl border overflow-hidden shadow-[var(--shadow-sm)]"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+            className="rounded-[var(--radius-lg)] border overflow-hidden"
+            style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}
           >
-            <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-              <h2 className="text-[14px] font-bold" style={{ color: 'var(--text)' }}>By Category</h2>
-              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>{warehouseName}</p>
+            <div className="px-4 py-3 border-b" style={{ borderBottom: '0.5px solid var(--h-gray-200)' }}>
+              <h2 className="text-[14px] font-semibold" style={{ color: 'var(--h-gray-900)', fontFamily: 'var(--font-body)' }}>By Category</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>{warehouseName}</p>
             </div>
             <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(dashboard.categorySummary)
@@ -553,12 +533,12 @@ export default function DashboardPage() {
                 .map(([cat, { count, value }]) => (
                   <div
                     key={cat}
-                    className="flex flex-col gap-0.5 p-3 rounded-lg border"
-                    style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}
+                    className="flex flex-col gap-0.5 p-3 rounded-[var(--radius-md)] border"
+                    style={{ background: 'var(--h-gray-50)', border: '0.5px solid var(--h-gray-200)' }}
                   >
-                    <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>{cat}</span>
-                    <span className="text-[16px] font-semibold" style={{ color: 'var(--text)' }}>{count} SKUs</span>
-                    <span className="text-[10px] font-medium" style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}>{formatGHC(value)}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>{cat}</span>
+                    <span className="text-[16px] font-semibold" style={{ color: 'var(--h-gray-900)', fontFamily: 'var(--font-body)' }}>{count} SKUs</span>
+                    <span className="text-[10px] font-medium" style={{ fontFamily: 'var(--font-body)', color: 'var(--h-blue)' }}>{formatGHC(value)}</span>
                   </div>
                 ))}
             </div>

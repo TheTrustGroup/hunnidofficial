@@ -22,47 +22,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---- Design tokens: light theme (warm off-white + white surfaces) ---- */
+/* Visual tokens come from design-system.css. Only layout/spacing here. */
 :root {
-  /* Backgrounds */
-  --bg:           #F5F4F0;
-  --surface:      #FFFFFF;
-  --elevated:     #FAFAF8;
-  --overlay:      #F0EFE9;
-  --border:       #E8E6DF;
-  --border-md:    #D8D5CC;
-
-  /* Brand — Hunnid Blue (#5CACFA) */
-  --blue:         #5CACFA;
-  --blue-mid:     #7BBBFB;
-  --blue-dim:     rgba(92,172,250,0.08);
-  --blue-glow:    rgba(92,172,250,0.18);
-  --blue-soft:    #EEF6FD;
-
-  /* Status */
-  --green:        #16A34A;
-  --green-dim:    rgba(22,163,74,0.08);
-  --amber:        #D97706;
-  --amber-dim:    rgba(217,119,6,0.08);
-  --red-status:   #DC2626;
-  --red-dim:      rgba(220,38,38,0.08);
-
-  /* Text */
-  --text:         #0F0F0F;
-  --text-2:       #52525B;
-  --text-3:       #A1A1AA;
-
-  /* Fonts (unchanged) */
-  --font-d: 'Syne', sans-serif;
-  --font-m: 'IBM Plex Mono', monospace;
-  --font-b: 'Inter', sans-serif;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.07), 0 2px 6px rgba(0,0,0,.04);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.05);
-
-  /* Structural: 4px grid, spacing, touch, radius (keep for layout/component refs) */
   --grid-4: 4px;
   --grid-8: 8px;
   --grid-12: 12px;
@@ -75,13 +36,9 @@
   --space-section: 1.5rem;
   --space-block: 1rem;
   --space-inline: 0.75rem;
-  --touch-min: 44px;
-  --input-height: 44px;
   --radius-base: 8px;
-  --radius-lg: 8px;
   --radius-card: 8px;
   --radius-search: 12px;
-  --card-shadow: var(--shadow-sm);
   --text-meta: 0.75rem;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -91,24 +48,11 @@
   --text-h1: 1.75rem;
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
-  --sidebar-w: 244px;
   --z-header: 10;
   --z-banner: 9;
   --z-mobile-menu: 40;
   --z-modal: 50;
   --z-toast: 60;
-  --min-h-viewport: min(100dvh, 100vh);
-  --h-viewport: 100dvh;
-}
-@supports not (height: 100dvh) {
-  :root {
-    --min-h-viewport: 100vh;
-    --h-viewport: 100vh;
-  }
 }
 
 /* Loading spinner: match "Loading warehouse" ring style (gray ring + blue top, 0.8s). */
@@ -127,9 +71,9 @@
   }
 
   body {
-    background-color: var(--bg);
+    background-color: var(--h-cream);
     color: var(--text);
-    font-family: var(--font-b), 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-body), system-ui, -apple-system, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -148,27 +92,29 @@
   .loading-spinner-ring-md { width: 2rem; height: 2rem; min-width: 2rem; min-height: 2rem; }
   .loading-spinner-ring-lg { width: 2.5rem; height: 2.5rem; min-width: 2.5rem; min-height: 2.5rem; }
 
-  /* Primary action: one per screen; clear, no competing decoration. Height ≥44px (Phase 6). */
+  /* Primary: design system — no gradient, no shadow */
   .btn-primary {
     min-height: var(--touch-min);
-    @apply px-6 py-3 rounded-xl font-semibold text-white shadow-primary transition-all duration-200 active:scale-[0.98];
-    background: linear-gradient(135deg, #5cacfa 0%, #4a9ae8 100%);
+    @apply px-6 py-3 rounded-xl font-semibold text-white transition-all duration-200 active:scale-[0.98];
+    background: var(--h-blue);
+    border: none;
+    box-shadow: none;
   }
   .btn-primary:hover {
-    box-shadow: 0 6px 16px rgba(92, 172, 250, 0.35);
+    box-shadow: none;
   }
 
-  /* Secondary: de-emphasized, grouped logically */
+  /* Secondary: ghost-style border */
   .btn-secondary {
     min-height: var(--touch-min);
     @apply px-6 py-3 rounded-xl font-medium transition-colors duration-200 active:scale-[0.98];
-    background: rgba(241, 245, 249, 0.9);
-    color: #475569;
-    border: 1px solid rgba(226, 232, 240, 0.7);
+    background: transparent;
+    color: var(--h-gray-700);
+    border: 0.5px solid var(--h-gray-300);
   }
   .btn-secondary:hover {
-    background: rgba(248, 250, 252, 1);
-    border-color: rgba(203, 213, 225, 0.8);
+    background: var(--h-gray-50);
+    border-color: var(--h-gray-300);
   }
 
   /* Icon/ghost actions: consistent hit area (≥44px), centered; destructive clearly separated (Phase 6) */
@@ -182,11 +128,11 @@
     @apply bg-slate-100;
     color: #334155;
   }
-  .btn-action-view:hover { @apply bg-slate-100 text-slate-700; }
-  .btn-action-edit:hover { @apply bg-primary-50 text-primary-600; }
+  .btn-action-view:hover { background: var(--h-gray-100); color: var(--h-gray-700); }
+  .btn-action-edit:hover { background: var(--h-blue-light); color: var(--h-blue); }
   .btn-action-delete:hover {
-    @apply bg-red-50 text-red-600;
-    /* Destructive: clearly separated from primary so mistakes are avoidable */
+    background: var(--h-red-light);
+    color: var(--h-red);
   }
 
   /* Inputs: solid background, clear borders, no transparency (Phase 3 form usability) */
@@ -201,8 +147,8 @@
   }
   .input-field:focus {
     @apply outline-none;
-    border-color: #5cacfa;
-    box-shadow: 0 0 0 3px rgba(92, 172, 250, 0.12);
+    border-color: var(--h-blue);
+    box-shadow: none;
   }
   .input-field[aria-invalid="true"],
   .input-field.border-red-500 {
@@ -223,34 +169,15 @@
     resize: vertical;
   }
 
-  /* Badges: calm labels, not loud; hierarchy via size/color only */
+  /* Badges: design system pills — no borders */
   .badge {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium tracking-wide;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide;
+    letter-spacing: 0.04em;
   }
-
-  .badge-success {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
-    border: 1px solid rgba(16, 185, 129, 0.2);
-  }
-
-  .badge-warning {
-    background: rgba(245, 158, 11, 0.1);
-    color: #d97706;
-    border: 1px solid rgba(245, 158, 11, 0.2);
-  }
-
-  .badge-error {
-    background: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-  }
-
-  .badge-info {
-    background: rgba(59, 130, 246, 0.1);
-    color: #2563eb;
-    border: 1px solid rgba(59, 130, 246, 0.2);
-  }
+  .badge-success { background: var(--h-green-light); color: var(--h-green); border: none; }
+  .badge-warning { background: var(--h-amber-light); color: var(--h-amber); border: none; }
+  .badge-error { background: var(--h-red-light); color: var(--h-red); border: none; }
+  .badge-info { background: var(--h-blue-light); color: var(--h-blue); border: none; }
 
   /* Table Styles: mobile-first horizontal scroll */
   .table-scroll-wrap {
@@ -262,8 +189,8 @@
   }
   .table-container {
     overflow: hidden;
-    border-radius: 14px;
-    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border);
     background-color: var(--surface);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -273,7 +200,7 @@
   }
 
   .table-header {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -287,7 +214,7 @@
 
   /* Stability: desktop table row 72px; consistent so list doesn't collapse during fetch (Phase 2/3). */
   .table-row {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
     transition: background 0.15s;
     min-height: 72px;
   }
@@ -390,14 +317,9 @@
 }
 
 @layer utilities {
-  /* Brand Gradient Text */
-  /* Gradient Text with Fallback */
+  /* No gradients in design system */
   .gradient-text {
-    background: linear-gradient(135deg, #5cacfa 0%, #4a9ae8 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
+    color: var(--h-blue);
   }
 
   /* Smooth Scale */
@@ -478,17 +400,11 @@
   }
 }
 
-/* Focus Visible for Accessibility — brand primary */
-*:focus-visible {
-  outline: 2px solid #5cacfa;
-  outline-offset: 2px;
-  border-radius: 8px;
-}
+/* Focus visible handled in design-system.css */
 
-/* Selection color — brand primary (standard + Firefox legacy) */
 ::selection {
-  background-color: rgba(92, 172, 250, 0.2);
-  color: #1e3a5f;
+  background-color: var(--h-blue-light);
+  color: var(--h-gray-900);
 }
 
 /* Smooth Transitions for All Interactive Elements; touch targets and tap highlight */

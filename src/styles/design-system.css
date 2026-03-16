@@ -1,0 +1,237 @@
+/**
+ * Hunnid Official — Design System V1.0
+ * Pure visual layer. All measurements, colors, fonts are exact and non-negotiable.
+ * Import this file first at app root, before any other styles.
+ */
+
+/* ── CSS Variables ───────────────────────────────────────────────────────── */
+:root {
+  /* Brand & base */
+  --h-black:        #0A0A0A;
+  --h-white:        #FAFAF8;
+  --h-cream:        #F5F3EE;   /* page background */
+  --h-blue:         #1B6FE8;   /* primary action */
+  --h-blue-light:   #EBF2FD;   /* blue tint surfaces */
+  --h-blue-mid:     #4A8FF0;
+  --h-red:          #E83B2E;   /* danger / out of stock */
+  --h-red-light:     #FDECEA;
+  --h-green:        #12A05C;   /* success / in stock */
+  --h-green-light:  #E8F7EF;
+  --h-amber:        #D97706;   /* warning / low stock */
+  --h-amber-light:  #FEF3C7;
+  --h-gray-50:      #F8F7F5;
+  --h-gray-100:     #EEEDE9;
+  --h-gray-200:     #E0DED8;
+  --h-gray-300:     #C8C6BE;
+  --h-gray-400:     #9B9890;
+  --h-gray-500:     #6B6860;
+  --h-gray-700:     #3A3832;
+  --h-gray-900:     #1A1916;
+  --radius-sm:      6px;
+  --radius-md:      10px;
+  --radius-lg:      16px;
+  --radius-xl:      24px;
+  --font-display:   'Bebas Neue', sans-serif;
+  --font-body:      'DM Sans', sans-serif;
+
+  /* Legacy mapping: existing components keep working with new look */
+  --surface:        var(--h-white);
+  --elevated:       var(--h-white);
+  --bg:             var(--h-cream);
+  --overlay:        var(--h-gray-100);
+  --border:         var(--h-gray-200);
+  --border-md:      var(--h-gray-300);
+  --text:           var(--h-gray-900);
+  --text-2:         var(--h-gray-500);
+  --text-3:         var(--h-gray-400);
+  --blue-soft:      var(--h-blue-light);
+  --blue-dim:       var(--h-blue-light);
+  --blue-glow:      transparent;
+  --green-dim:      var(--h-green-light);
+  --amber-dim:      var(--h-amber-light);
+  --red-dim:        var(--h-red-light);
+  --red-status:     var(--h-red);
+  --font-d:         var(--font-display);
+  --font-b:         var(--font-body);
+  --font-m:         var(--font-body);
+  --shadow-sm:      none;
+  --shadow-md:      none;
+  --shadow-lg:      none;
+  --touch-min:      44px;
+  --input-height:   44px;
+  --sidebar-w:      220px;
+  --sidebar-w-pos:  200px;
+  --safe-top:       env(safe-area-inset-top, 0px);
+  --safe-bottom:    env(safe-area-inset-bottom, 0px);
+  --safe-left:      env(safe-area-inset-left, 0px);
+  --safe-right:     env(safe-area-inset-right, 0px);
+  --min-h-viewport: min(100dvh, 100vh);
+  --h-viewport:     100dvh;
+}
+[data-pos="true"] {
+  --sidebar-w: 200px;
+}
+
+@supports not (height: 100dvh) {
+  :root {
+    --min-h-viewport: 100vh;
+    --h-viewport: 100vh;
+  }
+}
+
+/* ── Global rules ────────────────────────────────────────────────────────── */
+body {
+  background: var(--h-cream) !important;
+  font-family: var(--font-body) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* All borders: 0.5px solid — no 1px */
+.h-border,
+[data-h-border] {
+  border: 0.5px solid var(--h-gray-200);
+}
+
+/* No box-shadows in design system; focus uses outline only */
+*:focus-visible {
+  outline: 2px solid var(--h-blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* No gradients */
+.gradient-text,
+[style*="gradient"] {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  color: inherit !important;
+}
+
+/* Card background: white; page background: cream */
+.h-card {
+  background: var(--h-white);
+  border: 0.5px solid var(--h-gray-200);
+  border-radius: var(--radius-lg);
+}
+
+/* ── Utility classes for design system components ────────────────────────── */
+.h-page-title {
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: 0.04em;
+  color: var(--h-gray-900);
+}
+.h-page-subtitle {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--h-gray-400);
+  margin-bottom: 20px;
+}
+.h-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--h-gray-400);
+  margin-bottom: 8px;
+}
+.h-stat-value {
+  font-family: var(--font-display);
+  font-size: 36px;
+  color: var(--h-gray-900);
+}
+.h-stat-value-blue { color: var(--h-blue); }
+.h-stat-value-red  { color: var(--h-red); }
+.h-btn-primary {
+  background: var(--h-blue);
+  color: var(--h-white);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+}
+.h-btn-primary-dark {
+  background: var(--h-gray-900);
+  color: var(--h-white);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+}
+.h-btn-ghost {
+  background: transparent;
+  border: 0.5px solid var(--h-gray-300);
+  color: var(--h-gray-700);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+}
+.h-btn-danger-soft {
+  background: var(--h-red-light);
+  color: var(--h-red);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+}
+.h-btn-icon {
+  background: var(--h-gray-100);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.h-badge-in,
+.h-badge-success { background: var(--h-green-light); color: var(--h-green); }
+.h-badge-out,
+.h-badge-danger { background: var(--h-red-light); color: var(--h-red); }
+.h-badge-low,
+.h-badge-warning { background: var(--h-amber-light); color: var(--h-amber); }
+.h-badge-info { background: var(--h-blue-light); color: var(--h-blue); }
+.h-badge-neutral { background: var(--h-gray-100); color: var(--h-gray-500); }
+.h-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-family: var(--font-body);
+}
+.h-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.h-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  border: 0.5px solid var(--h-gray-300);
+  background: var(--h-white);
+  color: var(--h-gray-500);
+}
+.h-chip-active {
+  background: var(--h-blue);
+  color: var(--h-white);
+  border-color: var(--h-blue);
+}

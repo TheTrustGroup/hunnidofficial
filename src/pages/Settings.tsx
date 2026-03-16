@@ -56,8 +56,8 @@ export function Settings() {
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in-up">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2" style={{ fontFamily: 'var(--font-d)' }}>Settings</h1>
-          <p className="text-slate-500 text-sm">Manage your store configuration</p>
+          <h1 className="text-[30px] font-bold tracking-tight mb-2" style={{ fontFamily: 'var(--font-display)', color: 'var(--h-gray-900)' }}>SETTINGS</h1>
+          <p className="text-sm" style={{ color: 'var(--h-gray-500)' }}>Manage your store configuration</p>
         </div>
         <Button
           type="button"
@@ -71,17 +71,14 @@ export function Settings() {
       </div>
 
       {/* Tabs */}
-      <div className="rounded-xl border p-0 overflow-hidden animate-fade-in-up" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <nav className="flex gap-2 px-6 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="rounded-[var(--radius-lg)] border p-0 overflow-hidden animate-fade-in-up" style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}>
+        <nav className="flex gap-2 px-6 border-b" style={{ borderBottom: '0.5px solid var(--h-gray-200)' }}>
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 py-4 border-b-2 font-semibold transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
-              }`}
+              className="flex items-center gap-2 px-4 py-4 border-b-2 font-semibold transition-all duration-200 border-transparent"
+              style={activeTab === tab.id ? { borderBottomColor: 'var(--h-blue)', color: 'var(--h-blue)' } : { color: 'var(--h-gray-600)' }}
             >
               <tab.icon className="w-5 h-5" strokeWidth={2} />
               {tab.label}

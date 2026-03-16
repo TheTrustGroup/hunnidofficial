@@ -391,25 +391,25 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
   ];
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen pb-20" style={{ background: 'var(--h-cream)' }}>
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl text-[13px] font-semibold shadow-lg text-white transition-all ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`}>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-[var(--radius-lg)] text-[13px] font-semibold text-white transition-all" style={{ background: toast.type === 'success' ? 'var(--h-green)' : 'var(--h-red)' }}>
           {toast.msg}
         </div>
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 pt-4 pb-3">
+      <div className="sticky top-0 z-30 px-4 pt-4 pb-3" style={{ background: 'var(--h-white)', borderBottom: '0.5px solid var(--h-gray-200)' }}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-[20px] font-extrabold text-slate-900 tracking-tight" style={{ fontFamily: 'var(--font-d)' }}>Deliveries</h1>
-            <p className="text-[12px] text-slate-400 mt-0.5">
+            <h1 className="text-[20px] font-extrabold tracking-tight" style={{ fontFamily: 'var(--font-display)', color: 'var(--h-gray-900)' }}>Deliveries</h1>
+            <p className="text-[12px] mt-0.5" style={{ color: 'var(--h-gray-500)' }}>
               {pendingCount + dispatchedCount} active · {cancelledCount > 0 ? `${cancelledCount} cancelled` : ''} {overdueCount > 0 ? `· ${overdueCount} overdue` : ''}
             </p>
           </div>
-          <button type="button" onClick={() => load(true)} className="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors">
+          <button type="button" onClick={() => load(true)} className="w-9 h-9 rounded-[var(--radius-md)] border flex items-center justify-center transition-colors" style={{ border: '0.5px solid var(--h-gray-300)', background: 'var(--h-white)', color: 'var(--h-gray-500)' }}>
             <IconRefresh />
           </button>
         </div>
@@ -419,19 +419,22 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
           {FILTER_PILLS.map(s => (
             <button key={s.key} type="button"
               onClick={() => setFilter(current => (current === s.key ? 'all' : s.key))}
-              className={`flex-shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-bold transition-all border-[1.5px] ${s.active ? `${s.color} border-current` : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+              className="flex-shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-bold transition-all border"
+              style={s.active ? { background: s.color.includes('blue') ? 'var(--h-blue-light)' : s.color.includes('red') ? 'var(--h-red-light)' : s.color.includes('slate') ? 'var(--h-gray-100)' : 'var(--h-amber-light)', color: s.color.includes('blue') ? 'var(--h-blue)' : s.color.includes('red') ? 'var(--h-red)' : s.color.includes('slate') ? 'var(--h-gray-600)' : 'var(--h-amber)', border: '0.5px solid currentColor' } : { background: 'var(--h-white)', border: '0.5px solid var(--h-gray-300)', color: 'var(--h-gray-500)' }}>
               <span>{s.label}</span>
-              <span className={`w-4.5 h-4.5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${s.active ? 'bg-current/20' : 'bg-slate-100'}`}>{s.count}</span>
+              <span className="w-4.5 h-4.5 rounded-full text-[10px] font-extrabold flex items-center justify-center" style={{ background: s.active ? 'rgba(0,0,0,0.1)' : 'var(--h-gray-100)' }}>{s.count}</span>
             </button>
           ))}
         </div>
 
         {/* Search */}
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ color: 'var(--h-gray-400)' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search name, receipt, phone…"
-            className="w-full h-10 pl-9 pr-4 bg-slate-100 rounded-xl font-sans text-[13px] text-slate-900 placeholder:text-slate-400 outline-none border-none focus:bg-white focus:ring-[2px] focus:ring-primary-200 transition-all" />
+            className="w-full h-10 pl-9 pr-4 rounded-[var(--radius-md)] font-sans text-[13px] outline-none border transition-all"
+            style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-900)', border: '0.5px solid transparent' }}
+          />
         </div>
       </div>
 
@@ -439,28 +442,28 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
       <div className="px-4 pt-4 space-y-3">
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <div className="flex flex-col items-center justify-center py-20" style={{ color: 'var(--h-gray-500)' }}>
             <IconSpinner />
             <p className="text-[13px] mt-3 font-medium">Loading deliveries…</p>
           </div>
         )}
 
         {!loading && error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-center">
-            <p className="text-[13px] text-red-600 font-medium">{error}</p>
-            <button type="button" onClick={() => load()} className="mt-2 text-[12px] text-red-500 font-bold underline">Retry</button>
+          <div className="rounded-[var(--radius-lg)] p-4 text-center" style={{ background: 'var(--h-red-light)', border: '0.5px solid var(--h-gray-200)' }}>
+            <p className="text-[13px] font-medium" style={{ color: 'var(--h-red)' }}>{error}</p>
+            <button type="button" onClick={() => load()} className="mt-2 text-[12px] font-bold underline" style={{ color: 'var(--h-red)' }}>Retry</button>
           </div>
         )}
 
         {!loading && !error && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4 text-slate-300">
+            <div className="w-16 h-16 rounded-[var(--radius-lg)] flex items-center justify-center mb-4" style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-400)' }}>
               <IconTruck />
             </div>
-            <p className="text-[15px] font-bold text-slate-700 mb-1">
+            <p className="text-[15px] font-bold mb-1" style={{ color: 'var(--h-gray-700)' }}>
               {search ? 'No results' : filter === 'cancelled' ? 'No cancelled deliveries' : 'No pending deliveries'}
             </p>
-            <p className="text-[13px] text-slate-400">
+            <p className="text-[13px]" style={{ color: 'var(--h-gray-500)' }}>
               {search ? 'Try a different search' : filter === 'cancelled' ? 'Cancelled deliveries will appear here' : 'Deliveries scheduled from the POS will appear here'}
             </p>
           </div>

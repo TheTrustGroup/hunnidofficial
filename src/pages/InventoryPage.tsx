@@ -254,32 +254,33 @@ function StatCard({
   accent?:  boolean;
   warning?: boolean;
 }) {
+  const valueColor = accent ? 'var(--h-blue)' : warning ? 'var(--h-red)' : 'var(--h-gray-900)';
   return (
     <div
-      className="flex-1 min-w-0 px-3 py-3 lg:px-4 lg:py-4 rounded-xl lg:rounded-[14px] border flex flex-col gap-0.5 shadow-[var(--shadow-sm)]"
+      className="flex-1 min-w-0 px-3 py-3 lg:px-4 lg:py-4 rounded-[var(--radius-lg)] border flex flex-col gap-0.5"
       style={{
-        background: 'var(--surface)',
-        borderColor: warning ? 'rgba(217,119,6,0.2)' : 'var(--border)',
+        background: 'var(--h-white)',
+        border: '0.5px solid var(--h-gray-200)',
       }}
     >
       <p
-        className="text-[9px] lg:text-[10px] font-semibold uppercase tracking-wider"
-        style={{ color: accent ? 'var(--text-3)' : warning ? 'var(--amber)' : 'var(--text-3)' }}
+        className="text-[9px] lg:text-[11px] font-semibold uppercase tracking-[0.08em]"
+        style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)', marginBottom: 8 }}
       >
         {label}
       </p>
       <p
-        className="tabular-nums leading-tight truncate text-lg lg:text-2xl font-semibold"
+        className="tabular-nums leading-tight truncate"
         style={{
-          fontFamily: 'var(--font-m)',
-          letterSpacing: '-0.5px',
-          color: accent ? 'var(--blue)' : warning ? 'var(--amber)' : 'var(--text)',
+          fontFamily: 'var(--font-display)',
+          fontSize: 'clamp(20px, 4vw, 36px)',
+          color: valueColor,
         }}
       >
         {value}
       </p>
       {sub && (
-        <p className="text-[10px] lg:text-[11px] mt-0.5 lg:mt-1" style={{ color: 'var(--text-3)' }}>
+        <p className="text-[10px] lg:text-[11px] mt-1" style={{ color: 'var(--h-gray-400)', fontFamily: 'var(--font-body)' }}>
           {sub}
         </p>
       )}
@@ -802,29 +803,29 @@ export default function InventoryPage(_props: InventoryPageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen pb-28" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen pb-28" style={{ background: 'var(--h-cream)' }}>
 
       {/* ══ Page header ══ */}
       <div className="px-4 pt-4 pb-3 lg:pt-6 lg:pb-4 lg:px-0">
         <div
-          className="flex items-center gap-1.5 text-[11px] mb-2"
-          style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
+          className="flex items-center gap-1.5 text-[12px] mb-2"
+          style={{ fontFamily: 'var(--font-body)', color: 'var(--h-gray-400)' }}
         >
           <span>{warehouse?.name ?? 'Warehouse'}</span>
-          <span style={{ color: 'var(--border-md)' }} aria-hidden>›</span>
-          <span className="font-medium" style={{ color: 'var(--text)' }}>Inventory</span>
+          <span aria-hidden> / </span>
+          <span className="font-medium" style={{ color: 'var(--h-gray-500)' }}>Inventory</span>
         </div>
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1
-              className="text-lg lg:text-[21px] font-extrabold tracking-tight"
-              style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}
+              className="tracking-[0.04em]"
+              style={{ fontFamily: 'var(--font-display)', fontSize: 30, color: 'var(--h-gray-900)' }}
             >
-              Inventory
+              INVENTORY
             </h1>
             <p
-              className="text-[11px] mt-0.5"
-              style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
+              className="text-[13px] mt-0.5 mb-5"
+              style={{ fontFamily: 'var(--font-body)', color: 'var(--h-gray-400)' }}
             >
               {totalCount === 0 && !loading && !error
                 ? 'No products yet'
@@ -836,12 +837,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
           <button
             type="button"
             onClick={openAddModal}
-            className="h-9 lg:h-[35px] px-3 rounded-lg lg:rounded-[10px] text-white text-[12px] lg:text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px"
-            style={{
-              fontFamily: 'var(--font-b)',
-              background: 'var(--blue)',
-              boxShadow: '0 2px 8px var(--blue-glow)',
-            }}
+            className="h-10 px-4 rounded-[var(--radius-md)] text-white text-[14px] font-medium flex items-center gap-1.5 flex-shrink-0 transition-opacity hover:opacity-95"
+            style={{ fontFamily: 'var(--font-body)', background: 'var(--h-blue)' }}
           >
             <PlusIcon /> Add product
           </button>
@@ -890,12 +887,13 @@ export default function InventoryPage(_props: InventoryPageProps) {
               key={cat}
               type="button"
               onClick={() => setCategory(cat)}
-              className="flex-shrink-0 h-8 lg:h-9 flex items-center px-3 lg:px-4 rounded-full border text-[11px] lg:text-[12px] font-medium whitespace-nowrap transition-all touch-manipulation"
+              className="flex-shrink-0 h-8 lg:h-9 flex items-center rounded-full border text-[12px] font-medium whitespace-nowrap transition-colors touch-manipulation"
               style={{
-                fontFamily: 'var(--font-b)',
+                fontFamily: 'var(--font-body)',
+                padding: '6px 14px',
                 ...(category === cat
-                  ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
-                  : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
+                  ? { background: 'var(--h-blue)', border: '0.5px solid var(--h-blue)', color: 'var(--h-white)' }
+                  : { background: 'var(--h-white)', border: '0.5px solid var(--h-gray-300)', color: 'var(--h-gray-500)' }),
               }}
             >
               {cat === 'all' ? 'All' : cat}
@@ -910,10 +908,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
             onChange={(e) => setSizeFilter(e.target.value)}
             className="h-8 lg:h-9 pl-2.5 pr-7 rounded-full border text-[11px] lg:text-[12px] font-medium appearance-none bg-transparent bg-no-repeat bg-[length:8px_5px] focus:outline-none touch-manipulation"
             style={{
-              fontFamily: 'var(--font-b)',
-              borderColor: 'var(--border)',
-              color: 'var(--text-2)',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              fontFamily: 'var(--font-body)',
+              border: '0.5px solid var(--h-gray-300)',
+              color: 'var(--h-gray-700)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%239B9890' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
               backgroundPosition: 'right 8px center',
             }}
           >
@@ -930,10 +928,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
             onChange={(e) => setColorFilter(e.target.value)}
             className="h-8 lg:h-9 pl-2.5 pr-7 rounded-full border text-[11px] lg:text-[12px] font-medium appearance-none bg-transparent bg-no-repeat bg-[length:8px_5px] focus:outline-none touch-manipulation"
             style={{
-              fontFamily: 'var(--font-b)',
-              borderColor: 'var(--border)',
-              color: 'var(--text-2)',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+              fontFamily: 'var(--font-body)',
+              border: '0.5px solid var(--h-gray-300)',
+              color: 'var(--h-gray-700)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%239B9890' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
               backgroundPosition: 'right 8px center',
             }}
           >
@@ -946,8 +944,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
             <button
               type="button"
               onClick={() => setSortOpen((o) => !o)}
-              className="flex items-center gap-1 h-8 lg:h-9 px-2.5 rounded-full border text-[11px] lg:text-[12px] font-medium transition-colors touch-manipulation hover:border-[var(--border-md)]"
-              style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
+            className="flex items-center gap-1 h-8 lg:h-9 px-3 rounded-[var(--radius-md)] border text-[12px] font-medium transition-colors touch-manipulation"
+            style={{ fontFamily: 'var(--font-body)', background: 'transparent', border: '0.5px solid var(--h-gray-300)', color: 'var(--h-gray-700)' }}
             >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="8" y1="6" x2="21" y2="6" />
@@ -960,8 +958,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
                 <div
-                  className="absolute left-0 top-full mt-1 z-20 rounded-xl shadow-[var(--shadow-md)] border py-1.5 w-44"
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                  className="absolute left-0 top-full mt-1 z-20 rounded-[var(--radius-md)] border py-1.5 w-44"
+                  style={{ background: 'var(--h-white)', border: '0.5px solid var(--h-gray-200)' }}
                 >
                   {SORT_OPTIONS.map((opt) => (
                     <button
@@ -973,8 +971,8 @@ export default function InventoryPage(_props: InventoryPageProps) {
                       }}
                       className="w-full px-4 py-2 text-left text-[13px] font-medium transition-colors"
                       style={{
-                        color: sort === opt.key ? 'var(--blue)' : 'var(--text-2)',
-                        background: sort === opt.key ? 'var(--blue-soft)' : 'transparent',
+                        color: sort === opt.key ? 'var(--h-blue)' : 'var(--h-gray-500)',
+                        background: sort === opt.key ? 'var(--h-blue-light)' : 'transparent',
                       }}
                     >
                       {opt.label}

@@ -1,4 +1,4 @@
-// src/components/layout/Header.tsx — TopBar: breadcrumb, search (centered), status pill, bell, log out
+// Hunnid Official topbar — design system: 56px height, breadcrumb, search, LIVE pill, bell, logout, CTA.
 import { useState, FormEvent } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Search, Bell, LogOut } from 'lucide-react';
@@ -80,70 +80,106 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 left-0 lg:left-[244px] right-0 border-b shadow-[var(--shadow-sm)] z-50 grid grid-rows-[auto_auto] grid-cols-[1fr_auto] gap-x-2 gap-y-2 md:grid-rows-1 md:grid-cols-[1fr_auto_1fr] md:items-center pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-4 pt-[var(--safe-top)] py-3 md:py-0 min-h-12 md:min-h-[56px]"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="sticky top-0 left-0 right-0 z-50 flex items-center justify-between gap-4 h-14 border-b"
+      style={{
+        background: 'var(--h-white)',
+        borderColor: 'var(--h-gray-200)',
+        borderWidth: '0.5px',
+        padding: '0 24px',
+        height: 56,
+      }}
     >
-      {/* Col 1 row 1: breadcrumb. On md: col 1 */}
-      <nav className="min-w-0 flex items-center h-10 md:h-auto col-start-1 row-start-1" aria-label="Breadcrumb">
-        <ol className="flex items-center gap-1.5 text-[12px] font-medium truncate" style={{ fontFamily: 'var(--font-b)' }}>
+      {/* Breadcrumb */}
+      <nav className="min-w-0 flex items-center shrink-0" aria-label="Breadcrumb">
+        <ol
+          className="flex items-center gap-1.5 truncate"
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 12,
+            color: 'var(--h-gray-400)',
+          }}
+        >
           {breadcrumb.parent != null ? (
             <>
-              <li>
-                <span style={{ color: 'var(--text-3)' }}>{breadcrumb.parent}</span>
-              </li>
-              <li style={{ color: 'var(--border-md)' }} aria-hidden>›</li>
+              <li>{breadcrumb.parent}</li>
+              <li aria-hidden> / </li>
             </>
           ) : null}
-          <li>
-            <span style={{ color: 'var(--text)' }}>{breadcrumb.current}</span>
+          <li style={{ color: breadcrumb.parent == null ? 'var(--h-gray-400)' : 'var(--h-gray-500)' }}>
+            {breadcrumb.current}
           </li>
         </ol>
       </nav>
 
-      {/* Col 2 row 1 on mobile: status + bell + logout. Row 2 on mobile: search. On md: col 2 = search, col 3 = icons */}
-      <div className="flex items-center gap-2 flex-shrink-0 col-start-2 row-start-1 md:col-start-3 md:row-start-1">
+      {/* Search + LIVE + bell + logout + CTA */}
+      <div className="flex items-center gap-3 flex-1 justify-end min-w-0 max-w-[480px]">
+        <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0 max-w-[360px]">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+            style={{ color: 'var(--h-gray-400)' }}
+            strokeWidth={2}
+          />
+          <input
+            type="search"
+            inputMode="search"
+            value={searchValue}
+            onChange={(e) => handleSearchInput(e.target.value)}
+            placeholder="Search products, SKU or name…"
+            className="w-full h-9 pl-9 pr-3 rounded-[var(--radius-md)] outline-none transition-colors focus:border-[var(--h-blue)]"
+            style={{
+              background: 'var(--h-white)',
+              border: '0.5px solid var(--h-gray-300)',
+              padding: '8px 14px',
+              fontSize: 13,
+              fontFamily: 'var(--font-body)',
+              color: 'var(--h-gray-900)',
+            }}
+            aria-label="Search products, SKU or name"
+          />
+        </form>
+
+        {/* LIVE pill */}
         <span
-          className="flex items-center gap-1.5 h-7 px-2 rounded-md border text-[10px] font-bold uppercase shrink-0"
+          className="inline-flex items-center gap-1.5 rounded-full shrink-0"
           style={{
-            fontFamily: 'var(--font-d)',
-            ...(isDegraded
-              ? { background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.2)', color: 'var(--red-status)' }
-              : { background: 'rgba(22,163,74,0.08)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }),
+            padding: '4px 10px',
+            fontSize: 11,
+            fontWeight: 600,
+            fontFamily: 'var(--font-body)',
+            background: isDegraded ? 'var(--h-red-light)' : 'var(--h-green-light)',
+            color: isDegraded ? 'var(--h-red)' : 'var(--h-green)',
           }}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden />
-          {isDegraded ? 'Offline' : 'Live'}
+          <span
+            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ background: 'currentColor' }}
+            aria-hidden
+          />
+          {isDegraded ? 'Offline' : 'LIVE'}
         </span>
+
         <button
           type="button"
-          className="relative min-w-touch min-h-touch w-10 h-10 rounded-xl border flex items-center justify-center transition-colors shrink-0"
-          style={{
-            background: 'var(--elevated)',
-            borderColor: 'var(--border)',
-            color: 'var(--text-2)',
-          }}
+          className="w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0 transition-colors hover:opacity-90"
+          style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }}
           aria-label="View notifications"
           title="Notifications"
           disabled
         >
           <Bell className="w-4 h-4" strokeWidth={2} />
-          <span
-            className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--surface)]"
-            style={{ background: 'var(--red-status)' }}
-            aria-hidden
-          />
         </button>
+
         <button
           type="button"
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="flex items-center justify-center gap-2 min-h-touch min-w-touch px-4 rounded-xl border transition-colors shrink-0"
+          className="flex items-center justify-center gap-2 h-9 px-3 rounded-[var(--radius-md)] shrink-0 transition-colors hover:opacity-90"
           style={{
-            background: 'var(--elevated)',
-            borderColor: 'var(--border)',
-            color: 'var(--text-2)',
-            fontFamily: 'var(--font-b)',
-            fontSize: '11px',
+            background: 'var(--h-gray-100)',
+            border: '0.5px solid var(--h-gray-300)',
+            color: 'var(--h-gray-700)',
+            fontFamily: 'var(--font-body)',
+            fontSize: 12,
           }}
           title="Log out"
           aria-label="Log out"
@@ -151,46 +187,6 @@ export function Header() {
           <LogOut className="w-4 h-4" strokeWidth={2} />
           <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
         </button>
-      </div>
-
-      {/* Row 2 col 1-2 on mobile: search full width. On md: col 2 row 1 */}
-      <div className="col-span-2 col-start-1 row-start-2 md:col-span-1 md:col-start-2 md:row-start-1 flex justify-center min-w-0">
-        <form onSubmit={handleSearchSubmit} className="relative w-full max-w-[380px] group">
-          <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-            style={{ color: 'var(--text-3)' }}
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-          <input
-            type="search"
-            inputMode="search"
-            value={searchValue}
-            onChange={(e) => handleSearchInput(e.target.value)}
-            placeholder="Search products, SKU, or barcode…"
-            className="w-full min-h-touch h-11 pl-10 pr-14 rounded-xl border outline-none transition-[duration-150] focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
-            style={{
-              background: 'var(--elevated)',
-              borderColor: 'var(--border)',
-              color: 'var(--text)',
-              fontSize: '12px',
-              fontFamily: 'var(--font-b)',
-            }}
-            onMouseEnter={(e) => {
-              if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = 'var(--border-md)';
-            }}
-            onMouseLeave={(e) => {
-              if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = 'var(--border)';
-            }}
-            aria-label="Search products, SKU, or barcode"
-          />
-          <span
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-medium tracking-wide rounded px-1.5 py-0.5"
-            style={{ fontFamily: 'var(--font-m)', color: 'var(--text-3)', background: 'var(--border)' }}
-          >
-            ⌘K
-          </span>
-        </form>
       </div>
     </header>
   );
