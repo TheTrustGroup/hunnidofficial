@@ -125,8 +125,7 @@ export default function CartPanel({
                       <button
                         type="button"
                         onClick={() => onUpdateQty(line.key, -1)}
-                        disabled={line.qty <= 1}
-                        className="pos-cart-qty-btn w-[22px] h-[22px] rounded flex items-center justify-center font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="pos-cart-qty-btn w-[22px] h-[22px] rounded flex items-center justify-center font-semibold border transition-colors"
                         style={{ borderColor: 'var(--border)', background: 'var(--border)', color: 'var(--text-2)' }}
                       >
                         −

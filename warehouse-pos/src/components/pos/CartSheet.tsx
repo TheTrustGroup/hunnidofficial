@@ -152,8 +152,7 @@ function CartLineItem({ line, onUpdateQty, onRemove }: { line: CartLine; onUpdat
           <button
             type="button"
             onClick={() => onUpdateQty(line.key, -1)}
-            disabled={line.qty <= 1}
-            className="w-7 h-7 rounded-lg border text-[14px] font-bold flex items-center justify-center active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150"
+            className="min-w-[44px] min-h-[44px] rounded-lg border text-[14px] font-bold flex items-center justify-center active:scale-90 transition-all duration-150"
             style={{ background: 'var(--border)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
           >
             −
@@ -308,7 +307,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
                       <div className="flex flex-wrap gap-2 mt-2">
                         {group.lines.map((l) => (
                           <div key={l.key} className="inline-flex items-center gap-0.5 rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-                            <button type="button" onClick={() => onUpdateQty(l.key, -1)} disabled={l.qty <= 1} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold disabled:opacity-30" style={{ color: 'var(--text-2)' }}>−</button>
+                          <button type="button" onClick={() => onUpdateQty(l.key, -1)} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>−</button>
                             <span className="min-w-[2.5rem] text-center text-[12px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>{l.sizeLabel ?? 'One size'} ×{l.qty}</span>
                             <button type="button" onClick={() => onUpdateQty(l.key, 1)} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>+</button>
                           </div>

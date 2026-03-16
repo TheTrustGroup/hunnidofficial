@@ -237,7 +237,16 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   }
 
   function handleUpdateQty(key: string, delta: number) {
-    setCart(prev => prev.map(l => l.key === key ? { ...l, qty: Math.max(1, l.qty + delta) } : l));
+    setCart(prev =>
+      prev
+        .map(l => {
+          if (l.key !== key) return l;
+          const nextQty = l.qty + delta;
+          if (nextQty <= 0) return null;
+          return { ...l, qty: nextQty };
+        })
+        .filter((l): l is CartLine => l !== null)
+    );
   }
 
   function handleRemoveLine(key: string) {
@@ -380,10 +389,15 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       return;
     }
 
-    // Success: show "Sale complete" in cart for 2s, then close and show receipt
+    // Success: ensure product caches reflect latest stock, then show "Sale complete"
     setChargeStatus('success');
     const successPayload = payload;
     const successResult = { serverSaleId, serverReceiptId, completedAt };
+    if (warehouse?.id) {
+      const key = productsQueryKey(warehouse.id);
+      await queryClient.invalidateQueries({ queryKey: key, exact: false });
+      await queryClient.refetchQueries({ queryKey: key, exact: false });
+    }
     setTimeout(() => {
       if (!isMounted.current) return;
       setCart([]);

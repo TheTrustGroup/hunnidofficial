@@ -41,8 +41,12 @@ export function BottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-[200]"
-      style={{ paddingBottom: 'max(10px, var(--safe-bottom))' }}
+      className="lg:hidden fixed left-0 right-0 z-[200]"
+      style={{
+        height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        bottom: 0,
+      }}
       aria-label="Main navigation"
     >
       <div
@@ -108,17 +112,20 @@ export function BottomNav() {
                 style={{ background: isActive ? 'var(--blue-soft)' : 'transparent' }}
               >
                 <Icon
-                  className="w-5 h-5 flex-shrink-0"
                   strokeWidth={2}
                   aria-hidden
-                  style={{ color: isActive ? 'var(--blue)' : 'var(--text-3)' }}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    color: isActive ? 'var(--h-blue)' : 'var(--h-gray-400)',
+                  }}
                 />
               </span>
               <span
                 className="text-[10px] font-medium"
                 style={{
                   fontFamily: 'var(--font-b)',
-                  color: isActive ? 'var(--blue)' : 'var(--text-3)',
+                  color: isActive ? 'var(--h-blue)' : 'var(--h-gray-400)',
                   fontWeight: isActive ? 600 : 500,
                 }}
               >
