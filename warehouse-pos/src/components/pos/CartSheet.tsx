@@ -209,16 +209,16 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
 
   return (
     <>
-      {/* Overlay: on mobile leave room for bottom nav (--bottom-nav-h); desktop full cover */}
+      {/* Overlay: above bottom nav (z-modal) so sheet is clearly on top; full cover */}
       <div
-        className={`fixed inset-0 z-40 transition-all duration-250 ${isOpen ? 'bg-black/40 backdrop-blur-[2px] pointer-events-auto' : 'bg-transparent pointer-events-none'}`}
-        style={{ paddingBottom: 'var(--bottom-nav-h)' }}
+        className={`fixed inset-0 transition-all duration-250 ${isOpen ? 'bg-black/40 backdrop-blur-[2px] pointer-events-auto' : 'bg-transparent pointer-events-none'}`}
+        style={{ zIndex: 'var(--z-modal)' }}
         onClick={() => !processing && onClose()}
       />
       {/* Sheet: above bottom nav; max-height so it never goes under browser chrome; premium handle + shadow */}
       <div
-        className={`fixed left-0 right-0 z-50 bg-white flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[var(--bottom-nav-h)] lg:bottom-0 rounded-t-3xl max-h-[72dvh] lg:max-h-[85vh]`}
-        style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)' }}
+        className={`fixed left-0 right-0 bg-white flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[var(--bottom-nav-h)] lg:bottom-0 rounded-t-3xl max-h-[72dvh] lg:max-h-[85vh]`}
+        style={{ zIndex: 'var(--z-modal)', boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 pb-2 flex-shrink-0" aria-hidden>

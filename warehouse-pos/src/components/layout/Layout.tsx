@@ -159,13 +159,13 @@ function LayoutContent() {
           </Button>
         </div>
       )}
-      {/* Main: desktop = sidebar offset + 24px padding; mobile = topbar + bottom nav clearance, safe-area */}
+      {/* Main: desktop = sidebar offset + padding; mobile = topbar + bottom nav clearance (--bottom-nav-h) so CartBar/sheets stay visible */}
       <main
         className={`lg:ml-[var(--edk-sidebar-w)] pt-[52px] md:pt-[var(--edk-topbar-h)] lg:pt-6 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-6 min-h-[calc(var(--min-h-viewport)-var(--edk-topbar-h))] max-w-[1600px] overflow-x-hidden overflow-y-auto ${
           showDegradedBanner || showSyncingBar ? 'mt-0' : isPOS ? 'mt-0' : isMobile ? 'mt-0' : 'mt-[calc(var(--edk-topbar-h)+var(--safe-top))]'
         } ${
           isMobile
-            ? 'pb-[max(4rem,calc(env(safe-area-inset-bottom,0px)+4rem))]'
+            ? 'pb-[calc(var(--bottom-nav-h)+12px)]'
             : 'pb-[max(4rem,calc(var(--safe-bottom)+4rem))] lg:pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))]'
         }`}
       >
