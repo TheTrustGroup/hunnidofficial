@@ -1,66 +1,26 @@
-// src/components/layout/Header.tsx — TopBar: breadcrumb, search, status pill, bell, New Sale. Mobile: 52px compact (title, search icon, LIVE, bell, cart).
+// src/components/layout/Header.tsx - EDK top bar: single search (no duplicate on pages), 56px, logout/notif
+// Hidden on /pos so POS page uses its own topbar only.
 import { useState, FormEvent, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Search, Bell, LogOut, ShoppingCart } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useApiStatus } from '../../contexts/ApiStatusContext';
-
-const MOBILE_BREAKPOINT = 768;
-
-function useIsMobile(): boolean {
-  const [mobile, setMobile] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const handler = () => setMobile(mq.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return mobile;
-}
-
-function getPageTitle(pathname: string): string {
-  if (pathname === '/' || pathname.startsWith('/dashboard')) return 'Dashboard';
-  if (pathname.startsWith('/inventory')) return 'Inventory';
-  if (pathname.startsWith('/sales')) return 'Sales';
-  if (pathname.startsWith('/orders')) return 'Orders';
-  if (pathname.startsWith('/deliveries')) return 'Deliveries';
-  if (pathname.startsWith('/reports')) return 'Reports';
-  if (pathname.startsWith('/settings')) return 'Settings';
-  if (pathname.startsWith('/users')) return 'Users';
-  return 'App';
-}
-
-const BREADCRUMB: Record<string, { parent?: string; current: string }> = {
-  '/': { current: 'Dashboard' },
-  '/inventory': { parent: 'Dashboard', current: 'Inventory' },
-  '/orders': { parent: 'Dashboard', current: 'Orders' },
-  '/pos': { current: 'POS' },
-  '/sales': { parent: 'Dashboard', current: 'Sales' },
-  '/deliveries': { parent: 'Dashboard', current: 'Deliveries' },
-  '/reports': { parent: 'Dashboard', current: 'Reports' },
-  '/users': { parent: 'Settings', current: 'User Management' },
-  '/settings': { parent: 'Dashboard', current: 'Settings' },
-  '/more': { current: 'More' },
-};
-
-function getBreadcrumb(pathname: string) {
-  return BREADCRUMB[pathname] ?? { current: pathname.slice(1) || 'Dashboard' };
-}
+import { Button } from '../ui/Button';
+import { RealtimeSyncIndicator } from '../RealtimeSyncIndicator';
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { logout } = useAuth();
-  const { isDegraded } = useApiStatus();
   const isInventory = location.pathname === '/inventory';
-  const searchFromUrl = isInventory ? (searchParams.get('q') ?? '') : '';
-  const [localQuery, setLocalQuery] = useState('');
-  const searchValue = isInventory ? searchFromUrl : localQuery;
+  const qFromUrl = isInventory ? (searchParams.get('q') ?? '') : '';
+  const [searchQuery, setSearchQuery] = useState(qFromUrl);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const breadcrumb = getBreadcrumb(location.pathname);
+
+  useEffect(() => {
+    if (isInventory) setSearchQuery(qFromUrl);
+  }, [isInventory, qFromUrl]);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -72,197 +32,138 @@ export function Header() {
       setIsLoggingOut(false);
     }
   };
+  const logoutButtonLabel = isLoggingOut ? 'Signing out…' : 'Log out';
 
-  const updateSearchUrl = (value: string) => {
-    const trimmed = value.trim();
-    setSearchParams(
-      (prev) => {
-        const p = new URLSearchParams(prev);
-        if (trimmed) p.set('q', trimmed);
-        else p.delete('q');
-        return p;
-      },
-      { replace: true }
-    );
-  };
-
-  const handleSearchInput = (value: string) => {
-    if (isInventory) {
-      updateSearchUrl(value);
-    } else {
-      setLocalQuery(value);
-    }
-  };
-
-  const handleSearchSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const q = (isInventory ? searchFromUrl : localQuery).trim();
+    const q = searchQuery.trim();
     if (q) {
       navigate(`/inventory?q=${encodeURIComponent(q)}`);
-      setLocalQuery('');
-    } else if (!isInventory) {
-      navigate('/inventory');
+      setSearchParams({ q });
     }
   };
 
-  const isMobile = useIsMobile();
+  const onSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (isInventory) {
+      if (value.trim()) setSearchParams({ q: value.trim() }, { replace: true });
+      else setSearchParams({}, { replace: true });
+    }
+  };
 
-  // Mobile topbar: --edk-topbar-h, page title, search icon, LIVE pill, bell, cart
-  if (isMobile) {
-    return (
+  // POS has its own topbar; do not show layout header on POS
+  if (location.pathname === '/pos') return null;
+
+  const pageTitles: Record<string, string> = {
+    '/': 'Dashboard',
+    '/inventory': 'Inventory',
+    '/orders': 'Orders',
+    '/sales': 'Sales',
+    '/deliveries': 'Deliveries',
+    '/reports': 'Reports',
+    '/users': 'Users',
+    '/settings': 'Settings',
+  };
+  const pageTitle = pageTitles[location.pathname] ?? 'App';
+
+  return (
+    <>
+      {/* Mobile: page title, search, LIVE, bell, logout, cart (44px tap targets) */}
       <header
-        className="md:hidden fixed top-0 left-0 right-0 flex items-center px-4 gap-2 z-50 border-b"
-        style={{
-          height: 'var(--edk-topbar-h)',
-          paddingTop: 'var(--safe-top)',
-          background: 'var(--edk-surface)',
-          borderColor: 'var(--edk-border)',
-          fontFamily: 'var(--edk-font-ui)',
-        }}
+        className="lg:hidden fixed top-0 left-0 right-0 h-[var(--edk-topbar-h)] bg-[var(--edk-surface)] border-b border-[var(--edk-border)] flex items-center gap-1 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] z-10"
+        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", paddingTop: 'var(--safe-top)' }}
       >
-        <span className="flex-1 text-[13px] font-medium truncate" style={{ color: 'var(--edk-ink)' }}>
-          {getPageTitle(location.pathname)}
+        <span className="flex-1 text-[13px] font-medium text-[var(--edk-ink)] truncate min-w-0">
+          {pageTitle}
         </span>
         <button
           type="button"
           onClick={() => navigate('/inventory')}
-          className="w-8 h-8 rounded-md flex items-center justify-center min-w-[44px] min-h-[44px]"
-          style={{ background: 'var(--edk-bg)' }}
-          aria-label="Search products"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-[var(--edk-ink-3)]"
+          aria-label="Search"
         >
-          <Search size={16} strokeWidth={2} style={{ color: 'var(--edk-ink-3)' }} />
+          <Search className="w-4 h-4" strokeWidth={2} />
         </button>
-        <div className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold" style={{ background: 'var(--edk-amber-bg)', color: 'var(--edk-green)' }}>
+        <span className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold bg-[var(--edk-green-bg)] text-[var(--edk-green)] shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-[var(--edk-green)]" aria-hidden />
           LIVE
-        </div>
+        </span>
         <button
           type="button"
-          className="relative w-8 h-8 rounded-md flex items-center justify-center min-w-[44px] min-h-[44px]"
-          style={{ background: 'var(--edk-bg)' }}
+          className="relative min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-[var(--edk-ink-2)]"
           aria-label="Notifications"
           disabled
         >
-          <Bell size={16} strokeWidth={2} style={{ color: 'var(--edk-ink-2)' }} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--edk-surface)] bg-[var(--edk-red)]" aria-hidden />
+          <Bell className="w-4 h-4" strokeWidth={2} />
+          <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[var(--edk-red)] rounded-full ring-[1.5px] ring-[var(--edk-surface)]" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-[var(--edk-ink-2)]"
+          aria-label={logoutButtonLabel}
+          title="Log out"
+        >
+          <LogOut className="w-5 h-5" strokeWidth={2} />
         </button>
         <Link
           to="/pos"
-          className="w-8 h-8 rounded-md flex items-center justify-center min-w-[44px] min-h-[44px] text-white"
-          style={{ background: 'var(--blue)' }}
-          aria-label="Open POS"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md bg-[var(--blue)] text-white shrink-0"
+          aria-label="New sale"
         >
-          <ShoppingCart size={16} strokeWidth={2} />
+          <ShoppingCart className="w-5 h-5" strokeWidth={2} />
         </Link>
       </header>
-    );
-  }
 
-  // Desktop: fixed top bar, height --edk-topbar-h, left offset --edk-sidebar-w
-  return (
-    <header
-      className="sticky top-0 left-0 right-0 flex items-center gap-3 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:pl-6 lg:pr-6 pt-[var(--safe-top)] z-50 border-b"
-      style={{
-        height: 'var(--edk-topbar-h)',
-        background: 'var(--edk-surface)',
-        borderColor: 'var(--edk-border)',
-        fontFamily: 'var(--edk-font-ui)',
-        marginLeft: 0,
-      }}
-    >
-      <style>{`.edk-header-desktop { left: var(--edk-sidebar-w); }`}</style>
-      <div className="hidden lg:block absolute inset-0 pointer-events-none" style={{ left: 'var(--edk-sidebar-w)' }} aria-hidden />
-      <div className="flex-1 flex items-center gap-3 min-w-0 w-full lg:w-auto lg:max-w-[1600px] lg:ml-[var(--edk-sidebar-w)]">
-        {/* Breadcrumb */}
-        <nav className="flex-shrink-0 min-w-0 hidden lg:block" aria-label="Breadcrumb">
-          <ol className="flex items-center gap-1.5 text-[13px] font-medium truncate" style={{ color: 'var(--edk-ink-2)' }}>
-            {breadcrumb.parent != null ? (
-              <>
-                <li><span style={{ color: 'var(--edk-ink-3)' }}>{breadcrumb.parent}</span></li>
-                <li style={{ color: 'var(--edk-border-mid)' }} aria-hidden>›</li>
-              </>
-            ) : null}
-            <li><span style={{ color: 'var(--edk-ink)' }}>{breadcrumb.current}</span></li>
-          </ol>
-        </nav>
-
-        {/* Single global search: max 520px, 32px height, rounded-md */}
-        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-[520px] min-w-0 flex justify-center lg:justify-start">
-          <div className="relative w-full max-w-[380px] lg:max-w-[520px] group">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors group-focus-within:text-[var(--blue)]"
-              style={{ color: 'var(--edk-ink-3)' }}
-              strokeWidth={2}
-            />
-            <input
-              type="search"
-              inputMode="search"
-              value={searchValue}
-              onChange={(e) => handleSearchInput(e.target.value)}
-              placeholder="Search products, SKU, or barcode…"
-              className="w-full h-8 pl-9 pr-20 rounded-md border outline-none transition-all duration-150 text-[12px] placeholder:opacity-70 focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-soft)]"
-              style={{
-                background: 'var(--edk-bg)',
-                borderColor: 'var(--edk-border-mid)',
-                color: 'var(--edk-ink)',
-                fontFamily: 'var(--edk-font-ui)',
-              }}
-              aria-label="Search products, SKU, or barcode"
-            />
-            <span
-              className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-medium rounded px-1.5 py-0.5 hidden sm:inline"
-              style={{ fontFamily: 'var(--edk-font-mono)', color: 'var(--edk-ink-3)', background: 'var(--edk-border)' }}
-            >
-              ⌘K
-            </span>
-          </div>
+      {/* Desktop: single search (max 520px, 32px height, blue focus), sync, logout, bell */}
+      <header
+        className="hidden lg:flex fixed top-0 left-[var(--edk-sidebar-w)] right-0 h-[var(--edk-topbar-h)] bg-[var(--edk-surface)] border-b border-[var(--edk-border)] items-center gap-3 pl-6 pr-6 z-10"
+        style={{ fontFamily: "'DM Sans', system-ui, sans-serif", paddingTop: 'var(--safe-top)' }}
+      >
+      <div className="flex-1 max-w-[520px] relative">
+        <form onSubmit={handleSearch} className="relative group">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--edk-ink-3)] group-focus-within:text-[var(--blue)] pointer-events-none" strokeWidth={2} aria-hidden />
+          <input
+            type="search"
+            inputMode="search"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search products, SKU, or barcode…"
+            className="w-full h-[32px] pl-8 pr-14 rounded-md bg-[var(--edk-bg)] border border-[var(--edk-border-mid)] text-[12px] text-[var(--edk-ink)] placeholder:text-[var(--edk-ink-3)] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-soft)]"
+            aria-label="Search products, SKU, or barcode"
+          />
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-[var(--edk-ink-3)] bg-[var(--edk-surface-2)] border border-[var(--edk-border-mid)] rounded px-1.5 py-0.5 pointer-events-none" aria-hidden>⌘K</span>
         </form>
+      </div>
 
-        {/* Right: sync indicator, Log out 32px, bell with red dot */}
-        <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-          <span
-            className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[11px] font-semibold uppercase shrink-0"
-            style={{
-              ...(isDegraded
-                ? { background: 'var(--edk-red-soft)', borderColor: 'var(--edk-red-border)', color: 'var(--edk-red)' }
-                : { background: 'var(--edk-amber-bg)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--edk-green)' }),
-            }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden />
-            {isDegraded ? 'Offline' : 'Live'}
-          </span>
-          <button
-            type="button"
-            className="relative w-8 h-8 rounded-md border flex items-center justify-center min-w-[44px] min-h-[44px] shrink-0"
-            style={{ background: 'var(--edk-bg)', borderColor: 'var(--edk-border-mid)', color: 'var(--edk-ink-2)' }}
-            aria-label="Notifications"
-            disabled
-          >
-            <Bell className="w-4 h-4" strokeWidth={2} />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--edk-surface)] bg-[var(--edk-red)]" aria-hidden />
-          </button>
-          <Link
-            to="/pos"
-            className="flex items-center justify-center gap-1.5 h-8 px-4 rounded-md text-white text-[13px] font-semibold min-h-[32px] shrink-0"
-            style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
-          >
-            <ShoppingCart className="w-4 h-4" strokeWidth={2} />
-            <span className="hidden sm:inline">New Sale</span>
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="flex items-center justify-center gap-1.5 h-8 px-3 rounded-md border min-h-[32px] shrink-0 text-[12px] font-medium"
-            style={{ background: 'var(--edk-surface)', borderColor: 'var(--edk-border)', color: 'var(--edk-ink-2)' }}
-            title="Log out"
-            aria-label="Log out"
-          >
-            <LogOut className="w-4 h-4" strokeWidth={2} />
-            <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
-          </button>
-        </div>
+      <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+        <RealtimeSyncIndicator />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={handleLogout}
+          loading={isLoggingOut}
+          leftIcon={!isLoggingOut ? <LogOut className="w-3.5 h-3.5" strokeWidth={2} /> : undefined}
+          className="h-[32px] px-2.5 rounded-md border border-[var(--edk-border-mid)] bg-[var(--edk-surface)] hover:bg-[var(--edk-bg)] text-[var(--edk-ink-2)] text-[11px] font-medium min-w-[40px] touch-manipulation"
+          title="Log out"
+          aria-label={logoutButtonLabel}
+        >
+          <span className="hidden sm:inline">{logoutButtonLabel}</span>
+        </Button>
+        <Button
+          type="button"
+          variant="action"
+          className="relative w-[32px] h-[32px] flex items-center justify-center rounded-md border border-[var(--edk-border-mid)] bg-[var(--edk-surface)] hover:bg-[var(--edk-bg)] text-[var(--edk-ink-2)] disabled:opacity-50 touch-manipulation"
+          aria-label="View notifications"
+          title="Notifications"
+          disabled
+        >
+          <Bell className="w-3.5 h-3.5" strokeWidth={2} />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[var(--edk-red)] rounded-full ring-[1.5px] ring-white" aria-hidden />
+        </Button>
       </div>
     </header>
+    </>
   );
 }

@@ -20,47 +20,38 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ---- Design tokens: light theme (warm off-white + white surfaces) ---- */
+/* ---- EDK design tokens (UI redesign) ---- */
 :root {
-  /* Backgrounds */
-  --bg:           #F5F4F0;
-  --surface:      #FFFFFF;
-  --elevated:     #FAFAF8;
-  --overlay:      #F0EFE9;
-  --border:       #E8E6DF;
-  --border-md:    #D8D5CC;
+  --edk-red: #E8281A;
+  --edk-red-hover: #C41F13;
+  --edk-red-soft: rgba(232, 40, 26, 0.08);
+  --edk-red-border: rgba(232, 40, 26, 0.2);
+  --edk-bg: #F7F6F4;
+  --edk-surface: #FFFFFF;
+  --edk-surface-2: #F2F0ED;
+  --edk-border: rgba(0, 0, 0, 0.07);
+  --edk-border-mid: rgba(0, 0, 0, 0.11);
+  --edk-sidebar-bg: #0F0E0D;
+  --edk-ink: #111110;
+  --edk-ink-2: #4A4845;
+  --edk-ink-3: #8A8784;
+  --edk-green: #16A34A;
+  --edk-green-bg: #F0FDF4;
+  --edk-amber: #D97706;
+  --edk-amber-bg: #FFFBEB;
+  --edk-sidebar-w: 240px;
+  --edk-topbar-h: 56px;
+  --edk-radius: 10px;
+  /* Hunnid Official primary accent (blue); red reserved for danger only */
+  --blue: #2563eb;
+  --blue-soft: rgba(37, 99, 235, 0.15);
+  --blue-glow: rgba(37, 99, 235, 0.35);
+  --edk-radius-sm: 6px;
+}
 
-  /* Brand — Hunnid Blue (#5CACFA) */
-  --blue:         #5CACFA;
-  --blue-mid:     #7BBBFB;
-  --blue-dim:     rgba(92,172,250,0.08);
-  --blue-glow:    rgba(92,172,250,0.18);
-  --blue-soft:    #EEF6FD;
-
-  /* Status */
-  --green:        #16A34A;
-  --green-dim:    rgba(22,163,74,0.08);
-  --amber:        #D97706;
-  --amber-dim:    rgba(217,119,6,0.08);
-  --red-status:   #DC2626;
-  --red-dim:      rgba(220,38,38,0.08);
-
-  /* Text */
-  --text:         #0F0F0F;
-  --text-2:       #52525B;
-  --text-3:       #A1A1AA;
-
-  /* Fonts (unchanged) */
-  --font-d: 'Syne', sans-serif;
-  --font-m: 'IBM Plex Mono', monospace;
-  --font-b: 'Inter', sans-serif;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.07), 0 2px 6px rgba(0,0,0,.04);
-  --shadow-lg: 0 12px 40px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.05);
-
-  /* Structural: 4px grid, spacing, touch, radius (keep for layout/component refs) */
+/* ---- Design tokens: 4px base grid + mobile-first spacing & typography ---- */
+:root {
+  /* 4px base system: 4,8,12,16,20,24,32,40 (Phase 6 + structural audit) */
   --grid-4: 4px;
   --grid-8: 8px;
   --grid-12: 12px;
@@ -70,61 +61,40 @@
   --grid-32: 32px;
   --grid-40: 40px;
   --grid-48: 48px;
-  --space-section: 1.5rem;
-  --space-block: 1rem;
-  --space-inline: 0.75rem;
-  --touch-min: 44px;
-  --input-height: 44px;
+  /* Spacing rhythm */
+  --space-section: 1.5rem;   /* 24px: between major sections */
+  --space-block: 1rem;       /* 16px: between related blocks */
+  --space-inline: 0.75rem;   /* 12px: between inline elements */
+  --touch-min: 44px;         /* Minimum hit area (WCAG); ≥44px for primary actions */
+  --input-height: 44px;      /* Input/select min-height */
+  /* Unified radius: 8px globally for cards, buttons, inputs (structural audit) */
   --radius-base: 8px;
   --radius-lg: 8px;
   --radius-card: 8px;
-  --radius-search: 12px;
-  --card-shadow: var(--shadow-sm);
-  --text-meta: 0.75rem;
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-h2: 1.25rem;
-  --text-h1: 1.75rem;
+  /* Typography hierarchy: H1 28/600, H2 20/600, Body 14–16, Meta 12–13 muted */
+  --text-meta: 0.75rem;      /* 12–13px muted */
+  --text-xs: 0.75rem;        /* 12px labels, captions */
+  --text-sm: 0.875rem;       /* 14px body */
+  --text-base: 1rem;         /* 16px body */
+  --text-lg: 1.125rem;       /* 18px card titles */
+  --text-h2: 1.25rem;        /* 20px section (H2) */
+  --text-h1: 1.75rem;        /* 28px page title (H1) */
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;
+  /* Safe area: iOS notch/home indicator; fixed elements respect these */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --sidebar-w: 244px;
+  /* Z-index scale: 10=header, 40=mobile menu overlay, 50=modals, 60=toasts (transient only). Errors use in-flow layout, not stacking. */
   --z-header: 10;
   --z-banner: 9;
   --z-mobile-menu: 40;
   --z-modal: 50;
   --z-toast: 60;
+  /* Viewport: 100dvh first (mobile Safari safe); fallback 100vh for older browsers */
   --min-h-viewport: min(100dvh, 100vh);
   --h-viewport: 100dvh;
-
-  /* ---- EDK design system (ops-grade POS/inventory) ---- */
-  --edk-bg: #F5F4F0;
-  --edk-surface: #FFFFFF;
-  --edk-surface-2: #FAFAF8;
-  --edk-border: #E8E6DF;
-  --edk-border-mid: #D8D5CC;
-  --edk-ink: #0F0F0F;
-  --edk-ink-2: #52525B;
-  --edk-ink-3: #A1A1AA;
-  --edk-red: #DC2626;
-  --edk-red-hover: #B91C1C;
-  --edk-red-soft: rgba(220, 38, 38, 0.12);
-  --edk-red-border: rgba(220, 38, 38, 0.2);
-  --edk-amber: #D97706;
-  --edk-amber-bg: rgba(217, 119, 6, 0.08);
-  --edk-green: #16A34A;
-  --edk-radius: 12px;
-  --edk-radius-sm: 8px;
-  --edk-topbar-h: 56px;
-  --edk-sidebar-w: 244px;
-  --edk-font-ui: 'DM Sans', system-ui, -apple-system, sans-serif;
-  --edk-font-display: 'Barlow Condensed', 'DM Sans', sans-serif;
-  --edk-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
 @supports not (height: 100dvh) {
   :root {
@@ -133,18 +103,20 @@
   }
 }
 
-/* Loading spinner: match "Loading warehouse" ring style (gray ring + blue top, 0.8s). */
-@keyframes loading-spin {
+/* Loading screen spinner: single keyframes so Layout banner and full-screen loader match */
+@keyframes edk-spin {
   to { transform: rotate(360deg); }
 }
 
 @layer base {
   body {
-    background-color: var(--edk-bg);
+    background: var(--edk-bg);
     color: var(--edk-ink);
-    font-family: var(--edk-font-ui);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv11', 'ss01';
+    /* Reduced font-weight noise: hierarchy via size/spacing, not bold overload */
   }
 
   html {
@@ -153,25 +125,15 @@
 }
 
 @layer components {
-  /* Loading spinner ring: same as Loading warehouse (3px gray ring, blue top, 0.8s). Use .loading-spinner-ring, .loading-spinner-ring-sm, .loading-spinner-ring-md, .loading-spinner-ring-lg. */
-  .loading-spinner-ring {
-    border: 3px solid var(--border-md);
-    border-top-color: var(--blue);
-    border-radius: 50%;
-    animation: loading-spin 0.8s linear infinite;
-  }
-  .loading-spinner-ring-sm { width: 1rem; height: 1rem; min-width: 1rem; min-height: 1rem; }
-  .loading-spinner-ring-md { width: 2rem; height: 2rem; min-width: 2rem; min-height: 2rem; }
-  .loading-spinner-ring-lg { width: 2.5rem; height: 2.5rem; min-width: 2.5rem; min-height: 2.5rem; }
-
   /* Primary action: one per screen; clear, no competing decoration. Height ≥44px (Phase 6). */
   .btn-primary {
     min-height: var(--touch-min);
     @apply px-6 py-3 rounded-xl font-semibold text-white shadow-primary transition-all duration-200 active:scale-[0.98];
-    background: linear-gradient(135deg, #5cacfa 0%, #4a9ae8 100%);
+    background: var(--blue);
   }
   .btn-primary:hover {
-    box-shadow: 0 6px 16px rgba(92, 172, 250, 0.35);
+    box-shadow: 0 6px 16px var(--blue-glow);
+    filter: brightness(1.05);
   }
 
   /* Secondary: de-emphasized, grouped logically */
@@ -217,8 +179,8 @@
   }
   .input-field:focus {
     @apply outline-none;
-    border-color: #5cacfa;
-    box-shadow: 0 0 0 3px rgba(92, 172, 250, 0.12);
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
   }
   .input-field[aria-invalid="true"],
   .input-field.border-red-500 {
@@ -278,9 +240,9 @@
   }
   .table-container {
     overflow: hidden;
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    background-color: var(--surface);
+    border-radius: var(--radius-card, 8px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background-color: #fff;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -289,34 +251,15 @@
   }
 
   .table-header {
-    border-bottom: 1px solid var(--border);
+    @apply bg-slate-50 border-b border-slate-200/80;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-  }
-  .table-header th {
-    font-family: var(--font-b);
-    font-weight: 600;
-    font-size: 11px;
-    text-transform: uppercase;
-    color: var(--text-3);
   }
 
   /* Stability: desktop table row 72px; consistent so list doesn't collapse during fetch (Phase 2/3). */
   .table-row {
-    border-bottom: 1px solid var(--border);
-    transition: background 0.15s;
+    @apply border-b border-slate-200/40 transition-colors duration-150;
     min-height: 72px;
-  }
-  .table-row td {
-    font-family: var(--font-b);
-    font-weight: 500;
-    font-size: 13px;
-    color: var(--text-2);
-  }
-  .table-row .price-cell,
-  .table-row [data-cell="price"] {
-    font-family: var(--font-m);
-    color: var(--blue);
   }
   /* Mobile grid card: consistent min-height to avoid layout jump (96–110px content block; card uses min-h). */
   .inventory-card-content {
@@ -330,11 +273,11 @@
 
   .table-row:hover,
   .table-row:focus-within {
-    background: var(--elevated);
+    background: rgba(248, 250, 252, 0.8);
   }
   @media (hover: none) {
     .table-row:active {
-      background: var(--elevated);
+      background: rgba(248, 250, 252, 0.9);
     }
   }
 
@@ -353,24 +296,20 @@
     box-shadow: none;
   }
 
-  /* POS cart quantity buttons: default border, hover blue */
-  .pos-cart-qty-btn:hover:not(:disabled) {
-    background: var(--blue) !important;
-    border-color: var(--blue) !important;
-    color: white !important;
+  /* EDK sidebar: active nav item icon red */
+  .sidebar-nav-link.is-active .sidebar-nav-icon {
+    color: var(--edk-red);
+    opacity: 1;
+  }
+  .sidebar-nav-link .sidebar-nav-icon {
+    opacity: 0.7;
   }
 
-  /* Sidebar nav badges (alert counts): amber pill, IBM Plex Mono 9px */
-  .nav-badge {
-    background: var(--amber);
-    color: white;
-    font-family: var(--font-m);
-    font-size: 9px;
-    line-height: 1;
-    padding: 2px 5px;
-    border-radius: 99px;
-    min-width: 1.25rem;
-    text-align: center;
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 
   /* Skeleton Loading */
@@ -381,25 +320,20 @@
   .skeleton-shimmer {
     background: linear-gradient(
       90deg,
-      var(--elevated) 0%,
-      var(--overlay) 50%,
-      var(--elevated) 100%
+      rgba(241, 245, 249, 0.4) 0%,
+      rgba(248, 250, 252, 0.8) 50%,
+      rgba(241, 245, 249, 0.4) 100%
     );
-    background-size: 200% 100%;
-    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    background-size: 2000px 100%;
+    animation: shimmer 2s infinite;
   }
-}
-
-@keyframes skeleton-shimmer {
-  0%, 100% { background-position: 200% 0; }
-  50% { background-position: 0 0; }
 }
 
 @layer utilities {
   /* Brand Gradient Text */
   /* Gradient Text with Fallback */
   .gradient-text {
-    background: linear-gradient(135deg, #5cacfa 0%, #4a9ae8 100%);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -433,35 +367,33 @@
   }
 
   /* Phase 6: solid surfaces use .solid-card / .solid-panel (glassmorphism.css). Unused .bg-glass / .border-glass removed. */
-
-  /* EDK typography: display (Barlow Condensed), mono (IBM Plex Mono) */
-  .font-display {
-    font-family: var(--edk-font-display);
-  }
-  .font-mono-edk {
-    font-family: var(--edk-font-mono);
-  }
 }
 
-/* Scrollbars (Step 8) */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-md);
-  border-radius: 99px;
+  background: rgba(203, 213, 225, 0.8);
+  border-radius: 8px;
+  transition: background 0.2s;
 }
 
-/* Firefox */
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.9);
+}
+
+/* Standard scrollbar (Firefox) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-md) transparent;
+  scrollbar-color: rgba(203, 213, 225, 0.8) rgba(241, 245, 249, 0.5);
 }
 
 /* Print Styles for Receipts */
@@ -492,17 +424,17 @@
   }
 }
 
-/* Focus Visible for Accessibility — brand primary */
+/* Focus Visible for Accessibility */
 *:focus-visible {
-  outline: 2px solid #5cacfa;
+  outline: 2px solid #ef4444;
   outline-offset: 2px;
   border-radius: 8px;
 }
 
-/* Selection color — brand primary (standard + Firefox legacy) */
+/* Selection color (standard + Firefox legacy) */
 ::selection {
-  background-color: rgba(92, 172, 250, 0.2);
-  color: #1e3a5f;
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #991b1b;
 }
 
 /* Smooth Transitions for All Interactive Elements; touch targets and tap highlight */

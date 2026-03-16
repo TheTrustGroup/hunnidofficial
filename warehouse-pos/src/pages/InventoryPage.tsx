@@ -2,35 +2,32 @@
 // InventoryPage.tsx
 // File: warehouse-pos/src/pages/InventoryPage.tsx
 //
-// DATA SOURCE: This page owns its product list (local state + loadProducts).
-// It does NOT use InventoryContext.products. The route at /inventory renders
-// this page, so product list and add/edit/delete are self-contained here.
-// Do not duplicate state with InventoryContext; keep a single source per page.
-//
 // World-class inventory dashboard. Design principles:
 //   • Summary stat bar at top (total SKUs, total stock value, low/out alerts)
 //   • Clean sticky header — warehouse selector + ONE search + Add button
 //   • Category filter chips + sort — no clutter
 //   • Cards show stock bar, size breakdown, price — no inline edit, no duplicates
 //   • All working logic preserved exactly: retry, poll, abort, optimistic updates,
-//     lastSaveTimeRef guard, pendingDeletesRef, size-wipe guard, lastUpdatedProductRef
+//     lastSaveTimeRef guard, pendingDeletesRef, size-wipe guard
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import ProductCard, { ProductCardSkeleton, type Product } from '../components/inventory/ProductCard';
+import { Package, AlertTriangle } from 'lucide-react';
+import ProductCard, { ProductCardSkeleton } from '../components/inventory/ProductCard';
 import ProductModal from '../components/inventory/ProductModal';
 import { type SizeCode } from '../components/inventory/SizesSection';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Button } from '../components/ui/Button';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
-import { INVENTORY_UPDATED_EVENT, notifyInventoryUpdated } from '../lib/inventoryEvents';
+import { isAnyApiCircuitDegraded, resetAllApiCircuitBreakers } from '../lib/circuit';
+import { getUserFriendlyMessage } from '../lib/errorMessages';
+import { onUnauthorized } from '../lib/onUnauthorized';
 import { useWarehouse } from '../contexts/WarehouseContext';
-import type { Warehouse } from '../types';
-import {
-  INVENTORY_POLL_MS,
-  INVENTORY_PAGE_SIZE,
-  LAST_UPDATED_PRESERVE_MS,
-  INVENTORY_SEARCH_DEBOUNCE_MS,
-} from '../constants/inventory';
+import { useInventory } from '../contexts/InventoryContext';
+import { useDashboardQuery } from '../hooks/useDashboardQuery';
+import type { Warehouse, Product } from '../types';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -41,20 +38,33 @@ interface InventoryPageProps {}
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
-const CATEGORIES  = ['Sneakers', 'Slippers', 'Boots', 'Sandals', 'Accessories'];
-/** Common colors for filter chips (admin + POS). Uncategorized = products with no color (after backfill). */
-const COLOR_OPTIONS = ['Black', 'White', 'Red', 'Blue', 'Brown', 'Green', 'Grey', 'Navy', 'Beige', 'Multi', 'Uncategorized'];
+const POLL_MS    = 30_000;
+/** Desktop: show 50 per page. Mobile: smaller for faster paint and less scroll. */
+const PAGE_SIZE_DESKTOP = 50;
+const PAGE_SIZE_MOBILE  = 20;
+const CATEGORIES = ['Sneakers', 'Slippers', 'Boots', 'Sandals', 'Accessories'];
+
+/** Color filter options (pills). "All" and "Uncategorized" plus standard palette. */
+const COLOR_OPTIONS = ['All', 'Black', 'White', 'Red', 'Blue', 'Brown', 'Green', 'Grey', 'Navy', 'Beige', 'Multi', 'Uncategorized'];
+
 /** Fallback list when WarehouseContext has not yet loaded. IDs must match backend. */
 const FALLBACK_WAREHOUSES: Pick<Warehouse, 'id' | 'name'>[] = [
-  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Jeff' },
-  { id: '00000000-0000-0000-0000-000000000002', name: 'Hunnid Main' },
+  { id: '00000000-0000-0000-0000-000000000001', name: 'Main Store' },
+  { id: '00000000-0000-0000-0000-000000000002', name: 'Main Town' },
 ];
+
+/** Reject empty or all-zeros warehouse id so we never call APIs with an invalid scope. */
+function isValidWarehouseId(id: string): boolean {
+  const t = (id ?? '').trim();
+  return t.length > 0 && t !== '00000000-0000-0000-0000-000000000000';
+}
 
 // ── Stat helpers ──────────────────────────────────────────────────────────
 
 function getProductQty(p: Product): number {
-  if (p.sizeKind === 'sized' && p.quantityBySize?.length > 0) {
-    return p.quantityBySize.reduce((s, r) => s + (r.quantity ?? 0), 0);
+  const qbs = p.quantityBySize ?? [];
+  if (p.sizeKind === 'sized' && qbs.length > 0) {
+    return qbs.reduce((s, r) => s + (r.quantity ?? 0), 0);
   }
   return p.quantity ?? 0;
 }
@@ -68,10 +78,8 @@ function computeStats(products: Product[]) {
   for (const p of products) {
     const qty     = getProductQty(p);
     const reorder = p.reorderLevel ?? 3;
-    const cost    = p.costPrice ?? 0;
-    const price   = cost > 0 ? cost : 0; // cost-only so total is accurate
     totalUnits += qty;
-    totalValue += qty * price;
+    totalValue += qty * (p.sellingPrice ?? 0);
     if (qty === 0) outCount++;
     else if (qty <= reorder) lowCount++;
   }
@@ -85,25 +93,56 @@ function formatGHC(n: number): string {
   return 'GH₵ ' + n.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-const MOBILE_BREAKPOINT = 768;
-function useIsMobile(): boolean {
-  const [mobile, setMobile] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const handler = () => setMobile(mq.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return mobile;
+/** Human-readable "last updated" for header subtitle. */
+function formatLastUpdated(ms: number): string {
+  const sec = Math.floor((Date.now() - ms) / 1000);
+  if (sec < 5) return 'just now';
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  return `${Math.min(min, 60)}m ago`;
 }
 
 // ── Filter/sort ───────────────────────────────────────────────────────────
 
-/** Client-side sort only (filtering is server-side via q and category). */
-function applySort(products: Product[], sort: SortKey): Product[] {
-  const r = [...products];
+function applyFilters(
+  products: Product[],
+  search: string,
+  category: FilterKey,
+  sort: SortKey,
+  sizeFilter: string,
+  colorFilter: string
+) {
+  let r = [...products];
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    r = r.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
+      (p.barcode ?? '').toLowerCase().includes(q)
+    );
+  }
+  if (category !== 'all') {
+    r = r.filter(p => p.category.toLowerCase() === category.toLowerCase());
+  }
+  if (sizeFilter) {
+    const sizeNorm = sizeFilter.trim().toLowerCase();
+    r = r.filter(p => {
+      if (sizeNorm === 'na') return (p.sizeKind ?? 'na') === 'na';
+      if (sizeNorm === 'one size') return (p.sizeKind ?? 'na') === 'one_size';
+      const qbs = p.quantityBySize ?? [];
+      return qbs.some(s => (s.sizeCode ?? '').toLowerCase() === sizeNorm);
+    });
+  }
+  if (colorFilter) {
+    const colorNorm = colorFilter.trim().toLowerCase();
+    const getColor = (p: Product) => (p as Product & { color?: string }).color ?? p.variants?.color ?? '';
+    if (colorNorm === 'uncategorized') {
+      r = r.filter(p => !getColor(p).trim());
+    } else {
+      r = r.filter(p => getColor(p).trim().toLowerCase() === colorNorm);
+    }
+  }
   r.sort((a, b) => {
     const qa = getProductQty(a), qb = getProductQty(b);
     switch (sort) {
@@ -117,60 +156,6 @@ function applySort(products: Product[], sort: SortKey): Product[] {
     }
   });
   return r;
-}
-
-/** Ensure quantityBySize is always an array (API/view may return scalar). */
-function normalizeQuantityBySize(p: Record<string, unknown>): Product {
-  const qbs = p['quantityBySize'] ?? p['quantity_by_size'];
-  const arr = Array.isArray(qbs) ? qbs : [];
-  return { ...p, quantityBySize: arr } as Product;
-}
-
-/**
- * Parse a single product from API response (PUT/POST). May return null if the
- * response shape is unexpected (e.g. missing id or wrapped in an unknown key).
- * Call sites should handle null; we log when a 2xx response fails to parse.
- */
-function unwrapProduct(raw: unknown): Product | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const r = raw as Record<string, unknown>;
-  const inner = r.data ?? r.product ?? r;
-  if (!inner || typeof inner !== 'object' || !('id' in inner)) return null;
-  return normalizeQuantityBySize(inner as Record<string, unknown>);
-}
-
-function logUnwrapProductNull(context: 'PUT' | 'POST', raw: unknown, parsed: Product | null): void {
-  if (raw != null && parsed === null) {
-    console.warn('[InventoryPage] unwrapProduct returned null for 2xx', context, 'response — unexpected shape', raw);
-  }
-}
-
-/** Normalize a raw list item so name, sku, barcode, color are always set (API may send camel or snake). */
-function normalizeListProduct(item: Record<string, unknown>): Product {
-  const getStr = (camel: string, snake?: string) =>
-    String(item[camel] ?? item[snake ?? ''] ?? '').trim();
-  const colorVal = item['color'] != null ? getStr('color') || null : null;
-  return normalizeQuantityBySize({
-    ...item,
-    name: getStr('name', 'product_name') || getStr('name'),
-    sku: getStr('sku'),
-    barcode: getStr('barcode') || null,
-    category: getStr('category') || 'Uncategorized',
-    color: colorVal,
-  } as Record<string, unknown>);
-}
-
-/** Parse GET /api/products response: { data, total } → { list, total }. */
-function parseListResponse(raw: unknown): { list: Product[]; total: number } {
-  if (!raw || typeof raw !== 'object') return { list: [], total: 0 };
-  const r = raw as Record<string, unknown>;
-  const list = r.data ?? r.products ?? r.items ?? [];
-  const total = typeof r.total === 'number' ? r.total : Array.isArray(list) ? list.length : 0;
-  if (!Array.isArray(list)) return { list: [], total };
-  const normalized = list
-    .filter((x): x is Record<string, unknown> => x != null && typeof x === 'object')
-    .map(normalizeListProduct);
-  return { list: normalized, total };
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────
@@ -194,14 +179,16 @@ function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
     error:   'border-l-red-500',
     info:    'border-l-blue-500',
   };
+  const safeToasts = (toasts ?? []).filter((t): t is ToastItem => t != null && typeof t === 'object' && typeof t.type === 'string');
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none">
-      {toasts.map(t => (
-        <div key={t.id}
-          className={`flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 text-white
-                      text-[13px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.25)]
-                      border-l-[3px] ${styles[t.type]} min-w-[220px] max-w-[340px]
-                      animate-[toastIn_0.35s_cubic-bezier(0.34,1.56,0.64,1)]`}>
+      {safeToasts.map(t => (
+        <div
+          key={t.id}
+          className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-[13px] font-semibold text-white min-w-[220px] max-w-[340px]
+                      animate-[toastIn_0.35s_cubic-bezier(0.34,1.56,0.64,1)] border-l-[3px] ${styles[t.type]}`}
+          style={{ background: 'var(--edk-sidebar-bg)', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}
+        >
           {t.message}
         </div>
       ))}
@@ -216,40 +203,37 @@ function DeleteDialog({
 }: { product: Product; onConfirm: () => void; onCancel: () => void; }) {
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" onClick={onCancel}/>
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[28px]
-                      shadow-[0_-8px_48px_rgba(0,0,0,0.15)] px-5 pt-5 pb-10
-                      animate-[sheetUp_0.3s_cubic-bezier(0.34,1.1,0.64,1)]">
-        <div className="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-6"/>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" onClick={onCancel} aria-hidden />
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-[28px] px-5 pt-5 pb-10 animate-[sheetUp_0.3s_cubic-bezier(0.34,1.1,0.64,1)]"
+        style={{ background: 'var(--edk-surface)', boxShadow: '0 -8px 48px rgba(0,0,0,0.15)' }}
+      >
+        <div className="w-10 h-1 rounded-full bg-[var(--edk-border-mid)] mx-auto mb-6" aria-hidden />
         <div className="flex items-start gap-4 mb-7">
-          <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center flex-shrink-0">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444"
-                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-[var(--edk-red-soft)]">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--edk-red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
               <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
             </svg>
           </div>
           <div>
-            <p className="text-[17px] font-black text-slate-900">Delete product?</p>
-            <p className="text-[13px] text-slate-500 mt-1 leading-relaxed">
-              <span className="font-semibold text-slate-800">&quot;{product.name}&quot;</span> will be
-              permanently removed from inventory. This cannot be undone.
+            <p className="text-[17px] font-black text-[var(--edk-ink)]" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+              Delete product?
+            </p>
+            <p className="text-[13px] text-[var(--edk-ink-2)] mt-1 leading-relaxed">
+              <span className="font-semibold text-[var(--edk-ink)]">&quot;{product.name}&quot;</span> will be
+              permanently removed from inventory and reports. This cannot be undone.
             </p>
           </div>
         </div>
         <div className="flex gap-3">
-          <button type="button" onClick={onCancel}
-                  className="flex-1 h-[52px] rounded-2xl border-[1.5px] border-slate-200
-                             text-[15px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+          <Button type="button" variant="secondary" onClick={onCancel} className="flex-1 h-[52px]">
             Cancel
-          </button>
-          <button type="button" onClick={onConfirm}
-                  className="flex-1 h-[52px] rounded-2xl bg-red-500 hover:bg-red-600
-                             text-[15px] font-bold text-white transition-colors
-                             shadow-[0_4px_16px_rgba(239,68,68,0.3)]">
+          </Button>
+          <Button type="button" variant="danger" onClick={onConfirm} className="flex-1 h-[52px]">
             Delete
-          </button>
+          </Button>
         </div>
       </div>
       <style>{`@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
@@ -260,42 +244,40 @@ function DeleteDialog({
 // ── Stat card ─────────────────────────────────────────────────────────────
 
 function StatCard({
-  label, value, sub, accent = false, warning = false,
+  label, value, sub, accent = false, warning = false, className = '',
 }: {
   label:    string;
   value:    string | number;
   sub?:     string;
   accent?:  boolean;
   warning?: boolean;
+  className?: string;
 }) {
   return (
     <div
-      className="flex-1 min-w-0 px-4 py-4 rounded-[14px] border flex flex-col gap-0.5 shadow-[var(--shadow-sm)]"
-      style={{
-        background: 'var(--surface)',
-        borderColor: warning ? 'rgba(217,119,6,0.2)' : 'var(--border)',
-      }}
+      className={`rounded-[var(--edk-radius)] border px-4 py-4 flex flex-col gap-1 shadow-[0_1px_3px_rgba(0,0,0,0.06)] ${className} ${
+        accent
+          ? 'bg-[var(--blue)] border-transparent text-white'
+          : warning
+            ? 'bg-[var(--edk-amber-bg)] border-[rgba(217,119,6,0.15)]'
+            : 'bg-[var(--edk-surface)] border-[var(--edk-border)] text-[var(--edk-ink)]'
+      }`}
     >
       <p
-        className="text-[10px] font-semibold uppercase tracking-[0.16em]"
-        style={{ color: accent ? 'var(--text-3)' : warning ? 'var(--amber)' : 'var(--text-3)' }}
+        className={`text-[10px] font-semibold uppercase tracking-[0.15em] ${
+          accent ? 'text-white/65' : warning ? 'text-[var(--edk-amber)]' : 'text-[var(--edk-ink-3)]'
+        }`}
       >
         {label}
       </p>
       <p
-        className="tabular-nums leading-tight truncate"
-        style={{
-          fontFamily: 'var(--font-m)',
-          fontSize: '24px',
-          fontWeight: 600,
-          letterSpacing: '-0.5px',
-          color: accent ? 'var(--blue)' : warning ? 'var(--amber)' : 'var(--text)',
-        }}
+        className="text-[28px] font-extrabold tabular-nums leading-none tracking-tight truncate"
+        style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
       >
         {value}
       </p>
       {sub && (
-        <p className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
+        <p className={`text-[11px] mt-0.5 ${accent ? 'text-white/60' : warning ? 'text-[var(--edk-amber)]/70' : 'text-[var(--edk-ink-3)]'}`}>
           {sub}
         </p>
       )}
@@ -311,20 +293,15 @@ const PlusIcon = () => (
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
-const BoxIcon = () => (
-  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-    <line x1="12" y1="22.08" x2="12" y2="12"/>
-  </svg>
-);
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function InventoryPage(_props: InventoryPageProps) {
 
   // ── Warehouse from context (SINGLE SOURCE OF TRUTH) ──────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchFromUrl = searchParams.get('q') ?? '';
+
   const {
     currentWarehouseId: warehouseId,
     currentWarehouse,
@@ -333,57 +310,82 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const warehouseList = contextWarehouses?.length ? contextWarehouses : FALLBACK_WAREHOUSES;
   const warehouse = currentWarehouse ?? warehouseList.find(w => w.id === warehouseId) ?? warehouseList[0];
 
-  // ── State (this page's list only; not InventoryContext.products) ───────────
-  const [products,       setProducts]       = useState<Product[]>([]);
-  const [totalCount,     setTotalCount]     = useState(0);
-  const [sizeCodes,      setSizeCodes]      = useState<SizeCode[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [loadingMore,    setLoadingMore]    = useState(false);
-  const [error,          setError]          = useState<string | null>(null);
-  const [searchParams,   setSearchParams]   = useSearchParams();
-  const search = searchParams.get('q') ?? '';
-  const setSearch = useCallback((value: string) => {
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      if (value.trim()) p.set('q', value.trim());
-      else p.delete('q');
-      return p;
-    }, { replace: true });
-  }, [setSearchParams]);
-  const [category,       setCategory]       = useState<FilterKey>('all');
-  const [sizeFilter,     setSizeFilter]     = useState<string>('all');
-  const [colorFilter,    setColorFilter]    = useState<string>('all');
-  const [sort,           setSort]           = useState<SortKey>('name_asc');
-  const [sortOpen,       setSortOpen]       = useState(false);
-  const [modalOpen,      setModalOpen]      = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [confirmDelete,  setConfirmDelete]  = useState<Product | null>(null);
-  const [warehouseStats, setWarehouseStats] = useState<{ totalStockValue: number; totalUnits?: number } | null>(null);
-  const isMobile = useIsMobile();
+  const {
+    products,
+    isLoading: loading,
+    error,
+    refreshProducts,
+    hasMore,
+    loadMore,
+    isLoadingMore,
+    isBackgroundRefreshing: backgroundRefreshing,
+    lastSyncAt,
+    addProduct: contextAddProduct,
+    updateProduct: contextUpdateProduct,
+    deleteProduct: contextDeleteProduct,
+  } = useInventory();
+  const lastRefreshedAt = lastSyncAt ? lastSyncAt.getTime() : null;
 
-  const modalOpenRef       = useRef(false);
-  const pollTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pendingDeletesRef  = useRef<Set<string>>(new Set());
-  const loadInflightRef    = useRef(false);
-  const lastSaveTimeRef    = useRef<number>(0);
-  const loadAbortRef       = useRef<AbortController | null>(null);
-  const didInitialLoad     = useRef(false);
-  const productsLengthRef   = useRef(0);
-  const searchDebounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchCategoryRef   = useRef({ search: '', category: 'all' as FilterKey, sizeCode: 'all' as string, color: 'all' as string });
-  const skipSearchDebounceRef = useRef(true);
-  const lastVisibilityRefetchRef = useRef<number>(0);
-  /** After edit, preserve this product when loadProducts runs so poll/visibility refetch does not overwrite with stale list. */
-  const lastUpdatedProductRef = useRef<{ product: Product; at: number } | null>(null);
-  searchCategoryRef.current = { search, category, sizeCode: sizeFilter, color: colorFilter };
-  productsLengthRef.current = products.length;
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [sizeCodes, setSizeCodes] = useState<SizeCode[]>([]);
+  const search = searchFromUrl;
+  const [category, setCategory] = useState<FilterKey>('all');
+  const [sizeFilter, setSizeFilter] = useState('');
+  const [colorFilter, setColorFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sort, setSort] = useState<SortKey>('name_asc');
+  const [sortOpen, setSortOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
+
+  const modalOpenRef = useRef(false);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSaveTimeRef = useRef<number>(0);
+  const didInitialLoad = useRef(false);
+
+  /** Mobile-first: smaller first request and page size on narrow viewports. */
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobileViewport(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  const pageSize = isMobileViewport ? PAGE_SIZE_MOBILE : PAGE_SIZE_DESKTOP;
 
   const { toasts, show: showToast } = useToast();
 
-  // Derived stats (memoised — recompute only when products change)
-  const stats = useMemo(() => computeStats(products), [products]);
+  // Prefer dashboard API stats (accurate over all products); fallback to computed from loaded list
+  const { dashboard } = useDashboardQuery(warehouseId ?? '');
+  const statsFromProducts = useMemo(() => computeStats(products), [products]);
+  const stats = useMemo(() => {
+    if (dashboard) {
+      return {
+        totalValue: Number(dashboard.totalStockValue) || 0,
+        totalUnits: typeof dashboard.totalUnits === 'number' ? dashboard.totalUnits : statsFromProducts.totalUnits,
+        lowCount: Number(dashboard.lowStockCount) || 0,
+        outCount: Number(dashboard.outOfStockCount) || 0,
+      };
+    }
+    return statsFromProducts;
+  }, [dashboard, statsFromProducts]);
+  const skuCount = dashboard != null ? (Number(dashboard.totalProducts) || 0) : products.length;
 
-  const hasFilter = !!(search.trim() || category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all');
+  // Unique size codes from products (for size filter dropdown; color uses COLOR_OPTIONS pills)
+  const uniqueSizes = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of products) {
+      if (p.sizeKind === 'na') set.add('NA');
+      else if (p.sizeKind === 'one_size') set.add('One size');
+      else for (const s of p.quantityBySize ?? []) if (s.sizeCode) set.add(s.sizeCode);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [products]);
 
   // ── apiFetch (retry + abort) ──────────────────────────────────────────────
 
@@ -419,8 +421,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
       clearTimeout(timeout);
 
       if (!res.ok) {
+        if (res.status === 401) onUnauthorized();
         const body = await res.json().catch(() => ({}));
-        const msg  = (body as { error?: string }).error ?? (body as { message?: string }).message ?? `HTTP ${res.status}`;
+        const msg  = (body as { message?: string; error?: string }).message ?? (body as { error?: string }).error ?? `HTTP ${res.status}`;
         const e    = new Error(msg) as Error & { status: number };
         e.status   = res.status;
         throw e;
@@ -445,266 +448,86 @@ export default function InventoryPage(_props: InventoryPageProps) {
     }
   }, []);
 
-  // ── Load products (server-side q + category; paginated) ───────────────────
-
-  const loadProducts = useCallback(async (offset: number, append: boolean, silent = false, requestLimit?: number) => {
-    if (modalOpenRef.current) return;
-    if (loadInflightRef.current) {
-      if (silent) return;
-      loadAbortRef.current?.abort();
-    }
-
-    const { search: q, category: cat, sizeCode: sc, color: col } = searchCategoryRef.current;
-    const limit = requestLimit ?? INVENTORY_PAGE_SIZE;
-    const params = new URLSearchParams();
-    params.set('warehouse_id', warehouseId);
-    params.set('limit', String(limit));
-    params.set('offset', String(Math.max(0, offset)));
-    if (q.trim()) params.set('q', q.trim());
-    if (cat !== 'all' && cat.trim()) params.set('category', cat.trim());
-    if (sc !== 'all' && sc.trim()) params.set('size_code', sc.trim());
-    if (col !== 'all' && col.trim()) params.set('color', col.trim());
-
-    const ctrl = new AbortController();
-    loadAbortRef.current    = ctrl;
-    loadInflightRef.current = true;
-    if (!silent) {
-      if (append) setLoadingMore(true);
-      else setLoading(true);
-    }
-    setError(null);
-
-    try {
-      const raw = await apiFetch<unknown>(`/api/products?${params.toString()}`, {
-        signal: ctrl.signal,
-      });
-      if (ctrl.signal.aborted) return;
-      const { list, total } = parseListResponse(raw);
-      const pending = pendingDeletesRef.current;
-      const merged = pending.size > 0 ? list.filter(p => !pending.has(p.id)) : list;
-      setTotalCount(total);
-      /** Prefer last-updated product over list item when refetch runs shortly after edit (avoids stale overwrite). */
-      const applyLastUpdated = (listToSet: Product[]): Product[] => {
-        const ru = lastUpdatedProductRef.current;
-        if (!ru || Date.now() - ru.at > LAST_UPDATED_PRESERVE_MS) return listToSet;
-        return listToSet.map((p) => (p.id === ru.product.id ? ru.product : p));
-      };
-      if (append) {
-        setProducts(prev => {
-          const byId = new Map(prev.map(p => [p.id, p]));
-          merged.forEach(p => byId.set(p.id, p));
-          const ru = lastUpdatedProductRef.current;
-          if (ru && Date.now() - ru.at <= LAST_UPDATED_PRESERVE_MS) byId.set(ru.product.id, ru.product);
-          return Array.from(byId.values());
-        });
-      } else {
-        setProducts(prev => {
-          const listToSet = merged.map((p) => {
-            if (p.sizeKind === 'sized' && (p.quantityBySize?.length ?? 0) === 0) {
-              const cur = prev.find((x) => x.id === p.id);
-              if (cur && (cur.quantityBySize?.length ?? 0) > 0) {
-                return { ...p, sizeKind: cur.sizeKind, quantityBySize: cur.quantityBySize };
-              }
-            }
-            return p;
-          });
-          return applyLastUpdated(listToSet);
-        });
-      }
-    } catch (e: unknown) {
-      const err = e as Error;
-      if (err.name === 'AbortError' || ctrl.signal.aborted) return;
-      if (!silent) setError(err.message ?? 'Failed to load products');
-    } finally {
-      if (loadAbortRef.current === ctrl) {
-        loadInflightRef.current = false;
-        loadAbortRef.current    = null;
-      }
-      if (!silent) {
-        if (append) setLoadingMore(false);
-        else setLoading(false);
-      }
-    }
-  }, [warehouseId, apiFetch]);
-
   // ── Load size codes ───────────────────────────────────────────────────────
 
   const loadSizeCodes = useCallback(async () => {
     try {
-      const raw  = await apiFetch<unknown>(`/api/size-codes?warehouse_id=${encodeURIComponent(warehouseId)}`);
+      const raw  = await apiFetch<unknown>('/api/size-codes');
       const list = Array.isArray(raw) ? raw : (raw as { data?: SizeCode[] })?.data ?? [];
       setSizeCodes(list);
     } catch { /* non-critical */ }
-  }, [warehouseId, apiFetch]);
+  }, [apiFetch]);
 
   // ── Polling ───────────────────────────────────────────────────────────────
 
   function startPoll() {
     stopPoll();
+    const interval = isMobileViewport ? Math.max(POLL_MS, 60_000) : POLL_MS;
     pollTimerRef.current = setInterval(() => {
       if (!modalOpenRef.current && document.visibilityState === 'visible') {
-        const n = productsLengthRef.current;
-        loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
+        refreshProducts({ silent: true });
       }
-    }, INVENTORY_POLL_MS);
+    }, interval);
   }
   function stopPoll() {
     if (pollTimerRef.current) { clearInterval(pollTimerRef.current); pollTimerRef.current = null; }
   }
 
-  // ── Warehouse-level stats (full totals so they don't drop with pagination/filter) ──
-  const statsRequestIdRef = useRef(0);
-
-  const loadWarehouseStats = useCallback(() => {
-    if (!warehouseId) return;
-    const myId = ++statsRequestIdRef.current;
-    const date = new Date().toISOString().split('T')[0];
-    apiFetch<{ totalStockValue?: number; totalUnits?: number }>(
-      `/api/dashboard?warehouse_id=${encodeURIComponent(warehouseId)}&date=${date}`
-    )
-      .then((data) => {
-        if (myId !== statsRequestIdRef.current) return;
-        if (data && typeof data.totalStockValue === 'number') {
-          setWarehouseStats({
-            totalStockValue: data.totalStockValue,
-            ...(typeof data.totalUnits === 'number' ? { totalUnits: data.totalUnits } : {}),
-          });
-        }
-      })
-      .catch(() => {
-        if (myId === statsRequestIdRef.current) setWarehouseStats(null);
-      });
-  }, [warehouseId, apiFetch]);
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Context loads products on warehouse change. We only load size codes and start poll.
 
   useEffect(() => {
-    if (!warehouseId) {
-      setWarehouseStats(null);
-      return;
-    }
-    loadWarehouseStats();
-  }, [warehouseId, loadWarehouseStats]);
-
-  // Refetch when inventory changes (e.g. POS sale, order deduct) so stock value and quantities update
-  useEffect(() => {
-    const onInventoryUpdated = () => {
-      loadWarehouseStats();
-      const n = productsLengthRef.current;
-      loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
-    };
-    window.addEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
-    return () => window.removeEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
-  }, [warehouseId, loadWarehouseStats, loadProducts]);
-
-  // ── Lifecycle: warehouse change ────────────────────────────────────────────
-
-  useEffect(() => {
-    setProducts([]);
-    setTotalCount(0);
-    setLoading(true);
-    setError(null);
-    setSearch('');
     setCategory('all');
-    setSizeFilter('all');
-    setColorFilter('all');
-    setWarehouseStats(null);
     didInitialLoad.current = false;
-    skipSearchDebounceRef.current = true;
-    loadAbortRef.current?.abort();
-
-    loadProducts(0, false);
     loadSizeCodes();
-    const pollDelay = setTimeout(() => startPoll(), 5000);
-
-    const VISIBILITY_REFETCH_MS = 5000;
+    const pollDelay = isValidWarehouseId(warehouseId) ? setTimeout(() => startPoll(), 5000) : null;
     const onVisible = () => {
       if (!didInitialLoad.current) return;
-      if (document.visibilityState !== 'visible' || modalOpenRef.current) return;
-      const now = Date.now();
-      if (now - lastVisibilityRefetchRef.current < VISIBILITY_REFETCH_MS) return;
-      lastVisibilityRefetchRef.current = now;
-      loadWarehouseStats();
-      const n = productsLengthRef.current;
-      loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
+      if (document.visibilityState === 'visible' && !modalOpenRef.current && isValidWarehouseId(warehouseId)) {
+        refreshProducts({ silent: true });
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
     const initGate = setTimeout(() => { didInitialLoad.current = true; }, 500);
-
     return () => {
-      clearTimeout(pollDelay);
+      if (pollDelay != null) clearTimeout(pollDelay);
       clearTimeout(initGate);
       stopPoll();
       document.removeEventListener('visibilitychange', onVisible);
-      loadAbortRef.current?.abort();
     };
-  }, [warehouseId, loadProducts, loadWarehouseStats]);
-
-  // ── Debounced server-side search when search or category changes ────────────
-
-  useEffect(() => {
-    if (skipSearchDebounceRef.current) {
-      skipSearchDebounceRef.current = false;
-      return;
-    }
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      searchDebounceRef.current = null;
-      loadProducts(0, false);
-    }, INVENTORY_SEARCH_DEBOUNCE_MS);
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-        searchDebounceRef.current = null;
-      }
-    };
-  }, [search, category, sizeFilter, colorFilter, loadProducts]);
+  }, [warehouseId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { modalOpenRef.current = modalOpen; }, [modalOpen]);
 
+  // Re-render periodically when we show "Updated X ago" so the label stays accurate.
+  const [, setRefreshLabelTick] = useState(0);
+  useEffect(() => {
+    if (lastRefreshedAt == null) return;
+    const interval = setInterval(() => setRefreshLabelTick((t) => t + 1), 15_000);
+    return () => clearInterval(interval);
+  }, [lastRefreshedAt]);
+
   // ── Modal ─────────────────────────────────────────────────────────────────
 
-  const openAddModal = useCallback(() => {
-    setEditingProduct(null);
-    setModalOpen(true);
-  }, []);
-  const openEditModal = useCallback((p: Product) => {
-    setEditingProduct(structuredClone(p));
-    setModalOpen(true);
-  }, []);
-  const handleDeleteProduct = useCallback((p: Product) => setConfirmDelete(p), []);
+  function openAddModal()          { setEditingProduct(null); setModalOpen(true); }
+  function openEditModal(p: Product) { setEditingProduct(structuredClone(p)); setModalOpen(true); }
 
   function closeModal() {
     setModalOpen(false);
     setEditingProduct(null);
     const msSinceSave = Date.now() - lastSaveTimeRef.current;
-    if (msSinceSave > 5000) {
-      setTimeout(() => {
-        const n = productsLengthRef.current;
-        loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
-      }, 500);
-    }
+    if (msSinceSave > 5000) setTimeout(() => refreshProducts({ silent: true }), 500);
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
 
   async function executeDelete(product: Product) {
     setConfirmDelete(null);
-    pendingDeletesRef.current.add(product.id);
-    setProducts(prev => prev.filter(p => p.id !== product.id));
-
     try {
-      await apiFetch(`/api/products?id=${encodeURIComponent(product.id)}&warehouse_id=${encodeURIComponent(warehouseId)}`, {
-        method: 'DELETE',
-      });
-      pendingDeletesRef.current.delete(product.id);
-      showToast(`"${product.name}" deleted`, 'success');
+      await contextDeleteProduct(product.id);
+      showToast(`"${product.name}" deleted. Stock removed from inventory and reports.`, 'success');
     } catch (e: unknown) {
-      pendingDeletesRef.current.delete(product.id);
-      const err = e as Error;
-      setProducts(prev => {
-        if (prev.find(p => p.id === product.id)) return prev;
-        return [...prev, product].sort((a, b) => a.name.localeCompare(b.name));
-      });
-      showToast(err.message ?? 'Failed to delete', 'error');
+      showToast(getUserFriendlyMessage(e) + ' You can refresh the list and try again.', 'error');
     }
   }
 
@@ -712,97 +535,93 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
   async function handleSubmit(
     payload: Omit<Product, 'id'> & { id?: string },
-    isEdit:  boolean
+    isEdit: boolean
   ) {
+    const description = (payload as { description?: string }).description ?? '';
+    const quantityBySize = Array.isArray(payload.quantityBySize) ? payload.quantityBySize : [];
+    const quantity = payload.quantity ?? 0;
+
     if (isEdit && payload.id) {
-      const original  = products.find(p => p.id === payload.id);
-      const optimistic = { ...original, ...payload } as Product;
-      setProducts(prev => prev.map(p => p.id === payload.id ? optimistic : p));
-
       try {
-        const raw = await apiFetch<unknown>(`/api/products`, {
-          method: 'PUT',
-          body:   JSON.stringify({
-            ...payload,
-            id: payload.id,
-            warehouseId,
-            barcode: payload.barcode ?? '',
-            description: (payload as { description?: string }).description ?? '',
-            sizeKind:       payload.sizeKind,
-            quantityBySize: Array.isArray(payload.quantityBySize) ? payload.quantityBySize : [],
-            quantity:       payload.quantity,
-          }),
-        });
-
-        const updated = unwrapProduct(raw);
-        logUnwrapProductNull('PUT', raw, updated);
-        if (updated) {
-          const serverHasSizes  = (updated.quantityBySize?.length ?? 0) > 0;
-          const payloadHasSizes = (payload.quantityBySize?.length  ?? 0) > 0;
-          if (payloadHasSizes && !serverHasSizes) {
-            console.warn('[handleSubmit] Server wiped sizes — keeping optimistic state');
-          } else {
-            setProducts(prev => prev.map(p => p.id === payload.id ? updated : p));
-          }
-        }
-        const productToPreserve = updated ?? optimistic;
-        lastUpdatedProductRef.current = { product: productToPreserve, at: Date.now() };
-
+        await contextUpdateProduct(payload.id, {
+          ...payload,
+          warehouseId,
+          barcode: payload.barcode ?? '',
+          description,
+          sizeKind: payload.sizeKind,
+          quantityBySize,
+          quantity,
+        } as Parameters<typeof contextUpdateProduct>[1]);
         lastSaveTimeRef.current = Date.now();
-        loadWarehouseStats();
-        notifyInventoryUpdated();
-        showToast(`${payload.name} updated`, 'success');
+        const sizeCount = payload.sizeKind === 'sized' && quantityBySize.length > 0 ? quantityBySize.length : 0;
+        showToast(
+          sizeCount > 0 ? `"${payload.name}" saved with ${sizeCount} size${sizeCount === 1 ? '' : 's'}.` : `"${payload.name}" updated.`,
+          'success'
+        );
       } catch (e: unknown) {
-        const err = e as Error;
-        if (original) setProducts(prev => prev.map(p => p.id === payload.id ? original : p));
-        showToast(err.message ?? 'Failed to update', 'error');
+        const msg = getUserFriendlyMessage(e);
+        if (!(isAnyApiCircuitDegraded() && /server|unavailable|writes disabled|connection is restored/i.test(msg)))
+          showToast(msg + ' Check your connection or try again.', 'error');
         throw e;
       }
-
     } else {
       try {
-        const raw = await apiFetch<unknown>('/api/products', {
-          method: 'POST',
-          body:   JSON.stringify({
-            ...payload,
-            warehouseId,
-            barcode: payload.barcode ?? '',
-            description: (payload as { description?: string }).description ?? '',
-            sizeKind:       payload.sizeKind,
-            quantityBySize: Array.isArray(payload.quantityBySize) ? payload.quantityBySize : [],
-            quantity:       payload.quantity,
-          }),
-        });
-
-        let created = unwrapProduct(raw);
-        logUnwrapProductNull('POST', raw, created);
-        if (created && (payload.quantityBySize?.length ?? 0) > 0
-            && (created.quantityBySize?.length ?? 0) === 0) {
-          created = { ...created, quantityBySize: payload.quantityBySize, quantity: payload.quantity };
-        }
-
-        if (created?.id) setProducts(prev => [created!, ...prev]);
-        else setTimeout(() => {
-          const n = productsLengthRef.current;
-          loadProducts(0, false, true, n > INVENTORY_PAGE_SIZE ? n : undefined);
-        }, 300);
-
+        const { id: _droppedId, ...rest } = payload;
+        void _droppedId;
+        await contextAddProduct({
+          ...rest,
+          warehouseId,
+          barcode: payload.barcode ?? '',
+          description,
+          sizeKind: payload.sizeKind ?? 'na',
+          quantityBySize,
+          quantity,
+          tags: rest.tags ?? [],
+          supplier: rest.supplier ?? { name: '', contact: '', email: '' },
+          expiryDate: rest.expiryDate ?? null,
+          createdBy: rest.createdBy ?? '',
+          location: rest.location ?? { warehouse: '', aisle: '', rack: '', bin: '' },
+          images: rest.images ?? [],
+        } as Parameters<typeof contextAddProduct>[0]);
         lastSaveTimeRef.current = Date.now();
-        loadWarehouseStats();
-        notifyInventoryUpdated();
-        showToast(`${payload.name} added`, 'success');
+        const sizeCount = payload.sizeKind === 'sized' && quantityBySize.length > 0 ? quantityBySize.length : 0;
+        showToast(
+          sizeCount > 0 ? `"${payload.name}" added with ${sizeCount} size${sizeCount === 1 ? '' : 's'}.` : `"${payload.name}" added.`,
+          'success'
+        );
       } catch (e: unknown) {
-        const err = e as Error;
-        showToast(err.message ?? 'Failed to add product', 'error');
+        const msg = getUserFriendlyMessage(e);
+        if (!(isAnyApiCircuitDegraded() && /server|unavailable|writes disabled|connection is restored/i.test(msg)))
+          showToast(msg + ' Check your connection or try again.', 'error');
         throw e;
       }
     }
   }
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, category, sizeFilter, colorFilter, sort]);
+
   // ── Derived ───────────────────────────────────────────────────────────────
 
-  const displayed = applySort(products, sort);
-  const hasMore = products.length < totalCount && !loading && !loadingMore;
+  const filtered = useMemo(
+    () => applyFilters(products, search, category, sort, sizeFilter, colorFilter),
+    [products, search, category, sort, sizeFilter, colorFilter]
+  );
+  const totalFiltered = filtered.length;
+  /** Total to show in "Showing X–Y of N": when no filters applied, use warehouse total from dashboard (e.g. 205) so it matches the SKU card; when filtered, use filtered count (e.g. 12). */
+  const hasActiveFilters = Boolean(search.trim() || category !== 'all' || sizeFilter || colorFilter);
+  const totalForDisplay = hasActiveFilters ? totalFiltered : (dashboard != null && skuCount >= 0 ? skuCount : totalFiltered);
+  /** Page count over full list (205 → 11 pages at 20/page), so user can go to page 4 and we load more until we have items 61–80. */
+  const totalPages = Math.max(1, Math.ceil(totalForDisplay / pageSize));
+  const pageStart = (currentPage - 1) * pageSize;
+  const displayed = useMemo(
+    () => filtered.slice(pageStart, pageStart + pageSize),
+    [filtered, pageStart, pageSize]
+  );
+  /** Current page needs items we haven't loaded yet (e.g. page 4 needs 61–80, we have 50). */
+  const pageNeedsMore = totalFiltered < pageStart + pageSize && hasMore && !hasActiveFilters;
   const SORT_OPTIONS: { key: SortKey; label: string }[] = [
     { key: 'name_asc',   label: 'Name A–Z'       },
     { key: 'name_desc',  label: 'Name Z–A'       },
@@ -813,324 +632,349 @@ export default function InventoryPage(_props: InventoryPageProps) {
   ];
 
   const alertCount = stats.outCount + stats.lowCount;
-  const totalPages = Math.ceil(totalCount / INVENTORY_PAGE_SIZE) || 1;
-  const currentPage = totalCount === 0 ? 1 : Math.min(Math.ceil(products.length / INVENTORY_PAGE_SIZE), totalPages);
+
+  // One-time auto-retry when dashboard says products exist but list didn't load (improves fetch stability).
+  const didRetryEmptyListRef = useRef(false);
+  useEffect(() => {
+    didRetryEmptyListRef.current = false;
+  }, [warehouseId]);
+  useEffect(() => {
+    if (products.length > 0) didRetryEmptyListRef.current = false;
+  }, [products.length]);
+  useEffect(() => {
+    if (!dashboard || skuCount <= 0 || products.length > 0 || loading || error) return;
+    if (didRetryEmptyListRef.current) return;
+    didRetryEmptyListRef.current = true;
+    const t = setTimeout(() => {
+      refreshProducts({ bypassCache: true }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [dashboard, skuCount, products.length, loading, error, refreshProducts]);
+
+  // Auto-load more when user is on a page that requires items not yet loaded (e.g. page 4 needs 61–80, we have 50).
+  useEffect(() => {
+    if (!pageNeedsMore || isLoadingMore) return;
+    loadMore();
+  }, [pageNeedsMore, isLoadingMore, loadMore]);
+
+  // Clamp current page when totalPages shrinks (e.g. after applying a filter).
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(Math.max(1, totalPages));
+  }, [currentPage, totalPages]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen pb-28" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen bg-[var(--edk-bg)] pb-28" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
-      {/* ══ Page header ══ */}
-      <div className="px-4 pt-6 pb-4 lg:px-0">
-        <div
-          className="flex items-center gap-1.5 text-[12px] mb-3.5"
-          style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
-        >
-          <span>{warehouse?.name ?? 'Warehouse'}</span>
-          <span style={{ color: 'var(--border-md)' }} aria-hidden>›</span>
-          <span className="font-medium" style={{ color: 'var(--text)' }}>Inventory</span>
-        </div>
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1
-              className="text-[21px] font-extrabold tracking-tight"
-              style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}
-            >
-              Inventory
-            </h1>
-            <p
-              className="text-[12px] mt-0.5"
-              style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}
-            >
-              {totalCount === 0 && !loading && !error
-                ? 'No products yet'
-                : totalCount > 0 && products.length < totalCount
-                  ? `Showing ${products.length} of ${totalCount} products`
-                  : `${totalCount} product${totalCount !== 1 ? 's' : ''} · Page ${currentPage} of ${totalPages}`}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="h-[35px] px-3.5 rounded-[10px] text-white text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 transition-all duration-150 hover:-translate-y-px"
-            style={{
-              fontFamily: 'var(--font-b)',
-              background: 'var(--blue)',
-              boxShadow: '0 2px 8px var(--blue-glow)',
-            }}
-          >
-            <PlusIcon /> Add product
-          </button>
-        </div>
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5 text-[12px] text-[var(--edk-ink-3)] mb-4 px-0">
+        <span>{warehouse?.name ?? 'Main Store'}</span>
+        <span className="opacity-40" aria-hidden>›</span>
+        <span className="text-[var(--edk-ink-2)] font-medium">Inventory</span>
       </div>
 
-      {/* ══ Stats: full warehouse totals when no filter; else filtered-list stats ══ */}
-      {!loading && !error && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5 px-4 lg:px-0">
+      {/* Page header: title + subtitle + Add product */}
+      <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-[22px] font-extrabold tracking-wide text-[var(--edk-ink)] uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+            Inventory
+          </h1>
+          <p className="text-[12px] text-[var(--edk-ink-3)]" aria-live="polite">
+            {totalForDisplay > 0 && products.length < totalForDisplay
+              ? `${totalForDisplay} product${totalForDisplay !== 1 ? 's' : ''} (${products.length} loaded)`
+              : `${products.length} product${products.length !== 1 ? 's' : ''}`} · Page {currentPage} of {totalPages}
+            {backgroundRefreshing && (
+              <span className="text-[var(--edk-ink-3)]"> · Updating…</span>
+            )}
+            {!backgroundRefreshing && lastRefreshedAt != null && products.length > 0 && (
+              <span className="text-[var(--edk-ink-3)]"> · Updated {formatLastUpdated(lastRefreshedAt)}</span>
+            )}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          onClick={openAddModal}
+          leftIcon={<PlusIcon />}
+          className="flex-shrink-0 shadow-[0_1px_3px_var(--blue-soft)]"
+        >
+          Add product
+        </Button>
+      </div>
+
+      {/* Stats: from dashboard API when available (all products); otherwise from loaded list */}
+      {!loading && !error && (products.length > 0 || (dashboard && skuCount >= 0)) && (
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 mb-5">
           <StatCard
             label="SKUs"
-            value={totalCount > 0 ? totalCount : 0}
-            sub={totalCount > 0 && hasMore && hasFilter ? 'Load more for full stats' : `${(hasFilter ? stats.totalUnits : (warehouseStats?.totalUnits ?? stats.totalUnits)).toLocaleString()} total units`}
+            value={skuCount}
+            sub={totalPages > 1 ? `Showing ${pageStart + 1}–${Math.min(pageStart + pageSize, totalFiltered)} of ${totalForDisplay}` : (totalForDisplay > totalFiltered ? `${totalFiltered} loaded of ${totalForDisplay}` : `${totalFiltered} shown`)}
           />
-          <StatCard
-            label="Alerts"
-            value={alertCount}
-            sub={alertCount > 0 ? `${stats.outCount} out · ${stats.lowCount} low` : 'None'}
-            warning
-          />
-          <div className="col-span-2 lg:col-span-1">
+          {alertCount > 0 && (
             <StatCard
-              label={hasFilter ? 'Selection value' : 'Total stock value'}
-              value={hasFilter
-                ? formatGHC(stats.totalValue)
-                : warehouseStats != null
-                  ? formatGHC(warehouseStats.totalStockValue)
-                  : '—'}
-              sub={hasFilter
-                ? `${stats.totalUnits.toLocaleString()} units · at selling price`
-                : warehouseStats != null
-                  ? `${(warehouseStats.totalUnits ?? stats.totalUnits).toLocaleString()} units · at cost`
-                  : 'Loading…'}
-              accent
+              label="Alerts"
+              value={alertCount}
+              sub={`${stats.outCount} out · ${stats.lowCount} low stock`}
+              warning
             />
-          </div>
+          )}
+          <StatCard
+            label="Stock Value"
+            value={formatGHC(stats.totalValue)}
+            sub={`${stats.totalUnits.toLocaleString()} total units`}
+            accent
+            className="col-span-2 lg:col-span-1"
+          />
         </div>
       )}
 
-      {/* ══ Filter toolbar: aligned touch targets, consistent surface ══ */}
-      <div className="pb-4 lg:px-0 overflow-x-auto overflow-y-hidden -mx-4 lg:mx-0 lg:overflow-visible scrollbar-none">
-        <div className="px-4 lg:px-0">
-          <div className="rounded-2xl border bg-[var(--surface)] shadow-[var(--shadow-sm)]" style={{ borderColor: 'var(--border)' }}>
-            <div className="p-3 flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
-                {(['all', ...CATEGORIES] as string[]).map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCategory(cat)}
-                    className="flex-shrink-0 min-h-[44px] flex items-center px-4 rounded-[99px] border text-[12px] font-medium whitespace-nowrap transition-all touch-manipulation"
-                    style={{
-                      fontFamily: 'var(--font-b)',
-                      ...(category === cat
-                        ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
-                        : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
-                    }}
-                  >
-                    {cat === 'all' ? 'All' : cat}
-                  </button>
-                ))}
-
-                <select
-                  id="inv-size-filter"
-                  value={sizeFilter}
-                  onChange={(e) => setSizeFilter(e.target.value)}
-                  className="min-h-[44px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
-                  style={{
-                    fontFamily: 'var(--font-b)',
-                    background: 'var(--surface)',
-                    borderColor: 'var(--border)',
-                    color: 'var(--text-2)',
-                    backgroundImage: `url(\"data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")`,
-                    backgroundPosition: 'right 10px center',
-                  }}
-                >
-                  <option value="all">Size: All</option>
-                  {sizeCodes.map((s) => (
-                    <option key={s.size_code} value={s.size_code}>
-                      {s.size_label ?? s.size_code}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  id="inv-color-filter"
-                  value={colorFilter}
-                  onChange={(e) => setColorFilter(e.target.value)}
-                  className="min-h-[44px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
-                  style={{
-                    fontFamily: 'var(--font-b)',
-                    background: 'var(--surface)',
-                    borderColor: 'var(--border)',
-                    color: 'var(--text-2)',
-                    backgroundImage: `url(\"data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")`,
-                    backgroundPosition: 'right 10px center',
-                  }}
-                >
-                  <option value="all">Color: All</option>
-                  {COLOR_OPTIONS.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-
-                <div className="relative flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setSortOpen((o) => !o)}
-                    className="flex items-center gap-1.5 min-h-[44px] px-2.5 rounded-[99px] border text-[12px] font-medium transition-colors touch-manipulation hover:border-[var(--border-md)]"
-                    style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                    </svg>
-                    {SORT_OPTIONS.find((o) => o.key === sort)?.label}
-                  </button>
-                  {sortOpen && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
-                      <div
-                        className="absolute left-0 top-full mt-1 z-20 rounded-xl shadow-[var(--shadow-md)] border py-1.5 w-44"
-                        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-                      >
-                        {SORT_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.key}
-                            type="button"
-                            onClick={() => {
-                              setSort(opt.key);
-                              setSortOpen(false);
-                            }}
-                            className="w-full px-4 py-2 text-left text-[13px] font-medium transition-colors"
-                            style={{
-                              color: sort === opt.key ? 'var(--blue)' : 'var(--text-2)',
-                              background: sort === opt.key ? 'var(--blue-soft)' : 'transparent',
-                            }}
-                          >
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <span className="text-[11px] whitespace-nowrap" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
-                Showing <strong className="font-semibold" style={{ color: 'var(--text)' }}>
-                  {displayed.length === 0 ? 0 : 1}–{displayed.length}
-                </strong> of {totalCount}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══ Main content ══ */}
-      <main className="px-4 lg:px-0">
-
-        {/* Error */}
-        {error && (
-          <div className="flex flex-col items-center gap-5 py-20 text-center">
-            <div
-              className="w-20 h-20 rounded-3xl flex items-center justify-center"
-              style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }}
+      {/* Filter toolbar: category pills, Size/Color dropdowns, sort, results count */}
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+          {(['all', ...CATEGORIES] as string[]).map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategory(cat)}
+              className={`flex-shrink-0 h-[30px] px-2.5 rounded-[20px] text-[12px] font-medium border whitespace-nowrap transition-all duration-150 ${
+                category === cat
+                  ? 'bg-[var(--edk-ink)] border-[var(--edk-ink)] text-white'
+                  : 'bg-[var(--edk-surface)] border-[var(--edk-border-mid)] text-[var(--edk-ink-2)] hover:bg-[var(--edk-bg)]'
+              }`}
             >
-              <BoxIcon/>
-            </div>
-            <div>
-              <p className="text-[17px] font-black" style={{ color: 'var(--text)' }}>Couldn&apos;t load products</p>
-              <p className="text-[13px] mt-1 max-w-[260px] leading-relaxed" style={{ color: 'var(--text-3)' }}>{error}</p>
-            </div>
+              {cat === 'all' ? 'All' : cat}
+            </button>
+          ))}
+          <select
+            value={sizeFilter}
+            onChange={(e) => setSizeFilter(e.target.value)}
+            className="h-[30px] pl-2.5 pr-8 rounded-full border border-[var(--edk-border-mid)] text-[12px] font-medium text-[var(--edk-ink-2)] min-w-[100px] cursor-pointer appearance-none bg-no-repeat bg-[length:10px_6px] bg-[right_10px_center]"
+            style={{
+              backgroundColor: 'var(--edk-surface)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238A8784' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+            }}
+            aria-label="Filter by size"
+          >
+            <option value="">Size: All</option>
+            {uniqueSizes.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={colorFilter}
+            onChange={(e) => setColorFilter(e.target.value)}
+            className="h-[30px] pl-2.5 pr-8 rounded-full border border-[var(--edk-border-mid)] text-[12px] font-medium text-[var(--edk-ink-2)] min-w-[100px] cursor-pointer appearance-none bg-no-repeat bg-[length:10px_6px] bg-[right_10px_center]"
+            style={{
+              backgroundColor: 'var(--edk-surface)',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238A8784' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+            }}
+            aria-label="Filter by color"
+          >
+            <option value="">Color: All</option>
+            {COLOR_OPTIONS.filter((c) => c !== 'All').map((c) => (
+              <option key={c} value={c === 'Uncategorized' ? 'uncategorized' : c}>{c}</option>
+            ))}
+          </select>
+          <div className="relative flex-shrink-0">
             <button
               type="button"
-              onClick={() => loadProducts(0, false)}
-              className="h-10 px-6 rounded-xl text-white text-[13px] font-bold transition-all hover:-translate-y-px"
-              style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
+              onClick={() => setSortOpen((o) => !o)}
+              className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-[20px] border border-[var(--edk-border-mid)] bg-[var(--edk-surface)] text-[12px] font-medium text-[var(--edk-ink-2)] hover:bg-[var(--edk-bg)] whitespace-nowrap"
             >
-              Retry
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="8" y1="6" x2="21" y2="6" />
+                <line x1="8" y1="12" x2="21" y2="12" />
+                <line x1="8" y1="18" x2="21" y2="18" />
+                <line x1="3" y1="6" x2="3.01" y2="6" />
+                <line x1="3" y1="12" x2="3.01" y2="12" />
+                <line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
+              {SORT_OPTIONS.find((o) => o.key === sort)?.label}
             </button>
+            {sortOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
+                <div className="absolute right-0 top-full mt-1 z-20 bg-[var(--edk-surface)] rounded-xl shadow-lg border border-[var(--edk-border)] py-1.5 w-44">
+                  {SORT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => { setSort(opt.key); setSortOpen(false); }}
+                      className={`w-full px-4 py-2 text-left text-[13px] font-medium transition-colors ${
+                        sort === opt.key ? 'text-[var(--blue)] bg-[var(--blue-soft)]' : 'text-[var(--edk-ink-2)] hover:bg-[var(--edk-bg)]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
+        </div>
+        <span className="text-[11px] text-[var(--edk-ink-3)] whitespace-nowrap">
+          Showing <strong className="text-[var(--edk-ink-2)] font-semibold">{pageStart + 1}–{Math.min(pageStart + pageSize, totalFiltered)}</strong> of {totalForDisplay}
+        </span>
+      </div>
+
+      {/* Main content */}
+      <main>
+
+        {/* Error — design system EmptyState + Button */}
+        {(error || isAnyApiCircuitDegraded()) && (
+          <EmptyState
+            icon={AlertTriangle}
+            title="Couldn't load products"
+            description={error || (isAnyApiCircuitDegraded() ? 'Server temporarily unavailable. Tap Retry to try again.' : undefined)}
+            action={
+              <Button
+                variant="primary"
+                onClick={() => {
+                  resetAllApiCircuitBreakers();
+                  refreshProducts({ bypassCache: true, timeoutMs: 90_000 });
+                }}
+                aria-label="Retry loading products"
+              >
+                Retry
+              </Button>
+            }
+            className="py-12"
+          />
         )}
 
         {/* Skeletons */}
         {loading && !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i}/>)}
+          <div className="flex flex-col items-center gap-4">
+            <LoadingSpinner size="md" />
+            <p className="text-[13px] font-medium text-[var(--edk-ink-3)]">Loading products…</p>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 w-full">
+              {Array.from({ length: isMobileViewport ? 4 : 6 }).map((_, i) => <ProductCardSkeleton key={i}/>)}
+            </div>
+          </div>
+        )}
+
+        {/* List failed to load but dashboard says products exist */}
+        {!loading && !error && products.length === 0 && dashboard != null && skuCount > 0 && (
+          <EmptyState
+            icon={AlertTriangle}
+            title="Couldn't load product list"
+            description={`This warehouse has ${skuCount} product${skuCount !== 1 ? 's' : ''}. The list didn't load. Tap Retry to try again.`}
+            action={
+              <Button
+                variant="primary"
+                onClick={() => { resetAllApiCircuitBreakers(); refreshProducts({ bypassCache: true, timeoutMs: 90_000 }); }}
+                aria-label="Retry loading product list"
+              >
+                Retry
+              </Button>
+            }
+            className="py-12"
+          />
+        )}
+
+        {/* Empty warehouse — design system EmptyState + Button */}
+        {!loading && !error && products.length === 0 && !(dashboard != null && skuCount > 0) && (
+          <EmptyState
+            icon={Package}
+            title="No products yet"
+            description="Add your first product to get started."
+            action={
+              <Button variant="primary" onClick={openAddModal} leftIcon={<PlusIcon />}>
+                Add your first product
+              </Button>
+            }
+            className="py-12"
+          />
+        )}
+
+        {/* Loading more for current page (e.g. page 4 needs items 61–80, we had 50; auto-loading) */}
+        {!loading && !error && products.length > 0 && pageNeedsMore && displayed.length === 0 && (
+          <div className="flex flex-col items-center gap-3 py-12 text-center">
+            {isLoadingMore && <LoadingSpinner size="md" />}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5 w-full">
+              {Array.from({ length: isMobileViewport ? 4 : 6 }).map((_, i) => <ProductCardSkeleton key={`page-load-${i}`} />)}
+            </div>
+            <p className="text-[13px] text-[var(--edk-ink-3)]">{isLoadingMore ? 'Loading page…' : 'Load more to view this page'}</p>
+            {!isLoadingMore && hasMore && (
+              <Button type="button" variant="secondary" size="sm" onClick={() => loadMore()}>
+                Load more
+              </Button>
+            )}
           </div>
         )}
 
         {/* Empty filter */}
-        {!loading && !error && products.length === 0 && (search.trim() || category !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all') && (
-          <div className="flex flex-col items-center gap-5 py-24 text-center">
-            <p className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>
+        {!loading && !error && products.length > 0 && displayed.length === 0 && !pageNeedsMore && (
+          <div className="flex flex-col items-center gap-3 py-20 text-center">
+            <p className="text-[15px] font-bold text-[var(--edk-ink-2)]">
               No results for current filters
-              {search.trim() && ` (search: "${search}")`}
-              {category !== 'all' && ` (category: ${category})`}
-              {sizeFilter !== 'all' && ` (size: ${sizeFilter})`}
-              {colorFilter !== 'all' && ` (color: ${colorFilter})`}
             </p>
-            {colorFilter !== 'all' && !search.trim() && category === 'all' && sizeFilter === 'all' && (
-              <p className="text-[12px] max-w-[280px]" style={{ color: 'var(--text-3)' }}>
-                No products have this color. Use <strong>Uncategorized</strong> to see products without a color set, or set a color when editing a product.
-              </p>
-            )}
-            <button
+            <Button
               type="button"
-              onClick={() => { setSearch(''); setCategory('all'); setSizeFilter('all'); setColorFilter('all'); }}
-              className="text-[13px] font-bold transition-colors hover:opacity-90"
-              style={{ color: 'var(--blue)' }}
+              variant="ghost"
+              size="sm"
+              onClick={() => { setSearchParams({}); setCategory('all'); setSizeFilter(''); setColorFilter(''); setCurrentPage(1); }}
+              className="text-[var(--blue)] hover:opacity-80"
             >
               Clear filters
-            </button>
+            </Button>
           </div>
         )}
 
-        {/* Empty warehouse (CHANGE 4: 64px icon container, Syne title, DM Sans subtitle) */}
-        {!loading && !error && products.length === 0 && !search.trim() && category === 'all' && sizeFilter === 'all' && colorFilter === 'all' && (
-          <div className="flex flex-col items-center gap-3 py-20 text-center">
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center border"
-              style={{ background: 'var(--elevated)', borderColor: 'var(--border)', color: 'var(--text-3)' }}
-            >
-              <BoxIcon />
-            </div>
-            <p className="text-[17px] font-bold" style={{ fontFamily: 'var(--font-d)', color: 'var(--text)' }}>
-              No products yet
-            </p>
-            <p className="text-[13px] max-w-[280px]" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
-              Add your first product to get started.
-            </p>
-            <button
-              type="button"
-              onClick={openAddModal}
-              className="h-[38px] px-5 rounded-[10px] text-white text-[13px] font-semibold flex items-center gap-1.5 mt-1 transition-all duration-150 hover:-translate-y-px"
-              style={{ fontFamily: 'var(--font-b)', background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
-            >
-              <PlusIcon /> Add first product
-            </button>
-          </div>
-        )}
-
-        {/* Product grid — mobile: single column; desktop: 2–3 columns */}
+        {/* Product grid — EDK card style: 10px radius, 4:3 image, hover lift */}
         {!loading && !error && displayed.length > 0 && (
           <>
-            <div className={`grid gap-3.5 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
               {displayed.map(product => (
                 <ProductCard
                   key={product.id}
                   product={product}
                   onEditFull={openEditModal}
-                  onDelete={handleDeleteProduct}
+                  onDelete={p => setConfirmDelete(p)}
                 />
               ))}
             </div>
-            {hasMore && (
-              <div className="flex justify-center py-6">
-                <button
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 py-6">
+                <Button
                   type="button"
-                  disabled={loadingMore}
-                  onClick={() => loadProducts(products.length, true)}
-                  className="h-11 px-6 rounded-xl border text-[13px] font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-[var(--shadow-sm)]"
-                  style={{
-                    background: 'var(--surface)',
-                    borderColor: 'var(--border)',
-                    color: 'var(--text)',
-                  }}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage <= 1}
                 >
-                  {loadingMore ? 'Loading…' : `Load more (${products.length} of ${totalCount})`}
-                </button>
+                  Previous
+                </Button>
+                <span className="text-[13px] font-semibold text-[var(--edk-ink-2)]">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+            {/* Load more (fetch next page from API) */}
+            {hasMore && (
+              <div className="flex justify-center py-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => loadMore()}
+                  disabled={isLoadingMore}
+                  loading={isLoadingMore}
+                >
+                  {isLoadingMore ? 'Loading…' : 'Load more'}
+                </Button>
               </div>
             )}
           </>

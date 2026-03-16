@@ -1,54 +1,20 @@
 // ============================================================
-// DashboardPage.tsx
-// File: warehouse-pos/src/pages/DashboardPage.tsx
-//
-// THE FIX: This replaces whatever Dashboard component was using
-// "apiClient.ts:138" with a hardcoded Main Store warehouse_id.
-//
-// ROOT CAUSE OF THE BUG (confirmed from network tab):
-//   Old dashboard: warehouse_id = hardcoded or stale ...0001 (Main Store)
-//   UI label showed "Main Town" but data was still Main Store.
-//
-// HOW THIS FILE FIXES IT:
-//   Reads warehouseId from WarehouseContext.
-//   Every time warehouse changes → useEffect re-runs → fetches correct data.
-//   Stats are computed from the fetched products (accurate, real numbers).
-//   Today's sales are fetched from /api/sales filtered by warehouse + date.
+// DashboardPage.tsx — Phase 5: design system (StatCard, Badge, Button, --edk-*)
+// Uses WarehouseContext for warehouseId. Data via React Query (useDashboardQuery).
 // ============================================================
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useEffect } from 'react';
+import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { LucideIcon } from 'lucide-react';
-import { DollarSign, Package, AlertTriangle, Receipt, ShoppingCart, CheckCircle } from 'lucide-react';
-import { useWarehouse, KNOWN_WAREHOUSE_NAMES } from '../contexts/WarehouseContext';
-import { getApiHeaders, API_BASE_URL } from '../lib/api';
-import { INVENTORY_UPDATED_EVENT } from '../lib/inventoryEvents';
-
-// ── Types (match GET /api/dashboard response) ──────────────────────────────
-
-interface DashboardLowStockItem {
-  id: string;
-  name: string;
-  category: string;
-  quantity: number;
-  quantityBySize: { sizeCode: string; quantity: number }[];
-  reorderLevel: number;
-}
-
-interface DashboardCategorySummary {
-  [category: string]: { count: number; value: number };
-}
-
-interface DashboardData {
-  totalStockValue: number;
-  totalUnits?: number;
-  totalProducts: number;
-  lowStockCount: number;
-  outOfStockCount: number;
-  todaySales: number;
-  lowStockItems: DashboardLowStockItem[];
-  categorySummary: DashboardCategorySummary;
-}
+import { useWarehouse } from '../contexts/WarehouseContext';
+import { useAuth } from '../contexts/AuthContext';
+import { usePresence } from '../contexts/PresenceContext';
+import { isValidWarehouseId } from '../lib/warehouseId';
+import { useDashboardQuery, type DashboardLowStockItem } from '../hooks/useDashboardQuery';
+import { StatCard } from '../components/ui/StatCard';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -71,257 +37,32 @@ function formatGHCCompact(n: number): string {
   return sign + 'GH₵' + abs.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
-const MOBILE_BREAKPOINT = 768;
-function useIsMobile(): boolean {
-  const [mobile, setMobile] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
-    const handler = () => setMobile(mq.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return mobile;
-}
-
-/** Mobile-only stat card: rounded-xl, 10px label, 26px value, blue/default/red. */
-function DashboardStatCardMobile({
-  label,
-  value,
-  variant = 'default',
-  valueColor,
-  loading,
-}: {
-  label: string;
-  value: string | number;
-  variant?: 'blue' | 'default';
-  valueColor?: 'red' | 'blue';
-  loading?: boolean;
-}) {
-  if (loading) {
-    return (
-      <div className="rounded-xl border-[0.5px] bg-[var(--surface)] p-3 animate-pulse" style={{ borderColor: 'var(--border)' }}>
-        <div className="h-3 w-16 rounded mb-1.5" style={{ background: 'var(--border)' }} />
-        <div className="h-7 w-20 rounded" style={{ background: 'var(--border)' }} />
-      </div>
-    );
-  }
-  return (
-    <div
-      className={`rounded-xl border-[0.5px] p-3 ${
-        variant === 'blue'
-          ? 'text-white'
-          : 'bg-[var(--surface)]'
-      }`}
-      style={
-        variant === 'blue'
-          ? { background: 'var(--blue)', borderColor: 'var(--blue)' }
-          : { borderColor: 'var(--border)' }
-      }
-    >
-      <p
-        className={`text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5 ${
-          variant === 'blue' ? 'text-white/70' : 'text-[var(--text-3)]'
-        }`}
-      >
-        {label}
-      </p>
-      <p
-        className={`text-[26px] leading-none font-semibold ${
-          variant === 'blue'
-            ? 'text-white'
-            : valueColor === 'blue'
-              ? 'text-[var(--blue)]'
-              : valueColor === 'red'
-                ? 'text-[var(--red-status)]'
-                : 'text-[var(--text)]'
-        }`}
-        style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-// ── apiFetch (with retry for transient network failures) ───────────────────
-
-const FETCH_TIMEOUT_MS = 15_000;
-const RETRY_DELAYS_MS = [1_000, 2_000];
-
-/** Do not retry 401 — session expired; user must re-login. */
-const SESSION_EXPIRED_MSG = 'Session expired. Please log in again.';
-
-function isRetryableError(e: unknown): boolean {
-  if (e instanceof Error) {
-    const msg = e.message;
-    if (msg.includes(SESSION_EXPIRED_MSG) || msg.includes('401') || msg.includes('Session expired')) return false;
-    const lower = msg.toLowerCase();
-    if (e.name === 'AbortError' || lower.includes('timeout')) return true;
-    if (lower.includes('network') || lower.includes('connection') || lower.includes('failed to fetch')) return true;
-  }
-  return false;
-}
-
-async function apiFetchOnce<T = unknown>(path: string): Promise<T> {
-  const ctrl = new AbortController();
-  const t    = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(`${API_BASE_URL}${path}`, {
-      headers: getApiHeaders() as HeadersInit,
-      signal:  ctrl.signal,
-    });
-    clearTimeout(t);
-    if (!res.ok) {
-      if (res.status === 401) throw new Error(SESSION_EXPIRED_MSG);
-      const b = await res.json().catch(() => ({}));
-      throw new Error((b as { error?: string; message?: string }).error ?? (b as { error?: string; message?: string }).message ?? `HTTP ${res.status}`);
-    }
-    const text = await res.text();
-    return (text ? JSON.parse(text) : {}) as T;
-  } catch (e: unknown) {
-    clearTimeout(t);
-    if (e instanceof Error && e.name === 'AbortError') throw new Error('Request timed out');
-    throw e;
-  }
-}
-
-async function apiFetch<T = unknown>(path: string): Promise<T> {
-  let lastErr: unknown;
-  for (let i = 0; i <= RETRY_DELAYS_MS.length; i++) {
-    try {
-      return await apiFetchOnce<T>(path);
-    } catch (e) {
-      lastErr = e;
-      if (i < RETRY_DELAYS_MS.length && isRetryableError(e)) {
-        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[i]));
-        continue;
-      }
-      throw e;
-    }
-  }
-  throw lastErr;
-}
-
-// ── Stat card (light theme: primary = blue block, others = white with token colors) ───
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  primary = false,
-  revenue = false,
-  warning = false,
-  danger = false,
-}: {
-  label:   string;
-  value:   string | number;
-  icon:    LucideIcon;
-  primary?: boolean;
-  revenue?: boolean;
-  warning?: boolean;
-  danger?:  boolean;
-}) {
-  const isPrimary = primary;
-  const valColor = isPrimary
-    ? 'white'
-    : danger
-      ? 'var(--red-status)'
-      : warning
-        ? 'var(--amber)'
-        : revenue
-          ? 'var(--blue)'
-          : 'var(--text)';
-
-  const iconWrapBg = isPrimary
-    ? 'rgba(255,255,255,0.15)'
-    : danger
-      ? 'var(--red-dim)'
-      : warning
-        ? 'var(--amber-dim)'
-        : revenue
-          ? 'var(--blue-dim)'
-          : 'var(--overlay)';
-
-  const iconColor = isPrimary ? 'white' : revenue ? 'var(--blue)' : warning ? 'var(--amber)' : danger ? 'var(--red-status)' : 'var(--text-2)';
-
-  return (
-    <div
-      className="flex flex-col justify-between p-6 rounded-[14px] border transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5"
-      style={{
-        background: isPrimary ? 'var(--blue)' : 'var(--surface)',
-        borderColor: isPrimary ? 'var(--blue)' : 'var(--border)',
-        boxShadow: 'var(--shadow-sm)',
-      }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <span
-          className="text-[13px] font-semibold"
-          style={{ color: isPrimary ? 'rgba(255,255,255,0.9)' : 'var(--text-2)' }}
-        >
-          {label}
-        </span>
-        <span
-          className="w-10 h-10 rounded-[10px] flex items-center justify-center flex-shrink-0"
-          style={{ background: iconWrapBg }}
-        >
-          <Icon size={22} style={{ color: iconColor }} aria-hidden />
-        </span>
-      </div>
-      <p
-        className="tabular-nums leading-none min-w-0 truncate"
-        style={{
-          fontFamily: 'var(--font-m)',
-          fontSize: '24px',
-          fontWeight: 600,
-          color: valColor,
-        }}
-        title={typeof value === 'string' ? value : String(value)}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
 // ── Low stock table (uses pre-aggregated lowStockItems from API) ────────────
 
 function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="flex items-center gap-3 py-6 px-4" style={{ color: 'var(--green)' }}>
-        <CheckCircle className="w-6 h-6 flex-shrink-0" aria-hidden />
-        <span className="text-[14px] font-semibold">All products are sufficiently stocked</span>
+      <div className="flex items-center gap-2 py-4 px-3 text-[var(--edk-green)]">
+        <CheckCircle className="w-5 h-5 flex-shrink-0" strokeWidth={2} aria-hidden />
+        <span className="text-[13px] font-semibold">All products are sufficiently stocked</span>
       </div>
     );
   }
 
   return (
-    <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+    <div className="divide-y divide-[var(--edk-border)]">
       {items.map((p) => {
         const isOut = p.quantity === 0;
         return (
-          <div
-            key={p.id}
-            className="flex items-center justify-between py-3.5 px-4 transition-colors hover:bg-[var(--elevated)]"
-          >
+          <div key={p.id} className="flex items-center justify-between py-2.5 px-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-bold truncate" style={{ color: 'var(--text)' }}>{p.name}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: 'var(--text-3)' }}>{p.category || 'Uncategorised'}</p>
+              <p className="text-[13px] font-bold text-[var(--edk-ink)] truncate">{p.name}</p>
+              <p className="text-[10px] text-[var(--edk-ink-3)] font-medium mt-0.5">{p.category || 'Uncategorised'}</p>
             </div>
             <div className="flex items-center gap-3 ml-4">
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-bold border"
-                style={
-                  isOut
-                    ? { background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }
-                    : { background: 'var(--amber-dim)', color: 'var(--amber)', borderColor: 'rgba(217,119,6,0.2)' }
-                }
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-current"/>
+              <Badge variant={isOut ? 'danger' : 'warning'} size="md">
                 {isOut ? 'Out of stock' : `${p.quantity} left`}
-              </div>
+              </Badge>
             </div>
           </div>
         );
@@ -330,102 +71,26 @@ function LowStockTable({ items }: { items: DashboardLowStockItem[] }) {
   );
 }
 
-// ── Warehouse IDs for "today by location" (match server DEFAULT_WAREHOUSE_IDS). Names from same source as dropdown. ───────
-
-const WAREHOUSE_IDS_FOR_SUMMARY = [
-  '00000000-0000-0000-0000-000000000001',
-  '00000000-0000-0000-0000-000000000002',
-] as const;
-
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const { currentWarehouseId, currentWarehouse, warehouses } = useWarehouse();
-  const warehouseId   = currentWarehouseId;
+  const { hasRole, user } = useAuth();
+  const { presenceList, isSubscribed } = usePresence();
+  const warehouseId = currentWarehouseId ?? '';
   const warehouseName = currentWarehouse?.name ?? 'Warehouse';
-  const firstTwoWarehouses = warehouses.slice(0, 2);
+  const isWarehouseValid = isValidWarehouseId(warehouseId);
+  const canSeePresence = hasRole(['admin', 'super_admin']);
+  const roleLabel = user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'admin' ? 'Admin' : null;
 
-  /** Name for "sales by location" — same source as sidebar/dropdown (warehouses from API, then KNOWN_WAREHOUSE_NAMES). */
-  const locationNameForId = (wid: string) =>
-    warehouses.find((w) => w.id === wid)?.name ?? KNOWN_WAREHOUSE_NAMES[wid] ?? wid;
+  const { dashboard, todayByWarehouse, isLoading: loading, error: queryError, refetch } = useDashboardQuery(warehouseId);
+  const error = queryError?.message ?? null;
 
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [todayByWarehouse, setTodayByWarehouse] = useState<Record<string, number> | null>(null);
-  const loadIdRef = useRef(0);
-
-  const loadData = useCallback(async (wid: string, options?: { silent?: boolean }) => {
-    const silent = options?.silent === true;
-    const myId = ++loadIdRef.current;
-
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-      setDashboard(null);
-    }
-
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const data = await apiFetch<DashboardData>(
-        `/api/dashboard?warehouse_id=${encodeURIComponent(wid)}&date=${today}`
-      );
-      if (myId !== loadIdRef.current) return;
-      setDashboard(data);
-    } catch (e: unknown) {
-      if (myId !== loadIdRef.current) return;
-      const msg = e instanceof Error ? e.message : 'Failed to load dashboard data';
-      if (msg === SESSION_EXPIRED_MSG) {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.removeItem('current_user');
-          localStorage.removeItem('auth_token');
-        }
-        navigate('/login?session_expired=1', { replace: true });
-        return;
-      }
-      setError(msg);
-    } finally {
-      if (myId === loadIdRef.current) setLoading(false);
-    }
-  }, [navigate]);
-
+  // Refetch when Dashboard is opened so Stock Alerts reflect latest inventory (e.g. after editing product sizes).
   useEffect(() => {
-    loadData(warehouseId);
-  }, [warehouseId, loadData]);
-
-  // Refetch when inventory changes (e.g. POS sale, order deduct). Silent = keep showing current digits until new data arrives.
-  useEffect(() => {
-    const onInventoryUpdated = () => loadData(warehouseId, { silent: true });
-    window.addEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
-    return () => window.removeEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
-  }, [warehouseId, loadData]);
-
-  // When user switches back to this tab, refetch at most once per 5s. Silent = no flash of loading or old digits.
-  const lastVisibilityRefetchRef = useRef<number>(0);
-  const VISIBILITY_REFETCH_MS = 5000;
-  useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-      const now = Date.now();
-      if (now - lastVisibilityRefetchRef.current < VISIBILITY_REFETCH_MS) return;
-      lastVisibilityRefetchRef.current = now;
-      loadData(warehouseId, { silent: true });
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [warehouseId, loadData]);
-
-  // Today's sales per warehouse (super-admin at-a-glance; one lightweight request).
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    let cancelled = false;
-    apiFetch<Record<string, number>>(`/api/dashboard/today-by-warehouse?date=${today}`)
-      .then((data) => { if (!cancelled) setTodayByWarehouse(data); })
-      .catch(() => { if (!cancelled) setTodayByWarehouse(null); });
-    return () => { cancelled = true; };
-  }, []);
+    if (isWarehouseValid) refetch();
+  }, [isWarehouseValid, refetch]);
 
   const stats = dashboard
     ? {
@@ -439,241 +104,233 @@ export default function DashboardPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const statLoading = loading && !dashboard;
-
   return (
-    <div className="min-h-screen p-3 sm:p-6" style={{ background: 'var(--bg)' }}>
-      <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
+    <div className="min-h-screen bg-[var(--edk-bg)] p-3 sm:p-4">
+      <div className="max-w-5xl mx-auto space-y-4">
 
-        {/* ── Header: mobile = DASHBOARD + subtitle + New sale; desktop = Admin Control Panel ── */}
-        <div className="flex items-start justify-between gap-3 flex-wrap mb-1">
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1
-              className="text-[26px] sm:text-[24px] font-black tracking-tight"
-              style={{
-                color: 'var(--text)',
-                fontFamily: isMobile ? "'Barlow Condensed', sans-serif" : undefined,
-                letterSpacing: isMobile ? '0.04em' : undefined,
-              }}
-            >
-              {isMobile ? 'DASHBOARD' : 'Admin Control Panel'}
-            </h1>
-            <p className="text-[12px] sm:text-[13px] mt-0.5" style={{ color: 'var(--text-2)' }}>
-              {isMobile ? `${warehouseName} · Dashboard` : 'Full system access — inventory, POS, reports, users & settings.'}
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              <h1
+                className="text-[18px] font-bold tracking-tight text-[var(--edk-ink)]"
+                style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+              >
+                Dashboard
+              </h1>
+              {roleLabel != null && (
+                <Badge variant="gray" size="sm">
+                  {roleLabel}
+                </Badge>
+              )}
+            </div>
+            <p className="text-[12px] text-[var(--edk-ink-2)]">
+              Inventory stats, stock alerts, and today&apos;s sales for this warehouse.
             </p>
           </div>
-          <button
-            type="button"
+
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => navigate('/pos')}
-            className="flex items-center gap-2 h-10 px-4 sm:px-5 rounded-xl text-white text-[13px] sm:text-[14px] font-bold transition-all hover:-translate-y-px mt-1"
-            style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
+            leftIcon={<ShoppingCart className="w-4 h-4" strokeWidth={2} />}
+            className="shadow-[0_2px_8px_var(--blue-glow)]"
           >
-            <ShoppingCart className="w-5 h-5" aria-hidden />
             New sale
-          </button>
+          </Button>
         </div>
 
-        {!isMobile && (
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[var(--green)]"/>
-            <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
-              Inventory stats for:{' '}
-              <span className="font-black" style={{ color: 'var(--text)' }}>{warehouseName}</span>
-            </p>
-            {loading && (
-              <span className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-3)' }}>
-                <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
-                Loading…
-              </span>
+        {/* ── Warehouse label ── */}
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--edk-green)]" aria-hidden />
+          <p className="text-[12px] font-semibold text-[var(--edk-ink-2)]">
+            {!isWarehouseValid ? (
+              <>Loading warehouse…</>
+            ) : (
+              <>Inventory stats for: <span className="text-[var(--edk-ink)] font-bold">{warehouseName}</span></>
+            )}
+          </p>
+          {isWarehouseValid && loading && (
+            <span className="flex items-center gap-2 text-[12px] text-[var(--edk-ink-3)]">
+              <LoadingSpinner size="sm" />
+              Loading…
+            </span>
+          )}
+        </div>
+
+        {/* ── Today's Sales by Location ── */}
+        {warehouses.length > 0 && (
+          <div className="rounded-[var(--edk-radius)] border border-[var(--edk-border)] bg-[var(--edk-surface)] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--edk-border)]">
+              <h2 className="text-[14px] font-bold text-[var(--edk-ink)]" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                Today&apos;s Sales by Location
+              </h2>
+              <p className="text-[11px] text-[var(--edk-ink-3)] mt-0.5">Sales total per warehouse for today</p>
+            </div>
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {warehouses.map((w) => (
+                <div key={w.id} className="flex items-center justify-between p-3 rounded-[var(--edk-radius-sm)] bg-[var(--edk-surface-2)] border border-[var(--edk-border-mid)]">
+                  <span className="text-[12px] font-bold text-[var(--edk-ink-2)]">{w.name}</span>
+                  <span className="text-[14px] font-semibold tabular-nums text-[var(--edk-ink)] font-mono" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+                    {loading ? '—' : formatGHCCompact(todayByWarehouse[w.id] ?? 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Active cashiers (admin only, Supabase Realtime Presence) ── */}
+        {canSeePresence && (
+          <div className="rounded-[var(--edk-radius)] border border-[var(--edk-border)] bg-[var(--edk-surface)] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--edk-border)] flex items-center gap-2">
+              <Users className="w-4 h-4 text-[var(--edk-ink-3)]" strokeWidth={2} aria-hidden />
+              <div>
+                <h2 className="text-[14px] font-bold text-[var(--edk-ink)]" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                  {presenceList.length === 0 ? 'No other users active' : `${presenceList.length} cashier${presenceList.length !== 1 ? 's' : ''} active`}
+                </h2>
+                <p className="text-[11px] text-[var(--edk-ink-3)] mt-0.5">
+                  {isSubscribed ? 'Live — updates when someone opens or leaves the app' : 'Connecting…'}
+                </p>
+              </div>
+            </div>
+            {presenceList.length > 0 && (
+              <ul className="p-4 space-y-1.5">
+                {presenceList.map((entry) => (
+                  <li key={entry.key} className="flex items-center justify-between gap-2 p-2.5 rounded-[var(--edk-radius-sm)] bg-[var(--edk-surface-2)] border border-[var(--edk-border-mid)]">
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-bold text-[var(--edk-ink)] truncate">{entry.payload.displayName || entry.payload.email}</p>
+                      <p className="text-[11px] text-[var(--edk-ink-2)]">
+                        {entry.payload.page} — {entry.payload.warehouseName}
+                        {entry.isIdle && <span className="ml-2 text-[var(--edk-amber)] font-medium">Idle</span>}
+                      </p>
+                    </div>
+                    {!entry.isIdle && <span className="text-[11px] text-[var(--edk-ink-3)] whitespace-nowrap">{entry.lastActivityAgo}</span>}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         )}
 
-        {/* ── Today's sales by location: mobile = compact card; desktop = full ── */}
-        {isMobile && firstTwoWarehouses.length > 0 ? (
-          <div
-            className="bg-[var(--surface)] rounded-2xl border p-3 mb-3 shadow-sm"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-3)] mb-2">
-              Today&apos;s Sales by Location
-            </p>
-            <div className="flex gap-6">
-              {firstTwoWarehouses.map((w) => {
-                const amount = todayByWarehouse?.[w.id] ?? 0;
-                const hasSales = !loading && amount > 0;
-                return (
-                  <div key={w.id}>
-                    <p className="text-[11px] text-[var(--text-3)]">{w.name}</p>
-                    <p className={`text-[15px] font-semibold ${hasSales ? 'text-[var(--blue)]' : 'text-[var(--text-3)]'}`}>
-                      {loading ? '—' : formatGHCCompact(amount)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-        <div
-          className="rounded-[14px] border p-5 shadow-[var(--shadow-sm)]"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <h2 className="text-[12px] font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-3)' }}>
-            Today&apos;s sales by location
-          </h2>
-          <div className="flex flex-wrap gap-4">
-            {WAREHOUSE_IDS_FOR_SUMMARY.map((wid) => (
-              <div key={wid} className="flex items-center gap-2">
-                <span className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
-                  {locationNameForId(wid)}
-                </span>
-                <span
-                  className="text-[15px] font-black tabular-nums"
-                  style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}
-                >
-                  {todayByWarehouse == null
-                    ? '—'
-                    : formatGHCCompact(todayByWarehouse[wid] ?? 0)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-        )}
-
-        {/* ── Error ── */}
-        {error && !loading && (
-          <div
-            className="flex items-center gap-3 p-4 rounded-[14px] border"
-            style={{ background: 'var(--red-dim)', borderColor: 'rgba(220,38,38,0.2)' }}
-          >
-            <AlertTriangle className="w-6 h-6 flex-shrink-0" style={{ color: 'var(--red-status)' }} aria-hidden />
+        {/* ── Soft notice when API returned 200 with empty stats ── */}
+        {dashboard?.error && !loading && (
+          <div className="flex items-center gap-2 p-3 rounded-[var(--edk-radius)] bg-[var(--edk-amber-bg)] border border-[var(--edk-amber)]/20">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-[var(--edk-amber)]" strokeWidth={2} aria-hidden />
             <div>
-              <p className="text-[14px] font-bold" style={{ color: 'var(--red-status)' }}>Failed to load data</p>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--red-status)' }}>{error}</p>
+              <p className="text-[13px] font-bold text-[var(--edk-ink)]">Stats temporarily unavailable</p>
+              <p className="text-[11px] text-[var(--edk-ink-2)] mt-0.5">{dashboard.error}</p>
+              <p className="text-[10px] text-[var(--edk-ink-3)] mt-0.5">Dashboard stats only — sales and inventory are unaffected.</p>
             </div>
-            <button
-              onClick={() => loadData(warehouseId)}
-              className="ml-auto px-4 py-2 rounded-xl text-white text-[12px] font-bold"
-              style={{ background: 'var(--blue)' }}
-            >
+            <Button variant="secondary" size="sm" onClick={() => refetch()} className="ml-auto">
               Retry
-            </button>
+            </Button>
           </div>
         )}
 
-        {/* ── Stat cards: mobile 2×2 with mobile spec; desktop 4-column ── */}
-        {isMobile ? (
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <DashboardStatCardMobile
-              label="Stock Value"
-              value={stats ? formatGHCCompact(stats.totalStockValue) : '—'}
-              variant="blue"
-              loading={statLoading}
-            />
-            <DashboardStatCardMobile
-              label="Products"
-              value={stats?.totalProducts ?? '—'}
-              loading={statLoading}
-            />
-            <DashboardStatCardMobile
-              label="Low Stock"
-              value={stats ? stats.lowStockCount + stats.outOfStockCount : '—'}
-              valueColor="red"
-              loading={statLoading}
-            />
-            <DashboardStatCardMobile
-              label="Today's Sales"
-              value={stats ? formatGHCCompact(stats.todaysSales) : '—'}
-              valueColor="blue"
-              loading={statLoading}
-            />
+        {/* ── Hard error ── */}
+        {error && !loading && !dashboard?.error && (
+          <div className="flex items-center gap-2 p-3 rounded-[var(--edk-radius)] bg-[var(--edk-red-soft)] border border-[var(--edk-red-border)]">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-[var(--edk-red)]" strokeWidth={2} aria-hidden />
+            <div>
+              <p className="text-[13px] font-bold text-[var(--edk-ink)]">Failed to load data</p>
+              <p className="text-[11px] text-[var(--edk-ink-2)] mt-0.5">{error}</p>
+              <p className="text-[10px] text-[var(--edk-ink-3)] mt-0.5">Dashboard only — sales and POS still work. Click Retry to try again.</p>
+            </div>
+            <Button variant="primary" size="sm" onClick={() => refetch()} className="ml-auto">
+              Retry
+            </Button>
           </div>
-        ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        )}
+
+        {/* ── Stat cards ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
             label="Total Stock Value"
-            value={loading || !stats ? '—' : formatGHCCompact(stats.totalStockValue)}
+            value={stats ? formatGHCCompact(stats.totalStockValue) : '—'}
             icon={DollarSign}
-            primary
+            variant="default"
+            loading={!isWarehouseValid || (loading && !dashboard)}
           />
           <StatCard
             label="Total Products"
-            value={loading || !stats ? '—' : stats.totalProducts}
+            value={stats?.totalProducts ?? '—'}
             icon={Package}
+            loading={!isWarehouseValid || (loading && !dashboard)}
           />
           <StatCard
             label="Low Stock Items"
-            value={loading || !stats ? '—' : stats.lowStockCount + stats.outOfStockCount}
+            value={stats ? stats.lowStockCount + stats.outOfStockCount : '—'}
             icon={AlertTriangle}
-            warning={stats ? stats.lowStockCount + stats.outOfStockCount > 0 : false}
+            variant={stats && stats.lowStockCount + stats.outOfStockCount > 0 ? 'amber' : 'default'}
+            loading={!isWarehouseValid || (loading && !dashboard)}
           />
           <StatCard
             label="Today's Sales"
-            value={loading || !stats ? '—' : formatGHCCompact(stats.todaysSales)}
+            value={stats ? formatGHCCompact(stats.todaysSales) : '—'}
             icon={Receipt}
-            revenue
+            variant="green"
+            loading={!isWarehouseValid || (loading && !dashboard)}
           />
         </div>
-        )}
 
         {/* ── Low stock alerts ── */}
-        <div
-          className="rounded-[14px] border overflow-hidden shadow-[var(--shadow-sm)]"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-        >
-          <div
-            className="flex items-center justify-between px-5 py-4 border-b"
-            style={{ borderColor: 'var(--border)' }}
-          >
+        <div className="rounded-[var(--edk-radius)] border border-[var(--edk-border)] bg-[var(--edk-surface)] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--edk-border)] flex-wrap gap-2">
             <div>
-              <h2 className="text-[15px] font-black" style={{ color: 'var(--text)' }}>Stock Alerts</h2>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>
+              <h2 className="text-[14px] font-bold text-[var(--edk-ink)]" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                Stock Alerts
+              </h2>
+              <p className="text-[11px] text-[var(--edk-ink-3)] mt-0.5">
                 {warehouseName} — products at or below reorder level
               </p>
             </div>
-            {stats && stats.outOfStockCount > 0 && (
-              <span
-                className="px-3 py-1 rounded-full text-[12px] font-bold border"
-                style={{ background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }}
-              >
-                {stats.outOfStockCount} out of stock
-              </span>
-            )}
+            {(() => {
+              const items = dashboard?.lowStockItems ?? [];
+              const outCount = items.filter((i) => i.quantity === 0).length;
+              if (outCount === 0) return null;
+              return (
+                <Badge variant="danger" size="md">
+                  {outCount} out of stock
+                </Badge>
+              );
+            })()}
           </div>
           {loading ? (
-            <div className="p-6 space-y-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-10 rounded-xl animate-pulse" style={{ background: 'var(--overlay)' }}/>
-              ))}
+            <div className="flex flex-col items-center gap-3 p-4">
+              <LoadingSpinner size="sm" />
+              <p className="text-[12px] font-medium text-[var(--edk-ink-3)]">Loading…</p>
+              <div className="w-full space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-8 bg-[var(--edk-border-mid)] rounded-[var(--edk-radius-sm)] animate-pulse" />
+                ))}
+              </div>
             </div>
           ) : (
-            <LowStockTable items={dashboard?.lowStockItems ?? []}/>
+            <LowStockTable items={dashboard?.lowStockItems ?? []} />
           )}
         </div>
 
         {/* ── Category breakdown ── */}
-        {!loading && dashboard && Object.keys(dashboard.categorySummary).length > 0 && (
-          <div
-            className="rounded-[14px] border overflow-hidden shadow-[var(--shadow-sm)]"
-            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-          >
-            <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-              <h2 className="text-[15px] font-black" style={{ color: 'var(--text)' }}>By Category</h2>
-              <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>{warehouseName}</p>
+        {!loading && dashboard?.categorySummary && typeof dashboard.categorySummary === 'object' && Object.keys(dashboard.categorySummary).length > 0 && (
+          <div className="rounded-[var(--edk-radius)] border border-[var(--edk-border)] bg-[var(--edk-surface)] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--edk-border)]">
+              <h2 className="text-[14px] font-bold text-[var(--edk-ink)]" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+                By Category
+              </h2>
+              <p className="text-[11px] text-[var(--edk-ink-3)] mt-0.5">{warehouseName}</p>
             </div>
-            <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(dashboard.categorySummary)
                 .sort((a, b) => b[1].value - a[1].value)
                 .map(([cat, { count, value }]) => (
                   <div
                     key={cat}
-                    className="flex flex-col gap-1 p-3.5 rounded-xl border"
-                    style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}
+                    className="flex flex-col gap-0.5 p-3 rounded-[var(--edk-radius-sm)] bg-[var(--edk-surface-2)] border border-[var(--edk-border-mid)]"
                   >
-                    <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-3)' }}>{cat}</span>
-                    <span className="text-[18px] font-black" style={{ color: 'var(--text)' }}>{count} SKUs</span>
-                    <span className="text-[11px] font-medium" style={{ fontFamily: 'var(--font-m)', color: 'var(--blue)' }}>{formatGHC(value)}</span>
+                    <span className="text-[11px] font-bold text-[var(--edk-ink-3)] uppercase tracking-wider">{cat}</span>
+                    <span className="text-[16px] font-semibold text-[var(--edk-ink)] font-mono" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{count} SKUs</span>
+                    <span className="text-[10px] text-[var(--edk-ink-2)] font-medium font-mono" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{formatGHC(value)}</span>
                   </div>
                 ))}
             </div>
