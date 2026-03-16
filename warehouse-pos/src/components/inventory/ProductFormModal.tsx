@@ -220,8 +220,11 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
 
   useEffect(() => {
     if (!isOpen || !isOnline) return;
-    apiGet<{ data: SizeCodeOption[] }>(API_BASE_URL, '/api/size-codes')
-      .then((res) => setSizeCodes(Array.isArray(res?.data) ? res.data : []))
+    apiGet<SizeCodeOption[] | { data: SizeCodeOption[] }>(API_BASE_URL, '/api/size-codes')
+      .then((res) => {
+        const list = Array.isArray(res) ? res : (res && Array.isArray((res as { data?: SizeCodeOption[] }).data) ? (res as { data: SizeCodeOption[] }).data : []);
+        setSizeCodes(list.map((s, i) => ({ size_code: s.size_code, size_label: (s as SizeCodeOption).size_label ?? s.size_code, size_order: (s as SizeCodeOption).size_order ?? i })));
+      })
       .catch(() => setSizeCodes([]));
   }, [isOpen, isOnline]);
 
@@ -557,10 +560,10 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
 
   if (!isOpen) return null;
 
-  /* Modal: opaque panel so form is readable (no background bleed-through). Backdrop click + Escape close. Scroll lock when open. */
+  /* Modal: opaque panel so form is readable. On mobile, extra bottom padding so Add product / Cancel sit above bottom nav. */
   return (
     <div
-      className="fixed inset-0 solid-overlay flex items-center justify-center z-[var(--z-modal,50)] modal-overlay-padding"
+      className="fixed inset-0 solid-overlay flex items-center justify-center z-[var(--z-modal,50)] modal-overlay-padding product-form-modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="product-form-title"
@@ -588,9 +591,10 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
         </div>
 
         <form
+          id="product-form-modal-form"
           key={product?.id ?? 'new'}
           onSubmit={handleSubmit}
-          className="p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto flex-1 min-h-0"
+          className="flex flex-col flex-1 min-h-0 overflow-hidden"
           autoComplete="off"
           onFocus={(e) => {
             const el = e.target instanceof HTMLElement ? e.target : null;
@@ -599,6 +603,7 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
             }
           }}
         >
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 overflow-y-auto flex-1 min-h-0">
           {readOnlyMode && (
             <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 flex items-center gap-2 text-amber-900 text-sm font-medium" role="status">
               <CloudOff className="w-5 h-5 flex-shrink-0" aria-hidden />
@@ -956,9 +961,10 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
               />
             </label>
           </div>
+          </div>
 
-          {/* One primary action = Save; Cancel secondary, de-emphasized */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-slate-200/80 sticky bottom-0 bg-white -mx-6 lg:-mx-8 px-6 lg:px-8 pb-6">
+          {/* Action bar always visible above bottom nav (not inside scroll); safe-area on mobile */}
+          <div className="flex flex-shrink-0 justify-end gap-3 pt-4 border-t border-slate-200/80 bg-white px-4 sm:px-6 lg:px-8 pb-[max(1rem,env(safe-area-inset-bottom,0px))] lg:pb-6">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>

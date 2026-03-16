@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const db = getSupabase();
     const { data, error } = await db
       .from('size_codes')
-      .select('size_code, size_label');
+      .select('size_code, size_label, sort_order, size_order');
 
     if (error) {
       // Table may not exist or RLS; return empty array so UI still works
@@ -34,10 +34,14 @@ export async function GET(request: NextRequest) {
       return withCors(NextResponse.json([]), request);
     }
 
-    const list = (data ?? []).map((row: { size_code?: string; size_label?: string }) => ({
-      size_code: String(row.size_code ?? ''),
-      size_label: row.size_label ?? undefined,
-    }));
+    const list = (data ?? []).map((row: { size_code?: string; size_label?: string; sort_order?: number; size_order?: number }) => {
+      const order = typeof row.sort_order === 'number' ? row.sort_order : typeof row.size_order === 'number' ? row.size_order : 0;
+      return {
+        size_code: String(row.size_code ?? ''),
+        size_label: row.size_label ?? undefined,
+        size_order: order,
+      };
+    });
     return withCors(NextResponse.json(list), request);
   } catch (e) {
     console.warn('[api/size-codes]', e);

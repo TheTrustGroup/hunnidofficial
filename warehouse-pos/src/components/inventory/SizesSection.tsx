@@ -260,6 +260,30 @@ export default function SizesSection({
     });
   }
 
+  /** Pre-fill one row per size code so user only enters quantity (saves time). Keeps existing quantities where size matches. */
+  function handleUseAllSizes() {
+    if (sizeCodes.length === 0) return;
+    const existingByCode = new Map(
+      value.quantityBySize
+        .filter(r => (r.sizeCode ?? '').trim() !== '')
+        .map(r => [(r.sizeCode ?? '').trim(), r.quantity])
+    );
+    const sorted = [...sizeCodes].sort((a, b) => {
+      const oa = (a as { size_order?: number }).size_order ?? 0;
+      const ob = (b as { size_order?: number }).size_order ?? 0;
+      return oa - ob;
+    });
+    const next = sorted.map(s => ({
+      sizeCode: s.size_code,
+      quantity: existingByCode.get(s.size_code) ?? 0,
+    }));
+    onChange({
+      ...value,
+      quantityBySize: next,
+      quantity: totalQty(next),
+    });
+  }
+
   // ── Derived ─────────────────────────────────────────────────────────────
 
   const validationError = showValidation ? getValidationError(value) : null;
@@ -340,6 +364,28 @@ export default function SizesSection({
               </option>
             ))}
           </datalist>
+
+          {/* Use all sizes: one row per size code so user only enters quantity */}
+          {sizeCodes.length > 0 && (
+            <div className="mb-3">
+              <button
+                type="button"
+                onClick={handleUseAllSizes}
+                disabled={disabled}
+                className="
+                  w-full min-h-[44px] rounded-xl border-[1.5px] border-slate-200
+                  bg-slate-50 text-[13px] font-semibold text-slate-700
+                  flex items-center justify-center gap-2
+                  hover:bg-slate-100 hover:border-slate-300
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-all duration-150 touch-manipulation
+                "
+              >
+                <IconLayers />
+                Use all sizes — enter quantity only
+              </button>
+            </div>
+          )}
 
           {/* Size input mode toggle: type vs dropdown — mobile-friendly min touch targets */}
           {sizeCodes.length > 0 && (

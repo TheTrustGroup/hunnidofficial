@@ -366,6 +366,13 @@
     max-width: 56rem;
   }
 
+  /* Add product modal: reserve space above bottom nav on mobile so Cancel / Add product are always visible */
+  @media (max-width: 1023px) {
+    .product-form-modal-overlay {
+      padding-bottom: max(72px, calc(56px + env(safe-area-inset-bottom, 0px)));
+    }
+  }
+
   /* Phase 6: solid surfaces use .solid-card / .solid-panel (glassmorphism.css). Unused .bg-glass / .border-glass removed. */
 }
 
