@@ -101,6 +101,30 @@
   --z-toast: 60;
   --min-h-viewport: min(100dvh, 100vh);
   --h-viewport: 100dvh;
+
+  /* ---- EDK design system (ops-grade POS/inventory) ---- */
+  --edk-bg: #F5F4F0;
+  --edk-surface: #FFFFFF;
+  --edk-surface-2: #FAFAF8;
+  --edk-border: #E8E6DF;
+  --edk-border-mid: #D8D5CC;
+  --edk-ink: #0F0F0F;
+  --edk-ink-2: #52525B;
+  --edk-ink-3: #A1A1AA;
+  --edk-red: #DC2626;
+  --edk-red-hover: #B91C1C;
+  --edk-red-soft: rgba(220, 38, 38, 0.12);
+  --edk-red-border: rgba(220, 38, 38, 0.2);
+  --edk-amber: #D97706;
+  --edk-amber-bg: rgba(217, 119, 6, 0.08);
+  --edk-green: #16A34A;
+  --edk-radius: 12px;
+  --edk-radius-sm: 8px;
+  --edk-topbar-h: 56px;
+  --edk-sidebar-w: 244px;
+  --edk-font-ui: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --edk-font-display: 'Barlow Condensed', 'DM Sans', sans-serif;
+  --edk-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
 @supports not (height: 100dvh) {
   :root {
@@ -116,10 +140,9 @@
 
 @layer base {
   body {
-    background-color: var(--bg);
-    color: var(--text);
-    font-family: var(--font-b), 'Inter', system-ui, -apple-system, sans-serif;
-    font-feature-settings: 'cv11', 'ss01';
+    background-color: var(--edk-bg);
+    color: var(--edk-ink);
+    font-family: var(--edk-font-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -410,6 +433,14 @@
   }
 
   /* Phase 6: solid surfaces use .solid-card / .solid-panel (glassmorphism.css). Unused .bg-glass / .border-glass removed. */
+
+  /* EDK typography: display (Barlow Condensed), mono (IBM Plex Mono) */
+  .font-display {
+    font-family: var(--edk-font-display);
+  }
+  .font-mono-edk {
+    font-family: var(--edk-font-mono);
+  }
 }
 
 /* Scrollbars (Step 8) */

@@ -90,26 +90,45 @@ function LayoutContent() {
   const showSyncingBar = isSyncingCriticalData;
 
   return (
-    <div className="min-h-[var(--min-h-viewport)] bg-gradient-to-br from-slate-50 via-white to-slate-50">
+    <div className="min-h-[var(--min-h-viewport)]" style={{ background: 'var(--edk-bg)' }}>
       <div className="hidden lg:block">
         <Sidebar />
       </div>
       {!isPOS && <Header />}
-      {/* Slim hint while phase 2 (inventory, orders) syncs in background after login */}
+      {/* Syncing banner: Barlow Condensed label, spinner with blue top segment */}
       {isSyncingCriticalData && (
         <div
-          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-primary-50/90 text-primary-900 text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 border-b border-primary-200/50"
+          className="lg:ml-[var(--edk-sidebar-w)] flex items-center justify-center gap-2 py-2 px-4 border-b text-center"
+          style={{
+            marginTop: 'calc(var(--edk-topbar-h) + var(--safe-top))',
+            background: 'var(--blue-soft)',
+            borderColor: 'var(--blue-dim)',
+            color: 'var(--blue)',
+            fontFamily: 'var(--edk-font-display)',
+            fontSize: '12px',
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}
           role="status"
           aria-live="polite"
         >
-          <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-[#2A2A2A] border-t-[var(--blue)] shrink-0" style={{ animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />
+          <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-[var(--edk-border-mid)] shrink-0" style={{ borderTopColor: 'var(--blue)', animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />
           Syncing inventory & orders…
         </div>
       )}
       {/* In-flow banner: reserves layout space so content is never overlapped. Pushes main content down. */}
       {criticalDataError && (
         <div
-          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
+          className="lg:ml-[var(--edk-sidebar-w)] text-center py-2.5 px-4 flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b"
+          style={{
+            marginTop: 'calc(var(--edk-topbar-h) + var(--safe-top))',
+            background: 'var(--edk-amber-bg)',
+            color: 'var(--edk-amber)',
+            borderColor: 'var(--edk-amber)',
+            fontSize: '13px',
+            fontFamily: 'var(--edk-font-ui)',
+          }}
           role="alert"
         >
           <span>Initial load had issues: {criticalDataError}</span>
@@ -120,35 +139,33 @@ function LayoutContent() {
       )}
       {showDegradedBanner && (
         <div
-          className="lg:ml-[244px] mt-[calc(56px+var(--safe-top))] bg-amber-500 text-amber-950 text-center py-2.5 px-4 text-sm font-medium flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b border-amber-600/20"
+          className="lg:ml-[var(--edk-sidebar-w)] text-center py-2.5 px-4 flex items-center justify-center gap-3 flex-wrap min-h-[3rem] border-b"
+          style={{
+            marginTop: 'calc(var(--edk-topbar-h) + var(--safe-top))',
+            background: 'var(--edk-amber-bg)',
+            color: 'var(--edk-ink)',
+            borderColor: 'var(--edk-amber)',
+            fontSize: '13px',
+            fontFamily: 'var(--edk-font-ui)',
+          }}
           role="status"
         >
           <span>Server temporarily unavailable. Last saved data — read-only. Add, edit, and sales disabled until server is back.</span>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleTryAgain}
-            className="underline font-semibold hover:no-underline focus:outline-none focus:ring-2 focus:ring-amber-800 rounded"
-          >
+          <Button type="button" variant="ghost" onClick={handleTryAgain} className="underline font-semibold hover:no-underline focus:outline-none focus:ring-2 focus:ring-amber-800 rounded">
             Try again
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleDismissBanner}
-            className="text-amber-900/80 hover:text-amber-950 font-medium focus:outline-none focus:ring-2 focus:ring-amber-800 rounded"
-          >
+          <Button type="button" variant="ghost" onClick={handleDismissBanner} className="font-medium focus:outline-none focus:ring-2 focus:ring-amber-800 rounded">
             Dismiss
           </Button>
         </div>
       )}
-      {/* Phase 6: main padding ≥16px; mobile: 52px topbar, clear bottom nav (60px + safe area + 16px) */}
+      {/* Main: desktop = sidebar offset + 24px padding; mobile = topbar + bottom nav clearance, safe-area */}
       <main
-        className={`lg:ml-[244px] pt-[52px] md:pt-20 lg:pt-8 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 min-h-[calc(var(--min-h-viewport)-56px)] max-w-[1600px] overflow-x-hidden overflow-y-auto ${
-          showDegradedBanner || showSyncingBar ? 'mt-0' : isPOS ? 'mt-0' : isMobile ? 'mt-0' : 'mt-[calc(56px+var(--safe-top))]'
+        className={`lg:ml-[var(--edk-sidebar-w)] pt-[52px] md:pt-[var(--edk-topbar-h)] lg:pt-6 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-6 min-h-[calc(var(--min-h-viewport)-var(--edk-topbar-h))] max-w-[1600px] overflow-x-hidden overflow-y-auto ${
+          showDegradedBanner || showSyncingBar ? 'mt-0' : isPOS ? 'mt-0' : isMobile ? 'mt-0' : 'mt-[calc(var(--edk-topbar-h)+var(--safe-top))]'
         } ${
           isMobile
-            ? 'pb-[calc(60px+env(safe-area-inset-bottom,0px)+16px)]'
+            ? 'pb-[max(4rem,calc(env(safe-area-inset-bottom,0px)+4rem))]'
             : 'pb-[max(4rem,calc(var(--safe-bottom)+4rem))] lg:pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))]'
         }`}
       >

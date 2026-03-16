@@ -107,180 +107,161 @@ export function Header() {
 
   const isMobile = useIsMobile();
 
-  // Mobile topbar (max-width: 768px): 52px, page title, search icon, LIVE pill, bell, cart
+  // Mobile topbar: --edk-topbar-h, page title, search icon, LIVE pill, bell, cart
   if (isMobile) {
     return (
       <header
-        className="md:hidden fixed top-0 left-0 right-0 h-[52px] bg-[var(--surface)] border-b flex items-center px-4 gap-2 z-50"
-        style={{ borderColor: 'var(--border)' }}
+        className="md:hidden fixed top-0 left-0 right-0 flex items-center px-4 gap-2 z-50 border-b"
+        style={{
+          height: 'var(--edk-topbar-h)',
+          paddingTop: 'var(--safe-top)',
+          background: 'var(--edk-surface)',
+          borderColor: 'var(--edk-border)',
+          fontFamily: 'var(--edk-font-ui)',
+        }}
       >
-        <span className="flex-1 text-[13px] font-medium text-[var(--text)] truncate">
+        <span className="flex-1 text-[13px] font-medium truncate" style={{ color: 'var(--edk-ink)' }}>
           {getPageTitle(location.pathname)}
         </span>
         <button
           type="button"
           onClick={() => navigate('/inventory')}
-          className="w-8 h-8 rounded-lg bg-[var(--overlay)] flex items-center justify-center"
+          className="w-8 h-8 rounded-md flex items-center justify-center min-w-[44px] min-h-[44px]"
+          style={{ background: 'var(--edk-bg)' }}
           aria-label="Search products"
         >
-          <Search size={14} className="text-[var(--text-2)]" />
+          <Search size={16} strokeWidth={2} style={{ color: 'var(--edk-ink-3)' }} />
         </button>
-        <div className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold bg-[var(--green-dim)] text-[var(--green)]">
-          <div className="w-[5px] h-[5px] rounded-full bg-[var(--green)]" />
+        <div className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold" style={{ background: 'var(--edk-amber-bg)', color: 'var(--edk-green)' }}>
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--edk-green)]" aria-hidden />
           LIVE
         </div>
         <button
           type="button"
-          className="w-8 h-8 rounded-lg bg-[var(--overlay)] relative flex items-center justify-center"
+          className="relative w-8 h-8 rounded-md flex items-center justify-center min-w-[44px] min-h-[44px]"
+          style={{ background: 'var(--edk-bg)' }}
           aria-label="Notifications"
+          disabled
         >
-          <Bell size={14} className="text-[var(--text-2)]" />
+          <Bell size={16} strokeWidth={2} style={{ color: 'var(--edk-ink-2)' }} />
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--edk-surface)] bg-[var(--edk-red)]" aria-hidden />
         </button>
         <Link
           to="/pos"
-          className="w-8 h-8 rounded-lg bg-[var(--blue)] flex items-center justify-center"
+          className="w-8 h-8 rounded-md flex items-center justify-center min-w-[44px] min-h-[44px] text-white"
+          style={{ background: 'var(--blue)' }}
           aria-label="Open POS"
         >
-          <ShoppingCart size={14} className="text-white" />
+          <ShoppingCart size={16} strokeWidth={2} />
         </Link>
       </header>
     );
   }
 
+  // Desktop: fixed top bar, height --edk-topbar-h, left offset --edk-sidebar-w
   return (
     <header
-      className="sticky top-0 left-0 lg:left-[244px] right-0 h-14 flex items-center gap-3 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-5 pt-[var(--safe-top)] z-50 border-b shadow-[var(--shadow-sm)]"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="sticky top-0 left-0 right-0 flex items-center gap-3 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:pl-6 lg:pr-6 pt-[var(--safe-top)] z-50 border-b"
+      style={{
+        height: 'var(--edk-topbar-h)',
+        background: 'var(--edk-surface)',
+        borderColor: 'var(--edk-border)',
+        fontFamily: 'var(--edk-font-ui)',
+        marginLeft: 0,
+      }}
     >
-      {/* Left: breadcrumb — Inter 500 13px */}
-      <nav className="flex-shrink-0 min-w-0" aria-label="Breadcrumb">
-        <ol className="flex items-center gap-1.5 text-[13px] font-medium truncate" style={{ fontFamily: 'var(--font-b)' }}>
-          {breadcrumb.parent != null ? (
-            <>
-              <li>
-                <span style={{ color: 'var(--text-3)' }}>{breadcrumb.parent}</span>
-              </li>
-              <li style={{ color: 'var(--border-md)' }} aria-hidden>›</li>
-            </>
-          ) : null}
-          <li>
-            <span style={{ color: 'var(--text)' }}>{breadcrumb.current}</span>
-          </li>
-        </ol>
-      </nav>
+      <style>{`.edk-header-desktop { left: var(--edk-sidebar-w); }`}</style>
+      <div className="hidden lg:block absolute inset-0 pointer-events-none" style={{ left: 'var(--edk-sidebar-w)' }} aria-hidden />
+      <div className="flex-1 flex items-center gap-3 min-w-0 w-full lg:w-auto lg:max-w-[1600px] lg:ml-[var(--edk-sidebar-w)]">
+        {/* Breadcrumb */}
+        <nav className="flex-shrink-0 min-w-0 hidden lg:block" aria-label="Breadcrumb">
+          <ol className="flex items-center gap-1.5 text-[13px] font-medium truncate" style={{ color: 'var(--edk-ink-2)' }}>
+            {breadcrumb.parent != null ? (
+              <>
+                <li><span style={{ color: 'var(--edk-ink-3)' }}>{breadcrumb.parent}</span></li>
+                <li style={{ color: 'var(--edk-border-mid)' }} aria-hidden>›</li>
+              </>
+            ) : null}
+            <li><span style={{ color: 'var(--edk-ink)' }}>{breadcrumb.current}</span></li>
+          </ol>
+        </nav>
 
-      {/* Center: search bar */}
-      <div className="flex-1 max-w-[540px] min-w-0 flex justify-center">
-        <form onSubmit={handleSearchSubmit} className="relative w-full max-w-[380px] group">
-          <Search
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] pointer-events-none"
-            style={{ color: 'var(--text-3)' }}
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-          <input
-            type="search"
-            inputMode="search"
-            value={searchValue}
-            onChange={(e) => handleSearchInput(e.target.value)}
-            placeholder="Search products, SKU, or barcode…"
-            className="w-full h-11 pl-10 pr-14 rounded-[10px] border outline-none transition-[duration-150] focus:border-[var(--blue)] focus:shadow-[0_0_0_3px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
-            style={{
-              background: 'var(--elevated)',
-              borderColor: 'var(--border)',
-              color: 'var(--text)',
-              fontSize: '13px',
-              fontFamily: 'var(--font-b)',
-            }}
-            onMouseEnter={(e) => {
-              if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = 'var(--border-md)';
-            }}
-            onMouseLeave={(e) => {
-              if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = 'var(--border)';
-            }}
-            aria-label="Search products, SKU, or barcode"
-          />
-          <span
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-medium tracking-wide rounded px-1.5 py-0.5"
-            style={{ fontFamily: 'var(--font-m)', color: 'var(--text-3)', background: 'var(--border)' }}
-          >
-            ⌘K
-          </span>
+        {/* Single global search: max 520px, 32px height, rounded-md */}
+        <form onSubmit={handleSearchSubmit} className="flex-1 max-w-[520px] min-w-0 flex justify-center lg:justify-start">
+          <div className="relative w-full max-w-[380px] lg:max-w-[520px] group">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors group-focus-within:text-[var(--blue)]"
+              style={{ color: 'var(--edk-ink-3)' }}
+              strokeWidth={2}
+            />
+            <input
+              type="search"
+              inputMode="search"
+              value={searchValue}
+              onChange={(e) => handleSearchInput(e.target.value)}
+              placeholder="Search products, SKU, or barcode…"
+              className="w-full h-8 pl-9 pr-20 rounded-md border outline-none transition-all duration-150 text-[12px] placeholder:opacity-70 focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-soft)]"
+              style={{
+                background: 'var(--edk-bg)',
+                borderColor: 'var(--edk-border-mid)',
+                color: 'var(--edk-ink)',
+                fontFamily: 'var(--edk-font-ui)',
+              }}
+              aria-label="Search products, SKU, or barcode"
+            />
+            <span
+              className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-medium rounded px-1.5 py-0.5 hidden sm:inline"
+              style={{ fontFamily: 'var(--edk-font-mono)', color: 'var(--edk-ink-3)', background: 'var(--edk-border)' }}
+            >
+              ⌘K
+            </span>
+          </div>
         </form>
-      </div>
 
-      {/* Right: Online/Offline pill, Bell, New Sale, Log out */}
-      <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-        {/* Status pill */}
-        <span
-          className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[11px] font-bold uppercase shrink-0"
-          style={{
-            fontFamily: 'var(--font-d)',
-            ...(isDegraded
-              ? { background: 'rgba(220,38,38,0.08)', borderColor: 'rgba(220,38,38,0.2)', color: 'var(--red-status)' }
-              : { background: 'rgba(22,163,74,0.08)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }),
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden />
-          {isDegraded ? 'Offline' : 'Live'}
-        </span>
-
-        <button
-          type="button"
-          className="relative w-11 h-11 rounded-[9px] border flex items-center justify-center transition-colors min-w-[44px] min-h-[44px] shrink-0"
-          style={{
-            background: 'var(--elevated)',
-            borderColor: 'var(--border)',
-            color: 'var(--text-2)',
-          }}
-          aria-label="View notifications"
-          title="Notifications"
-          disabled
-        >
-          <Bell className="w-[18px] h-[18px]" strokeWidth={2} />
+        {/* Right: sync indicator, Log out 32px, bell with red dot */}
+        <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
           <span
-            className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--surface)]"
-            style={{ background: 'var(--red-status)' }}
-            aria-hidden
-          />
-        </button>
-
-        <Link
-          to="/pos"
-          className="flex items-center justify-center gap-1.5 h-11 px-4 rounded-[10px] text-white text-[13px] font-semibold transition-all duration-200 hover:-translate-y-px min-h-[44px] shrink-0"
-          style={{
-            background: 'var(--blue)',
-            boxShadow: '0 2px 8px var(--blue-glow)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#1d4ed8';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--blue)';
-          }}
-        >
-          <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
-          <span className="hidden sm:inline">New Sale</span>
-        </Link>
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-          className="flex items-center justify-center gap-1.5 h-11 px-3 rounded-[10px] border transition-colors min-h-[44px] shrink-0"
-          style={{
-            background: 'var(--elevated)',
-            borderColor: 'var(--border)',
-            color: 'var(--text-2)',
-            fontFamily: 'var(--font-b)',
-            fontSize: '12px',
-          }}
-          title="Log out"
-          aria-label="Log out"
-        >
-          <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
-          <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
-        </button>
+            className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg border text-[11px] font-semibold uppercase shrink-0"
+            style={{
+              ...(isDegraded
+                ? { background: 'var(--edk-red-soft)', borderColor: 'var(--edk-red-border)', color: 'var(--edk-red)' }
+                : { background: 'var(--edk-amber-bg)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--edk-green)' }),
+            }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" aria-hidden />
+            {isDegraded ? 'Offline' : 'Live'}
+          </span>
+          <button
+            type="button"
+            className="relative w-8 h-8 rounded-md border flex items-center justify-center min-w-[44px] min-h-[44px] shrink-0"
+            style={{ background: 'var(--edk-bg)', borderColor: 'var(--edk-border-mid)', color: 'var(--edk-ink-2)' }}
+            aria-label="Notifications"
+            disabled
+          >
+            <Bell className="w-4 h-4" strokeWidth={2} />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full border-[1.5px] border-[var(--edk-surface)] bg-[var(--edk-red)]" aria-hidden />
+          </button>
+          <Link
+            to="/pos"
+            className="flex items-center justify-center gap-1.5 h-8 px-4 rounded-md text-white text-[13px] font-semibold min-h-[32px] shrink-0"
+            style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
+          >
+            <ShoppingCart className="w-4 h-4" strokeWidth={2} />
+            <span className="hidden sm:inline">New Sale</span>
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="flex items-center justify-center gap-1.5 h-8 px-3 rounded-md border min-h-[32px] shrink-0 text-[12px] font-medium"
+            style={{ background: 'var(--edk-surface)', borderColor: 'var(--edk-border)', color: 'var(--edk-ink-2)' }}
+            title="Log out"
+            aria-label="Log out"
+          >
+            <LogOut className="w-4 h-4" strokeWidth={2} />
+            <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Log out'}</span>
+          </button>
+        </div>
       </div>
     </header>
   );
