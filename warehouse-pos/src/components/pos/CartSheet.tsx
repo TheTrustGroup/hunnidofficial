@@ -215,13 +215,15 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
         style={{ paddingBottom: 'var(--bottom-nav-h)' }}
         onClick={() => !processing && onClose()}
       />
-      {/* Sheet: above bottom nav on mobile (var); flush bottom on desktop */}
+      {/* Sheet: above bottom nav; max-height so it never goes under browser chrome; premium handle + shadow */}
       <div
-        className={`fixed left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] flex flex-col max-h-[80vh] transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[var(--bottom-nav-h)] lg:bottom-0`}
+        className={`fixed left-0 right-0 z-50 bg-white flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[var(--bottom-nav-h)] lg:bottom-0 rounded-t-3xl max-h-[72dvh] lg:max-h-[85vh]`}
+        style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)' }}
         onClick={e => e.stopPropagation()}
       >
-
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
+        <div className="flex justify-center pt-3 pb-2 flex-shrink-0" aria-hidden>
+          <div className="w-12 h-1.5 rounded-full bg-slate-300" />
+        </div>
 
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -241,7 +243,10 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain"
+          style={{ paddingBottom: 'var(--sheet-safe-padding-bottom)' }}
+        >
           {lines.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center px-6">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 text-[#8892A0]" style={{ background: '#F4F6F9', border: '1px solid rgba(0,0,0,0.11)' }}>
@@ -390,6 +395,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
               background: 'var(--h-white)',
               position: 'sticky',
               bottom: 0,
+              paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
             }}
           >
             {chargeStatus === 'error' && lastChargeError && (

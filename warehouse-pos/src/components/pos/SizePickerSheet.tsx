@@ -196,10 +196,11 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
           style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
         >
           <div
-            className="bg-white rounded-t-[20px] flex flex-col max-h-[85vh]"
+            className="bg-white rounded-t-3xl flex flex-col max-h-[72dvh] lg:max-h-[85vh]"
+            style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-8 h-1 bg-[var(--border)] rounded-full mx-auto mt-2.5 flex-shrink-0" />
+            <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto mt-3 mb-0.5 flex-shrink-0" aria-hidden />
             <div className="px-5 pt-3 pb-3 border-b flex-shrink-0 flex items-start justify-between" style={{ borderColor: 'var(--border)' }}>
               <div>
                 <h2 className="font-display text-[20px] tracking-[0.04em] leading-tight">
@@ -221,7 +222,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                 </span>
               </div>
             </div>
-            <div className="p-5">
+            <div className="p-5" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 0px))' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -259,10 +260,11 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
         style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
       >
         <div
-          className="bg-white rounded-t-[20px] flex flex-col max-h-[85vh]"
+          className="bg-white rounded-t-3xl flex flex-col max-h-[72dvh] lg:max-h-[85vh]"
+          style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)' }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="w-8 h-1 bg-[var(--border)] rounded-full mx-auto mt-2.5 flex-shrink-0" />
+          <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto mt-3 mb-0.5 flex-shrink-0" aria-hidden />
 
           <div className="px-5 pt-3 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-start justify-between">
@@ -292,7 +294,10 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
             Select sizes and quantity
           </p>
 
-          <div className="flex-1 overflow-y-auto px-5 pt-1 pb-0 min-h-0">
+          <div
+            className="flex-1 overflow-y-auto px-5 pt-1 min-h-0"
+            style={{ paddingBottom: 'var(--sheet-safe-padding-bottom)' }}
+          >
             {variants.map((v) => (
               <SizeRow
                 key={v.sizeCode}
@@ -308,7 +313,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
 
           <div
             className="flex-shrink-0 px-5 pt-3 pb-4 border-t bg-[var(--surface)]"
-            style={{ borderColor: 'var(--border)' }}
+            style={{ borderColor: 'var(--border)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
           >
             <div className="flex flex-wrap gap-1.5 mb-2.5 min-h-[22px] items-center">
               {selectedVariants.map((v) => (

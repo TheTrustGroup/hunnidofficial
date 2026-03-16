@@ -93,8 +93,10 @@
   --z-mobile-menu: 40;
   --z-modal: 50;
   --z-toast: 60;
-  /* Bottom nav: compact premium bar so modals/forms have room; single source of truth for sheets. */
-  --bottom-nav-h: calc(50px + env(safe-area-inset-bottom, 0px));
+  /* Bottom nav + sheets: single source of truth so nav and sheets never overlap. */
+  --bottom-nav-h: calc(56px + env(safe-area-inset-bottom, 0px));
+  /* Extra padding at bottom of sheet scroll content so primary actions stay visible above nav/browser chrome. */
+  --sheet-safe-padding-bottom: calc(var(--bottom-nav-h) + 28px);
   /* Viewport: 100dvh first (mobile Safari safe); fallback 100vh for older browsers */
   --min-h-viewport: min(100dvh, 100vh);
   --h-viewport: 100dvh;
