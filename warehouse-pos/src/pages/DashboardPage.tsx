@@ -71,6 +71,75 @@ function formatGHCCompact(n: number): string {
   return sign + 'GH₵' + abs.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+const MOBILE_BREAKPOINT = 768;
+function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const handler = () => setMobile(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return mobile;
+}
+
+/** Mobile-only stat card: rounded-xl, 10px label, 26px value, blue/default/red. */
+function DashboardStatCardMobile({
+  label,
+  value,
+  variant = 'default',
+  valueColor,
+  loading,
+}: {
+  label: string;
+  value: string | number;
+  variant?: 'blue' | 'default';
+  valueColor?: 'red' | 'blue';
+  loading?: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="rounded-xl border-[0.5px] border-[#E0DED8] bg-white p-3 animate-pulse">
+        <div className="h-3 w-16 bg-[#E0DED8] rounded mb-1.5" />
+        <div className="h-7 w-20 bg-[#E0DED8] rounded" />
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`rounded-xl border-[0.5px] p-3 ${
+        variant === 'blue'
+          ? 'bg-[#1B6FE8] border-[#1B6FE8]'
+          : 'bg-white border-[#E0DED8]'
+      }`}
+    >
+      <p
+        className={`text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5 ${
+          variant === 'blue' ? 'text-white/70' : 'text-[#9B9890]'
+        }`}
+      >
+        {label}
+      </p>
+      <p
+        className={`text-[26px] leading-none font-semibold ${
+          variant === 'blue'
+            ? 'text-white'
+            : valueColor === 'blue'
+              ? 'text-[#1B6FE8]'
+              : valueColor === 'red'
+                ? 'text-[#E83B2E]'
+                : 'text-[#1A1916]'
+        }`}
+        style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 // ── apiFetch (with retry for transient network failures) ───────────────────
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -267,9 +336,11 @@ const WAREHOUSE_IDS_FOR_SUMMARY = [
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { currentWarehouseId, currentWarehouse, warehouses } = useWarehouse();
   const warehouseId   = currentWarehouseId;
   const warehouseName = currentWarehouse?.name ?? 'Warehouse';
+  const firstTwoWarehouses = warehouses.slice(0, 2);
 
   /** Name for "sales by location" — same source as sidebar/dropdown (warehouses from API, then KNOWN_WAREHOUSE_NAMES). */
   const locationNameForId = (wid: string) =>
@@ -363,56 +434,78 @@ export default function DashboardPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--bg)' }}>
-      <div className="max-w-5xl mx-auto space-y-6">
+  const statLoading = loading && !dashboard;
 
-        {/* ── Header ── */}
-        <div className="flex items-start justify-between">
+  return (
+    <div className="min-h-screen p-3 sm:p-6" style={{ background: 'var(--bg)' }}>
+      <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
+
+        {/* ── Header: mobile = DASHBOARD + subtitle + New sale; desktop = Admin Control Panel ── */}
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-1">
           <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-[24px] font-black tracking-tight" style={{ color: 'var(--text)' }}>
-                Admin Control Panel
-              </h1>
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider"
-                style={{ background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid rgba(22,163,74,0.2)' }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]"/>
-                Super Admin
-              </span>
-            </div>
-            <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-              Full system access — inventory, POS, reports, users &amp; settings.
+            <h1
+              className="text-[26px] sm:text-[24px] font-black tracking-tight"
+              style={{
+                color: 'var(--text)',
+                fontFamily: isMobile ? "'Barlow Condensed', sans-serif" : undefined,
+                letterSpacing: isMobile ? '0.04em' : undefined,
+              }}
+            >
+              {isMobile ? 'DASHBOARD' : 'Admin Control Panel'}
+            </h1>
+            <p className="text-[12px] sm:text-[13px] mt-0.5" style={{ color: 'var(--text-2)' }}>
+              {isMobile ? `${warehouseName} · Dashboard` : 'Full system access — inventory, POS, reports, users & settings.'}
             </p>
           </div>
-
-          <a
-            href="/pos"
-            className="flex items-center gap-2 h-10 px-5 rounded-xl text-white text-[14px] font-bold transition-all hover:-translate-y-px"
+          <button
+            type="button"
+            onClick={() => navigate('/pos')}
+            className="flex items-center gap-2 h-10 px-4 sm:px-5 rounded-xl text-white text-[13px] sm:text-[14px] font-bold transition-all hover:-translate-y-px mt-1"
             style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
           >
             <ShoppingCart className="w-5 h-5" aria-hidden />
             New sale
-          </a>
+          </button>
         </div>
 
-        {/* ── Warehouse label ── */}
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[var(--green)]"/>
-          <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
-            Inventory stats for:{' '}
-            <span className="font-black" style={{ color: 'var(--text)' }}>{warehouseName}</span>
-          </p>
-          {loading && (
-            <span className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-3)' }}>
-              <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
-              Loading…
-            </span>
-          )}
-        </div>
+        {!isMobile && (
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--green)]"/>
+            <p className="text-[13px] font-semibold" style={{ color: 'var(--text-2)' }}>
+              Inventory stats for:{' '}
+              <span className="font-black" style={{ color: 'var(--text)' }}>{warehouseName}</span>
+            </p>
+            {loading && (
+              <span className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--text-3)' }}>
+                <span className="loading-spinner-ring loading-spinner-ring-sm shrink-0" aria-hidden />
+                Loading…
+              </span>
+            )}
+          </div>
+        )}
 
-        {/* ── Today's sales by location ── */}
+        {/* ── Today's sales by location: mobile = compact card; desktop = full ── */}
+        {isMobile && firstTwoWarehouses.length > 0 ? (
+          <div className="bg-white rounded-2xl border border-[#E0DED8] p-3 mb-3 shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9B9890] mb-2">
+              Today&apos;s Sales by Location
+            </p>
+            <div className="flex gap-6">
+              {firstTwoWarehouses.map((w) => {
+                const amount = todayByWarehouse?.[w.id] ?? 0;
+                const hasSales = !loading && amount > 0;
+                return (
+                  <div key={w.id}>
+                    <p className="text-[11px] text-[#9B9890]">{w.name}</p>
+                    <p className={`text-[15px] font-semibold ${hasSales ? 'text-[#1B6FE8]' : 'text-[#9B9890]'}`}>
+                      {loading ? '—' : formatGHCCompact(amount)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
         <div
           className="rounded-[14px] border p-5 shadow-[var(--shadow-sm)]"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
@@ -438,6 +531,7 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* ── Error ── */}
         {error && !loading && (
@@ -460,7 +554,34 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── Stat cards ── */}
+        {/* ── Stat cards: mobile 2×2 with mobile spec; desktop 4-column ── */}
+        {isMobile ? (
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <DashboardStatCardMobile
+              label="Stock Value"
+              value={stats ? formatGHCCompact(stats.totalStockValue) : '—'}
+              variant="blue"
+              loading={statLoading}
+            />
+            <DashboardStatCardMobile
+              label="Products"
+              value={stats?.totalProducts ?? '—'}
+              loading={statLoading}
+            />
+            <DashboardStatCardMobile
+              label="Low Stock"
+              value={stats ? stats.lowStockCount + stats.outOfStockCount : '—'}
+              valueColor="red"
+              loading={statLoading}
+            />
+            <DashboardStatCardMobile
+              label="Today's Sales"
+              value={stats ? formatGHCCompact(stats.todaysSales) : '—'}
+              valueColor="blue"
+              loading={statLoading}
+            />
+          </div>
+        ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Total Stock Value"
@@ -486,6 +607,7 @@ export default function DashboardPage() {
             revenue
           />
         </div>
+        )}
 
         {/* ── Low stock alerts ── */}
         <div

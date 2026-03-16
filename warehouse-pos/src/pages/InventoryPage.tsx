@@ -85,6 +85,20 @@ function formatGHC(n: number): string {
   return 'GH₵ ' + n.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+const MOBILE_BREAKPOINT = 768;
+function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const handler = () => setMobile(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return mobile;
+}
+
 // ── Filter/sort ───────────────────────────────────────────────────────────
 
 /** Client-side sort only (filtering is server-side via q and category). */
@@ -345,6 +359,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [confirmDelete,  setConfirmDelete]  = useState<Product | null>(null);
   const [warehouseStats, setWarehouseStats] = useState<{ totalStockValue: number; totalUnits?: number } | null>(null);
+  const isMobile = useIsMobile();
 
   const modalOpenRef       = useRef(false);
   const pollTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1080,10 +1095,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </div>
         )}
 
-        {/* Product grid — view-only cards (CHANGE 4: 14px gap, 10px radius cards) */}
+        {/* Product grid — mobile: single column; desktop: 2–3 columns */}
         {!loading && !error && displayed.length > 0 && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className={`grid gap-3.5 ${isMobile ? 'grid-cols-1' : 'grid-cols-2 lg:grid-cols-3'}`}>
               {displayed.map(product => (
                 <ProductCard
                   key={product.id}

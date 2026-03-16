@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
+import { MobileBottomNav } from './MobileBottomNav';
 import { SyncStatusBar } from '../SyncStatusBar';
 import { ConflictModalContainer } from '../ConflictModalContainer';
 import { ApiStatusProvider, useApiStatus } from '../../contexts/ApiStatusContext';
@@ -12,6 +13,20 @@ import { Button } from '../ui/Button';
 const DISMISS_BANNER_KEY = 'dismiss_degraded_banner_session';
 /** Only show "server offline" banner after degraded for this long to avoid jitter from brief blips. */
 const BANNER_DEBOUNCE_MS = 4000;
+const MOBILE_BREAKPOINT = 1024;
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false
+  );
+  useEffect(() => {
+    const m = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const handler = () => setIsMobile(m.matches);
+    m.addEventListener('change', handler);
+    return () => m.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
 
 /** Layout: single vertical rhythm — section spacing (24px) and consistent main padding. Mobile-first. */
 export function Layout() {
@@ -23,6 +38,9 @@ export function Layout() {
 }
 
 function LayoutContent() {
+  const location = useLocation();
+  const isPOS = location.pathname === '/pos';
+  const isMobile = useIsMobile();
   const { isDegraded: degraded, retry } = useApiStatus();
   const [showBanner, setShowBanner] = useState(false);
   const degradedSinceRef = useRef<number | null>(null);
@@ -77,7 +95,7 @@ function LayoutContent() {
       <div className="hidden lg:block">
         <Sidebar />
       </div>
-      <Header />
+      {!isPOS && <Header />}
       {/* Slim hint while phase 2 (inventory, orders) syncs in background after login */}
       {isSyncingCriticalData && (
         <div
@@ -125,16 +143,20 @@ function LayoutContent() {
           </Button>
         </div>
       )}
-      {/* Phase 6: main padding ≥16px (max(1rem, safe-area)); no edge-touch; reserves space for SyncStatusBar */}
+      {/* Phase 6: main padding ≥16px; mobile: 52px topbar, clear bottom nav (64px + safe area + 16px) */}
       <main
-        className={`lg:ml-[244px] pt-20 lg:pt-8 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 pb-[max(4rem,calc(var(--safe-bottom)+4rem))] lg:pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))] min-h-[calc(var(--min-h-viewport)-56px)] max-w-[1600px] overflow-x-hidden ${
-          showDegradedBanner || showSyncingBar ? 'mt-0' : 'mt-[calc(56px+var(--safe-top))]'
+        className={`lg:ml-[244px] pt-[52px] md:pt-20 lg:pt-8 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 min-h-[calc(var(--min-h-viewport)-56px)] max-w-[1600px] overflow-x-hidden overflow-y-auto ${
+          showDegradedBanner || showSyncingBar ? 'mt-0' : isPOS ? 'mt-0' : isMobile ? 'mt-0' : 'mt-[calc(56px+var(--safe-top))]'
+        } ${
+          isMobile
+            ? 'pb-[calc(64px+env(safe-area-inset-bottom,0px)+16px)]'
+            : 'pb-[max(4rem,calc(var(--safe-bottom)+4rem))] lg:pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))]'
         }`}
       >
         <Outlet />
       </main>
       <SyncStatusBar />
-      <BottomNav />
+      {isMobile ? <MobileBottomNav onMoreClick={() => {}} /> : <BottomNav />}
       <ConflictModalContainer />
     </div>
   );
