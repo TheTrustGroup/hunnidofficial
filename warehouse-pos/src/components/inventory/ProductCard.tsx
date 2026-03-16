@@ -86,9 +86,9 @@ const IconSpinner = () => <span className="loading-spinner-ring loading-spinner-
 
 function StockBadge({ status }: { status: StockStatus }) {
   const config = {
-    in:  { label: 'In stock',     color: 'var(--green)', bg: 'var(--green-dim)', border: 'rgba(22,163,74,0.2)' },
-    low: { label: 'Low stock',    color: 'var(--amber)', bg: 'var(--amber-dim)', border: 'rgba(217,119,6,0.2)' },
-    out: { label: 'Out of stock', color: 'var(--red-status)', bg: 'var(--red-dim)', border: 'rgba(220,38,38,0.2)' },
+    in:  { label: 'In stock',     color: 'var(--edk-green)', bg: 'var(--edk-green-bg)', border: 'rgba(22,163,74,0.2)' },
+    low: { label: 'Low stock',    color: 'var(--edk-amber)', bg: 'var(--edk-amber-bg)', border: 'rgba(217,119,6,0.2)' },
+    out: { label: 'Out of stock', color: 'var(--edk-red)', bg: 'var(--edk-red-soft)', border: 'var(--edk-red-border)' },
   }[status];
 
   return (
@@ -111,7 +111,7 @@ function SizePills({ product }: { product: Product }) {
       <div className="flex items-center gap-1.5 mb-3">
         <span
           className="h-7 px-3 rounded-lg text-[12px] font-semibold flex items-center border"
-          style={{ background: 'var(--green-dim)', color: 'var(--green)', borderColor: 'rgba(22,163,74,0.2)' }}
+          style={{ background: 'var(--edk-green-bg)', color: 'var(--edk-green)', borderColor: 'rgba(22,163,74,0.2)' }}
         >
           Qty: {product.quantity}
         </span>
@@ -124,7 +124,7 @@ function SizePills({ product }: { product: Product }) {
       <div className="flex items-center gap-1.5 mb-3">
         <span
           className="h-7 px-3 rounded-lg text-[12px] font-semibold flex items-center border"
-          style={{ background: 'var(--green-dim)', color: 'var(--green)', borderColor: 'rgba(22,163,74,0.2)' }}
+          style={{ background: 'var(--edk-green-bg)', color: 'var(--edk-green)', borderColor: 'rgba(22,163,74,0.2)' }}
         >
           One size · {product.quantity}
         </span>
@@ -136,7 +136,7 @@ function SizePills({ product }: { product: Product }) {
   if (qtyBySize.length === 0) {
     return (
       <div className="mb-3">
-        <span className="text-[12px] italic" style={{ color: 'var(--text-3)' }}>No sizes recorded</span>
+        <span className="text-[12px] italic text-[var(--edk-ink-3)]">No sizes recorded</span>
       </div>
     );
   }
@@ -148,10 +148,10 @@ function SizePills({ product }: { product: Product }) {
         const isOut = row.quantity === 0;
         const isLow = row.quantity > 0 && row.quantity <= reorder;
         const pillStyle = isOut
-          ? { background: 'var(--red-dim)', color: 'var(--red-status)', borderColor: 'rgba(220,38,38,0.2)' }
+          ? { background: 'var(--edk-red-soft)', color: 'var(--edk-red)', borderColor: 'var(--edk-red-border)' }
           : isLow
-            ? { background: 'var(--amber-dim)', color: 'var(--amber)', borderColor: 'rgba(217,119,6,0.2)' }
-            : { background: 'var(--green-dim)', color: 'var(--green)', borderColor: 'rgba(22,163,74,0.2)' };
+            ? { background: 'var(--edk-amber-bg)', color: 'var(--edk-amber)', borderColor: 'rgba(217,119,6,0.2)' }
+            : { background: 'var(--edk-green-bg)', color: 'var(--edk-green)', borderColor: 'rgba(22,163,74,0.2)' };
         return (
           <span
             key={row.sizeCode}
@@ -212,18 +212,18 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
 
   return (
     <div className="px-4 pb-4 pt-2">
-      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+      <p className="text-[11px] font-bold text-[var(--edk-ink-3)] uppercase tracking-wider mb-3">
         Update stock
       </p>
 
       <div className="flex flex-col gap-1">
         {rows.map((row, idx) => (
-          <div key={row.sizeCode} className="grid grid-cols-[1fr_96px] gap-2 items-center py-1.5 border-b border-slate-100 last:border-0">
+          <div key={row.sizeCode} className="grid grid-cols-[1fr_96px] gap-2 items-center py-1.5 border-b border-[var(--edk-border)] last:border-0">
             <div>
-              <p className="text-[14px] font-semibold text-slate-700">
+              <p className="text-[14px] font-semibold text-[var(--edk-ink-2)]">
                 {sizeKind === 'sized' ? row.sizeCode : sizeKind === 'one_size' ? 'One size' : 'Quantity'}
               </p>
-              <p className="text-[11px] text-slate-400">Was: {sizeKind === 'sized'
+              <p className="text-[11px] text-[var(--edk-ink-3)]">Was: {sizeKind === 'sized'
                 ? (qtyBySize.find(r => r.sizeCode === row.sizeCode)?.quantity ?? 0)
                 : product.quantity
               }</p>
@@ -235,25 +235,16 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
               value={row.quantity}
               onChange={e => updateQty(idx, parseInt(e.target.value) || 0)}
               onFocus={e => e.target.select()}
-              className="
-                h-11 w-full rounded-xl border-[1.5px] border-slate-200
-                bg-slate-50 text-center
-                text-[18px] font-bold text-slate-900
-                focus:outline-none focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100
-                [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none
-                [&::-webkit-inner-spin-button]:appearance-none
-                transition-all duration-150
-              "
+              className="h-11 w-full rounded-xl border border-[var(--edk-border-mid)] bg-[var(--edk-surface-2)] text-center text-[18px] font-bold text-[var(--edk-ink)] focus:outline-none focus:border-[var(--blue)] focus:bg-[var(--edk-surface)] focus:ring-2 focus:ring-[var(--blue-soft)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all duration-150"
             />
           </div>
         ))}
       </div>
 
-      {/* Total for sized products */}
       {sizeKind === 'sized' && rows.length > 1 && (
         <div className="flex justify-between items-center pt-2.5 mt-1">
-          <span className="text-[12px] font-semibold text-slate-500">Total</span>
-          <span className="text-[15px] font-bold text-slate-900">
+          <span className="text-[12px] font-semibold text-[var(--edk-ink-3)]">Total</span>
+          <span className="text-[15px] font-bold text-[var(--edk-ink)]">
             {rows.reduce((s, r) => s + r.quantity, 0)} units
           </span>
         </div>
@@ -264,13 +255,7 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="
-            h-11 rounded-xl border-[1.5px] border-slate-200
-            text-[14px] font-semibold text-slate-500
-            bg-white hover:bg-slate-50
-            disabled:opacity-40
-            transition-all duration-150
-          "
+          className="h-11 rounded-xl border border-[var(--edk-border-mid)] text-[14px] font-semibold text-[var(--edk-ink-2)] bg-[var(--edk-surface)] hover:bg-[var(--edk-bg)] disabled:opacity-40 transition-all duration-150"
         >
           Cancel
         </button>
@@ -278,14 +263,7 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
           type="button"
           onClick={handleSave}
           disabled={saving || saved}
-          className={`
-            h-11 rounded-xl border-none
-            text-[14px] font-semibold text-white
-            flex items-center justify-center gap-2
-            disabled:opacity-60
-            transition-all duration-200
-            ${saved ? 'bg-emerald-500' : 'bg-primary-500 hover:bg-primary-600 active:scale-[0.98]'}
-          `}
+          className={`h-11 rounded-xl border-none text-[14px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all duration-200 ${saved ? 'bg-[var(--edk-green)]' : 'bg-[var(--blue)] hover:brightness-110 active:scale-[0.98]'}`}
         >
           {saving ? <><IconSpinner /> Saving…</> : saved ? '✓ Saved' : 'Save stock'}
         </button>
@@ -313,43 +291,36 @@ function ProductCardInner({
 
   return (
     <article
-      className="rounded-[14px] overflow-hidden border cursor-pointer transition-all duration-200 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5 hover:border-[var(--border-md)]"
+      className="rounded-[var(--edk-radius)] overflow-hidden border cursor-pointer transition-all duration-200 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] hover:-translate-y-0.5"
       style={{
-        background: 'var(--surface)',
-        borderColor: status === 'low' ? 'rgba(217,119,6,0.25)' : 'var(--border)',
-        boxShadow: editing ? '0 0 0 2px var(--blue)' : 'var(--shadow-sm)',
+        backgroundColor: 'var(--edk-surface)',
+        borderColor: status === 'low' ? 'rgba(217,119,6,0.25)' : 'var(--edk-border-mid)',
+        boxShadow: editing ? '0 0 0 2px var(--blue)' : '0 1px 3px rgba(0,0,0,0.06)',
       }}
     >
       {/* ── Image area 4:3 ── */}
       <div
-        className="relative w-full aspect-[4/3] overflow-hidden border-b"
-        style={{ background: 'var(--elevated)', borderColor: 'var(--border)' }}
+        className="relative w-full aspect-[4/3] overflow-hidden border-b bg-[var(--edk-surface-2)]"
+        style={{ borderColor: 'var(--edk-border)' }}
       >
         {hasImage ? (
           <img
             src={product.images![0]}
             alt={product.name}
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-[1.02]"
             loading="lazy"
           />
         ) : (
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ background: 'var(--elevated)', color: 'var(--text-3)' }}
-          >
+          <div className="absolute inset-0 flex items-center justify-center text-[var(--edk-ink-3)] bg-[var(--edk-surface-2)]">
             <IconImage />
           </div>
         )}
         {status === 'out' && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: 'rgba(255,255,255,0.85)' }}
-          />
+          <div className="absolute inset-0 pointer-events-none bg-white/85" />
         )}
 
         <span
-          className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[10px] font-semibold backdrop-blur-[8px]"
-          style={{ background: 'rgba(0,0,0,0.5)', color: 'rgba(255,255,255,0.95)' }}
+          className="absolute top-2 left-2 px-1.5 py-0.5 rounded-[var(--edk-radius-sm)] text-[10px] font-semibold bg-black/50 text-white/95"
         >
           {product.category}
         </span>
@@ -360,24 +331,18 @@ function ProductCardInner({
       {/* ── Card body (hidden when editing) ── */}
       {!editing && (
         <div className="px-3.5 pt-3 pb-2">
-          <h3
-            className="text-[13px] font-semibold truncate mb-0.5"
-            style={{ fontFamily: 'var(--font-b)', color: 'var(--text)' }}
-          >
+          <h3 className="text-[13px] font-semibold text-[var(--edk-ink)] truncate mb-0.5">
             {product.name}
           </h3>
-          <p className="font-mono text-[10px] truncate mb-2" style={{ color: 'var(--text-3)' }}>
+          <p className="font-mono text-[10px] text-[var(--edk-ink-3)] truncate mb-2">
             {product.sku}
           </p>
           <div className="flex items-baseline gap-1.5 mb-2">
-            <span
-              className="text-[16px] font-extrabold"
-              style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
-            >
+            <span className="text-[16px] font-extrabold text-[var(--blue)]">
               {formatPrice(product.sellingPrice)}
             </span>
             {product.costPrice > 0 && (
-              <span className="text-[11px]" style={{ color: 'var(--text-3)' }}>
+              <span className="text-[11px] text-[var(--edk-ink-3)]">
                 Cost: {formatPrice(product.costPrice)}
               </span>
             )}
@@ -397,24 +362,12 @@ function ProductCardInner({
       {/* ── Footer: Edit / Stock / Delete ── */}
       {!editing && (
         <div
-          className={`grid border-t ${supportsInlineStock ? 'grid-cols-3' : 'grid-cols-2'}`}
-          style={{ borderColor: 'var(--border)' }}
+          className={`grid border-t border-[var(--edk-border)] ${supportsInlineStock ? 'grid-cols-3' : 'grid-cols-2'}`}
         >
           <button
             type="button"
             onClick={() => onEditFull(product)}
-            className="h-[30px] flex items-center justify-center gap-1 text-[12px] font-medium border-r transition-colors hover:border-[var(--blue)] hover:text-[var(--blue)]"
-            style={{ fontFamily: 'var(--font-b)', color: 'var(--text-2)', borderColor: 'var(--border)' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--blue-dim)';
-              e.currentTarget.style.borderColor = 'var(--blue)';
-              e.currentTarget.style.color = 'var(--blue)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '';
-              e.currentTarget.style.borderColor = 'var(--border)';
-              e.currentTarget.style.color = 'var(--text-2)';
-            }}
+            className="h-10 flex items-center justify-center gap-1 text-[12px] font-medium border-r border-[var(--edk-border)] text-[var(--edk-ink-2)] transition-colors hover:bg-[var(--blue-soft)] hover:border-[var(--blue)] hover:text-[var(--blue)]"
           >
             <IconEdit /> Edit
           </button>
@@ -422,14 +375,7 @@ function ProductCardInner({
             <button
               type="button"
               onClick={() => onEditOpen?.(product.id)}
-              className="h-[30px] flex items-center justify-center gap-1 text-[12px] font-medium border-r transition-colors hover:border-[var(--blue)] hover:text-[var(--blue)]"
-              style={{ fontFamily: 'var(--font-b)', color: 'var(--blue)', borderColor: 'var(--border)' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--blue-dim)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '';
-              }}
+              className="h-10 flex items-center justify-center gap-1 text-[12px] font-medium border-r border-[var(--edk-border)] text-[var(--blue)] transition-colors hover:bg-[var(--blue-soft)]"
             >
               <IconPlus /> Stock
             </button>
@@ -437,16 +383,7 @@ function ProductCardInner({
           <button
             type="button"
             onClick={() => onDelete?.(product)}
-            className="h-[30px] flex items-center justify-center transition-colors"
-            style={{ color: 'var(--text-2)' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--red-dim)';
-              e.currentTarget.style.color = 'var(--red-status)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '';
-              e.currentTarget.style.color = 'var(--text-2)';
-            }}
+            className="h-10 flex items-center justify-center text-[var(--edk-ink-2)] transition-colors hover:bg-[var(--edk-red-soft)] hover:text-[var(--edk-red)]"
             aria-label="Delete product"
             title="Delete product"
           >
@@ -474,11 +411,8 @@ export default ProductCard;
 
 export function ProductCardSkeleton() {
   return (
-    <div
-      className="rounded-[14px] overflow-hidden border shadow-[var(--shadow-sm)]"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
-    >
-      <div className="w-full aspect-[4/3] skeleton-shimmer" />
+    <div className="rounded-[var(--edk-radius)] overflow-hidden border border-[var(--edk-border-mid)] bg-[var(--edk-surface)] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+      <div className="w-full aspect-[4/3] skeleton-shimmer bg-[var(--edk-surface-2)]" />
       <div className="px-4 pt-3.5 pb-4 flex flex-col gap-2.5">
         <div className="h-4 w-3/4 rounded-lg skeleton-shimmer" />
         <div className="h-3 w-1/2 rounded-lg skeleton-shimmer" />
@@ -489,7 +423,7 @@ export function ProductCardSkeleton() {
           ))}
         </div>
       </div>
-      <div className="h-12 border-t skeleton-shimmer" style={{ borderColor: 'var(--border)' }} />
+      <div className="h-10 border-t border-[var(--edk-border)] skeleton-shimmer" />
     </div>
   );
 }

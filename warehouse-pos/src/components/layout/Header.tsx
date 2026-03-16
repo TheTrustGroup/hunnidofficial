@@ -2,8 +2,7 @@
 // Hidden on /pos so POS page uses its own topbar only.
 import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Search, Bell, LogOut, ShoppingCart } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, Bell, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/Button';
 import { RealtimeSyncIndicator } from '../RealtimeSyncIndicator';
@@ -68,7 +67,7 @@ export function Header() {
 
   return (
     <>
-      {/* Mobile: page title, search, LIVE, bell, logout, cart (44px tap targets) */}
+      {/* Mobile: page title, search, LIVE, bell, logout — cart is in bottom nav only */}
       <header
         className="lg:hidden fixed top-0 left-0 right-0 h-[var(--edk-topbar-h)] bg-[var(--edk-surface)] border-b border-[var(--edk-border)] flex items-center gap-1 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] z-10"
         style={{ fontFamily: "'DM Sans', system-ui, sans-serif", paddingTop: 'var(--safe-top)' }}
@@ -107,13 +106,6 @@ export function Header() {
         >
           <LogOut className="w-5 h-5" strokeWidth={2} />
         </button>
-        <Link
-          to="/pos"
-          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md bg-[var(--blue)] text-white shrink-0"
-          aria-label="New sale"
-        >
-          <ShoppingCart className="w-5 h-5" strokeWidth={2} />
-        </Link>
       </header>
 
       {/* Desktop: single search (max 520px, 32px height, blue focus), sync, logout, bell */}

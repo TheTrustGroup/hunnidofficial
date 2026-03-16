@@ -47,6 +47,15 @@ const CATEGORIES = ['Sneakers', 'Slippers', 'Boots', 'Sandals', 'Accessories'];
 /** Color filter options (pills). "All" and "Uncategorized" plus standard palette. */
 const COLOR_OPTIONS = ['All', 'Black', 'White', 'Red', 'Blue', 'Brown', 'Green', 'Grey', 'Navy', 'Beige', 'Multi', 'Uncategorized'];
 
+/** EU half sizes so product modal always offers .5 when recording stock (merged with API size codes). */
+const EU_HALF_SIZES: SizeCode[] = [
+  { size_code: 'EU37.5', size_label: 'EU 37.5' }, { size_code: 'EU38.5', size_label: 'EU 38.5' },
+  { size_code: 'EU39.5', size_label: 'EU 39.5' }, { size_code: 'EU40.5', size_label: 'EU 40.5' },
+  { size_code: 'EU41.5', size_label: 'EU 41.5' }, { size_code: 'EU42.5', size_label: 'EU 42.5' },
+  { size_code: 'EU43.5', size_label: 'EU 43.5' }, { size_code: 'EU44.5', size_label: 'EU 44.5' },
+  { size_code: 'EU45.5', size_label: 'EU 45.5' }, { size_code: 'EU46.5', size_label: 'EU 46.5' },
+];
+
 /** Fallback list when WarehouseContext has not yet loaded. IDs must match backend. */
 const FALLBACK_WAREHOUSES: Pick<Warehouse, 'id' | 'name'>[] = [
   { id: '00000000-0000-0000-0000-000000000001', name: 'Main Store' },
@@ -448,13 +457,22 @@ export default function InventoryPage(_props: InventoryPageProps) {
     }
   }, []);
 
-  // ── Load size codes ───────────────────────────────────────────────────────
+  // ── Load size codes (API + merge EU half sizes so .5 is always available) ───
 
   const loadSizeCodes = useCallback(async () => {
     try {
       const raw  = await apiFetch<unknown>('/api/size-codes');
       const list = Array.isArray(raw) ? raw : (raw as { data?: SizeCode[] })?.data ?? [];
-      setSizeCodes(list);
+      const byCode = new Map<string, SizeCode>(list.map((s) => [s.size_code, s]));
+      EU_HALF_SIZES.forEach((s) => { if (!byCode.has(s.size_code)) byCode.set(s.size_code, s); });
+      const merged = Array.from(byCode.values());
+      merged.sort((a, b) => {
+        const numA = parseFloat(String(a.size_code).replace(/^EU/i, ''));
+        const numB = parseFloat(String(b.size_code).replace(/^EU/i, ''));
+        if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
+        return String(a.size_code).localeCompare(b.size_code);
+      });
+      setSizeCodes(merged);
     } catch { /* non-critical */ }
   }, [apiFetch]);
 
@@ -730,17 +748,17 @@ export default function InventoryPage(_props: InventoryPageProps) {
         </div>
       )}
 
-      {/* Filter toolbar: category pills, Size/Color dropdowns, sort, results count */}
-      <div className="flex flex-wrap items-center gap-2 mb-5">
+      {/* Filter toolbar: category pills, Size/Color dropdowns, sort, results count — match POS (blue active) */}
+      <div className="inventory-filters flex flex-wrap items-center gap-2 mb-5">
         <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
           {(['all', ...CATEGORIES] as string[]).map((cat) => (
             <button
               key={cat}
               type="button"
               onClick={() => setCategory(cat)}
-              className={`flex-shrink-0 h-[30px] px-2.5 rounded-[20px] text-[12px] font-medium border whitespace-nowrap transition-all duration-150 ${
+              className={`flex-shrink-0 h-[30px] px-2.5 rounded-[20px] text-[12px] font-medium border whitespace-nowrap transition-all duration-150 outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1 ${
                 category === cat
-                  ? 'bg-[var(--edk-ink)] border-[var(--edk-ink)] text-white'
+                  ? 'bg-[var(--blue)] border-[var(--blue)] text-white'
                   : 'bg-[var(--edk-surface)] border-[var(--edk-border-mid)] text-[var(--edk-ink-2)] hover:bg-[var(--edk-bg)]'
               }`}
             >

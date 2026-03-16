@@ -1,13 +1,11 @@
 /**
- * POS header: warehouse name, search, cart trigger.
+ * POS header: warehouse, search, scan, notifications, logout. No cart — cart is in bottom nav / cart bar.
  */
 export interface POSHeaderProps {
   warehouseName: string;
   search: string;
-  cartCount: number;
   onSearchChange: (value: string) => void;
   onWarehouseTap: () => void;
-  onCartTap: () => void;
   /** When true, warehouse name is static (no tap, no chevron). Use for session-bound POS. */
   canChangeWarehouse?: boolean;
   /** Optional: called when user taps the Scan pill (e.g. focus barcode scanner). */
@@ -22,12 +20,6 @@ const IconSearch = () => (
   </svg>
 );
 
-const IconCart = ({ className }: { className?: string }) => (
-  <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-  </svg>
-);
-
 const IconChevronDown = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <polyline points="6 9 12 15 18 9"/>
@@ -37,47 +29,38 @@ const IconChevronDown = () => (
 export default function POSHeader({
   warehouseName,
   search,
-  cartCount,
   onSearchChange,
   onWarehouseTap,
-  onCartTap,
   canChangeWarehouse = true,
   onScanClick,
   onLogout,
 }: POSHeaderProps) {
   return (
     <header
-      className="flex-shrink-0 h-14 px-4 flex items-center gap-2 border-b"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      className="flex-shrink-0 h-[56px] px-4 flex items-center gap-3 border-b bg-[var(--edk-surface)] border-[var(--edk-border-mid)]"
     >
       <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
         {canChangeWarehouse ? (
           <button
             type="button"
             onClick={onWarehouseTap}
-            className="flex items-center gap-1.5 min-w-0 text-left"
+            className="flex items-center gap-1.5 min-w-0 text-left rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1"
           >
-            <span
-              className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-md text-[12px] font-semibold border"
-              style={{ background: 'var(--green-dim)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" aria-hidden />
+            <span className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-md text-[12px] font-semibold border bg-[var(--edk-green-bg)] border-[rgba(22,163,74,0.2)] text-[var(--edk-green)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--edk-green)] shrink-0" aria-hidden />
               <span className="truncate">{warehouseName}</span>
             </span>
-            <span className="flex-shrink-0" style={{ color: 'var(--text-3)' }}><IconChevronDown /></span>
+            <span className="flex-shrink-0 text-[var(--edk-ink-3)]"><IconChevronDown /></span>
           </button>
         ) : (
-          <span
-            className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-md text-[12px] font-semibold border"
-            style={{ background: 'var(--green-dim)', borderColor: 'rgba(22,163,74,0.2)', color: 'var(--green)' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)]" aria-hidden />
+          <span className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-md text-[12px] font-semibold border bg-[var(--edk-green-bg)] border-[rgba(22,163,74,0.2)] text-[var(--edk-green)]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--edk-green)] shrink-0" aria-hidden />
             <span className="truncate">{warehouseName}</span>
           </span>
         )}
       </div>
-      <div className="flex-1 min-w-0 relative">
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-3)' }}>
+      <div className="flex-1 min-w-0 relative max-w-md">
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--edk-ink-3)]">
           <IconSearch />
         </span>
         <input
@@ -85,39 +68,22 @@ export default function POSHeader({
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search products or scan barcode…"
-          className="w-full h-9 pl-9 pr-[70px] rounded-[10px] text-[13px] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[var(--blue)] focus:shadow-[0_0_0_3px_var(--blue-dim)] [&::placeholder]:text-[var(--text-3)]"
-          style={{ background: 'var(--elevated)', border: '1px solid var(--border)', color: 'var(--text)' }}
+          className="w-full h-9 pl-9 pr-[70px] rounded-[var(--edk-radius)] text-[13px] outline-none transition-[border-color,box-shadow] duration-150 focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-soft)] placeholder:text-[var(--edk-ink-3)] bg-[var(--edk-bg)] border border-[var(--edk-border-mid)] text-[var(--edk-ink)]"
           aria-label="Search products or scan barcode"
         />
         <button
           type="button"
           onClick={onScanClick}
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-[23px] px-2 rounded text-white text-[10px] font-bold uppercase tracking-wide"
-          style={{ background: 'var(--text)' }}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-[26px] px-2.5 rounded-md bg-[var(--edk-ink)] text-white text-[10px] font-bold uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1"
           aria-label="Scan barcode"
         >
           Scan
         </button>
       </div>
-      <button
-        type="button"
-        onClick={onCartTap}
-        className="relative flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-white text-[13px] font-semibold transition-all hover:-translate-y-px flex-shrink-0"
-        style={{ background: 'var(--blue)', boxShadow: '0 2px 8px var(--blue-glow)' }}
-        aria-label={cartCount > 0 ? `Cart: ${cartCount} items` : 'Cart'}
-      >
-        <IconCart className="w-5 h-5" />
-        {cartCount > 0 && (
-          <span className="min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 text-[10px] font-bold" style={{ background: 'white', color: 'var(--blue)' }}>
-            {cartCount > 99 ? '99+' : cartCount}
-          </span>
-        )}
-      </button>
       <div className="flex items-center gap-2 flex-shrink-0">
         <button
           type="button"
-          className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
+          className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors bg-[var(--edk-surface)] border-[var(--edk-border-mid)] text-[var(--edk-ink-2)] focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1 disabled:opacity-50"
           aria-label="Notifications"
           disabled
         >
@@ -126,8 +92,7 @@ export default function POSHeader({
         <button
           type="button"
           onClick={onLogout}
-          className="flex items-center gap-1.5 h-9 px-3 rounded-lg border text-[12px] font-medium transition-colors"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
+          className="flex items-center gap-1.5 h-9 px-3 rounded-lg border text-[12px] font-medium transition-colors bg-[var(--edk-surface)] border-[var(--edk-border-mid)] text-[var(--edk-ink-2)] hover:bg-[var(--edk-bg)] focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1"
           aria-label="Log out"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>

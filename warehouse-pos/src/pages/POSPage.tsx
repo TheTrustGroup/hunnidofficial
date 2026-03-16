@@ -471,7 +471,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen flex flex-col lg:flex-row overflow-hidden" style={{ background: 'var(--edk-bg)' }}>
 
       {!isWarehouseBoundToSession && (
         <SessionScreen
@@ -487,10 +487,8 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         <POSHeader
           warehouseName={warehouse.name}
           search={search}
-          cartCount={cartCount}
           onSearchChange={setSearch}
           onWarehouseTap={() => !isWarehouseBoundToSession && setSessionOpen(true)}
-          onCartTap={() => { if (cartCount > 0) { setCartOpen(true); setChargeStatus('idle'); setLastChargeError(null); } }}
           canChangeWarehouse={!isWarehouseBoundToSession}
           onLogout={async () => {
             await logout();

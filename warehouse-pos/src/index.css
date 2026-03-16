@@ -430,6 +430,16 @@
   outline-offset: 2px;
   border-radius: 8px;
 }
+/* POS filter selects: solid background, no outline glitch (use ring only) */
+.pos-filters select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--edk-surface), 0 0 0 4px var(--blue);
+}
+/* Inventory filter selects: same clean focus */
+.inventory-filters select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--edk-surface), 0 0 0 4px var(--blue);
+}
 
 /* Selection color (standard + Firefox legacy) */
 ::selection {
