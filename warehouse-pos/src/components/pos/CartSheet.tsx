@@ -139,43 +139,6 @@ function PayBtn({ method, selected, onSelect }: { method: PaymentMethod; selecte
   );
 }
 
-function CartLineItem({ line, onUpdateQty, onRemove }: { line: CartLine; onUpdateQty: (k: string, d: number) => void; onRemove: (k: string) => void }) {
-  return (
-    <div
-      className="flex items-start gap-3 px-5 py-3.5 border-b last:border-0 rounded-[10px] mx-2 mt-1"
-      style={{ borderColor: 'var(--border)', background: 'var(--elevated)' }}
-    >
-      <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-bold truncate leading-snug" style={{ color: 'var(--text)' }}>{line.name}</p>
-        <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-3)' }}>{line.sizeLabel ? `${line.sizeLabel} · ` : ''}{fmt(line.unitPrice)} each</p>
-        <div className="flex items-center gap-2 mt-2">
-          <button
-            type="button"
-            onClick={() => onUpdateQty(line.key, -1)}
-            className="min-w-[44px] min-h-[44px] rounded-lg border text-[14px] font-bold flex items-center justify-center active:scale-90 transition-all duration-150"
-            style={{ background: 'var(--border)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
-          >
-            −
-          </button>
-          <span className="text-[14px] font-bold min-w-[20px] text-center tabular-nums" style={{ color: 'var(--text)' }}>{line.qty}</span>
-          <button
-            type="button"
-            onClick={() => onUpdateQty(line.key, 1)}
-            className="w-7 h-7 rounded-lg border text-[14px] font-bold flex items-center justify-center active:scale-90 transition-all duration-150"
-            style={{ background: 'var(--border)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
-          >
-            +
-          </button>
-        </div>
-      </div>
-      <div className="flex flex-col items-end gap-2 flex-shrink-0 pt-0.5">
-        <button type="button" onClick={() => onRemove(line.key)} className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-colors" style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }}><IconX /></button>
-        <p className="text-[14px] font-bold tabular-nums" style={{ color: 'var(--blue)', fontFamily: 'var(--font-m)' }}>{fmt(line.unitPrice * line.qty)}</p>
-      </div>
-    </div>
-  );
-}
-
 function FieldRow({ icon, placeholder, value, onChange, type = 'text', min }: { icon: React.ReactNode; placeholder: string; value: string; onChange: (v: string) => void; type?: string; min?: string; }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-amber-100/60 last:border-0">
@@ -250,7 +213,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
       <div
         className={`fixed inset-0 z-40 transition-all duration-250 ${isOpen ? 'bg-black/40 backdrop-blur-[2px] pointer-events-auto' : 'bg-transparent pointer-events-none'}`}
         style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
-        onClick={() => !isCharging && onClose()}
+        onClick={() => !processing && onClose()}
       />
       <div
         className={`fixed left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] flex flex-col max-h-[80vh] transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
@@ -418,15 +381,20 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
 
         {/* Charge button — IDLE / PROCESSING / SUCCESS / ERROR */}
         {lines.length > 0 && (
-            <div
-              className="px-5 py-4 flex-shrink-0"
-              style={{
-                borderTop: '0.5px solid var(--h-gray-100)',
-                background: 'var(--h-white)',
-                position: 'sticky',
-                bottom: 0,
-              }}
-            >
+          <div
+            className="px-5 py-4 flex-shrink-0 space-y-1"
+            style={{
+              borderTop: '0.5px solid var(--h-gray-100)',
+              background: 'var(--h-white)',
+              position: 'sticky',
+              bottom: 0,
+            }}
+          >
+            {chargeStatus === 'error' && lastChargeError && (
+              <p className="text-[11px] text-red-500 font-medium text-center">
+                {lastChargeError}
+              </p>
+            )}
             <button
               type="button"
               onClick={chargeStatus === 'error' ? onRetry : handleCharge}

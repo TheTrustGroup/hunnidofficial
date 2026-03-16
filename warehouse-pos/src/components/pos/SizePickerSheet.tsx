@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 /**
  * POS product shape. Inventory Product (from useInventory) passed into POS views
@@ -48,7 +48,6 @@ interface SizePickerSheetProps {
 }
 
 export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }: SizePickerSheetProps) {
-  const [qty, setQty] = useState(1);
   const [pending, setPending] = useState<PendingLine[]>([]);
 
   const isSized = product?.sizeKind === 'sized' && (product?.quantityBySize?.length ?? 0) > 0;
@@ -60,12 +59,12 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       const i = prev.findIndex((p) => (p.sizeCode ?? 'NA') === key);
       if (i >= 0) {
         const next = [...prev];
-        next[i] = { ...next[i], qty: next[i].qty + qty };
+        next[i] = { ...next[i], qty: next[i].qty + 1 };
         return next;
       }
-      return [...prev, { sizeCode, sizeLabel, qty }];
+      return [...prev, { sizeCode, sizeLabel, qty: 1 }];
     });
-  }, [qty]);
+  }, []);
 
   const updatePendingQty = useCallback((index: number, delta: number) => {
     setPending((prev) => {
@@ -75,10 +74,6 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       next[index] = { ...next[index], qty: n };
       return next;
     });
-  }, []);
-
-  const removePending = useCallback((index: number) => {
-    setPending((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleAddToCart = useCallback(() => {
@@ -106,7 +101,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       return;
     }
     if (!isSized) {
-      onAdd({ ...base, sizeCode: undefined, sizeLabel: undefined, qty });
+      onAdd({ ...base, sizeCode: undefined, sizeLabel: undefined, qty: 1 });
       onClose();
     }
   }, [product, isSized, pending, onAdd, onAddBatch, onClose]);
@@ -400,7 +395,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                 }}
               >
                 Add to cart — GH₵
-                {(product.sellingPrice * qty).toLocaleString('en-GH', {
+                {(product.sellingPrice * 1).toLocaleString('en-GH', {
                   minimumFractionDigits: 2,
                 })}
               </button>
