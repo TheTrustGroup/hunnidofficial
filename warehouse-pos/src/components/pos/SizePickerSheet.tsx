@@ -113,120 +113,385 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
 
   if (!product) return null;
 
+  const totalSelected = pending.reduce((s, l) => s + product.sellingPrice * l.qty, 0);
+
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-slate-900/50" onClick={onClose} aria-hidden />
-      <div className="fixed bottom-0 left-0 right-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-white shadow-xl">
-        <div className="sticky top-0 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
-          <h3 className="font-semibold text-slate-900">{product.name}</h3>
-          <button type="button" onClick={onClose} className="p-2 text-slate-500 hover:text-slate-700">
-            ✕
-          </button>
+      {/* Sheet overlay: leaves room for bottom nav */}
+      <div
+        className="fixed inset-0 z-50 flex flex-col justify-end"
+        style={{
+          paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          background: 'rgba(15,14,12,0.55)',
+        }}
+        onClick={onClose}
+        aria-hidden
+      />
+      <div
+        className="fixed left-0 right-0 z-50 flex flex-col rounded-t-2xl bg-white shadow-xl"
+        style={{
+          bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+          maxHeight: '80vh',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-2 flex-shrink-0">
+          <div
+            style={{
+              width: 36,
+              height: 4,
+              borderRadius: 999,
+              background: 'var(--h-gray-200)',
+            }}
+          />
         </div>
-        <div className="p-4">
-          <div className="mb-4 flex items-center gap-4">
-            <span className="text-sm text-slate-600">Qty per tap</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setQty((n) => Math.max(1, n - 1))}
-                className="h-9 w-9 rounded-lg border border-slate-200 bg-slate-50 font-medium"
-              >
-                −
-              </button>
-              <span className="w-8 text-center font-medium">{qty}</span>
-              <button
-                type="button"
-                onClick={() => setQty((n) => n + 1)}
-                className="h-9 w-9 rounded-lg border border-slate-200 bg-slate-50 font-medium"
-              >
-                +
-              </button>
-            </div>
+
+        {/* Header */}
+        <div
+          className="flex items-start justify-between flex-shrink-0"
+          style={{
+            padding: '14px 20px 12px',
+            borderBottom: '0.5px solid var(--h-gray-100)',
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 22,
+                letterSpacing: '0.04em',
+                color: 'var(--h-gray-900)',
+              }}
+            >
+              {product.name.toUpperCase()}
+            </h2>
+            <p
+              style={{
+                fontSize: 12,
+                color: 'var(--h-gray-400)',
+                marginTop: 3,
+              }}
+            >
+              {product.sku}
+            </p>
           </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 999,
+                border: '0.5px solid var(--h-gray-200)',
+                background: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <span
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 22,
+                color: 'var(--h-blue)',
+              }}
+            >
+              GH₵{product.sellingPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+
+        {/* Hint */}
+        <div
+          className="flex-shrink-0"
+          style={{
+            padding: '10px 20px',
+            borderBottom: '0.5px solid var(--h-gray-100)',
+          }}
+        >
+          <p style={{ fontSize: 12, color: 'var(--h-gray-400)' }}>Select sizes and quantity, then tap Add to cart.</p>
+        </div>
+
+        {/* Scrollable size list */}
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '10px 20px 0' }}>
           {isSized ? (
-            <>
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                {sizes.map((row) => (
-                  <button
-                    key={row.sizeCode}
-                    type="button"
-                    disabled={row.quantity <= 0}
-                    onClick={() => addToPending(row.sizeCode, row.sizeLabel ?? null)}
-                    className="rounded-xl border border-slate-200 py-3 font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:border-primary-400 hover:bg-primary-50"
+            sizes.map((row) => {
+              const key = row.sizeCode ?? 'NA';
+              const pendingLine = pending.find((p) => (p.sizeCode ?? 'NA') === key);
+              const isSelected = Boolean(pendingLine);
+              const selectedQty = pendingLine?.qty ?? 0;
+              const stock = row.quantity;
+              const canIncrement = selectedQty < stock;
+
+              const handleRowToggle = () => {
+                if (isSelected) return;
+                addToPending(row.sizeCode, row.sizeLabel ?? null);
+              };
+
+              const handleDec = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (!pendingLine) return;
+                const idx = pending.findIndex((p) => (p.sizeCode ?? 'NA') === key);
+                if (idx >= 0) updatePendingQty(idx, -1);
+              };
+
+              const handleInc = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                if (!pendingLine || !canIncrement) return;
+                const idx = pending.findIndex((p) => (p.sizeCode ?? 'NA') === key);
+                if (idx >= 0) updatePendingQty(idx, 1);
+              };
+
+              return (
+                <div
+                  key={row.sizeCode}
+                  onClick={handleRowToggle}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '11px 14px',
+                    borderRadius: 10,
+                    border: isSelected
+                      ? '1.5px solid var(--h-blue)'
+                      : '0.5px solid var(--h-gray-200)',
+                    background: isSelected ? 'var(--h-blue-light)' : 'white',
+                    marginBottom: 8,
+                    cursor: stock > 0 ? 'pointer' : 'not-allowed',
+                    opacity: stock > 0 ? 1 : 0.4,
+                    userSelect: 'none',
+                  }}
+                >
+                  {/* Checkbox */}
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 5,
+                      flexShrink: 0,
+                      marginRight: 10,
+                      background: isSelected ? 'var(--h-blue)' : 'transparent',
+                      border: `1.5px solid ${
+                        isSelected ? 'var(--h-blue)' : 'var(--h-gray-300)'
+                      }`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: 10,
+                      fontWeight: 700,
+                    }}
                   >
-                    <span className="block">{row.sizeLabel ?? row.sizeCode}</span>
-                    <span className="text-xs text-slate-500">Stock: {row.quantity}</span>
-                  </button>
-                ))}
-              </div>
+                    {isSelected ? '✓' : null}
+                  </div>
 
-              {pending.length > 0 && (
-                <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-                  <p className="text-xs font-medium text-slate-500 mb-2">Selection</p>
-                  <ul className="space-y-1.5">
-                    {pending.map((line, i) => (
-                      <li key={i} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="font-medium text-slate-800">
-                          {line.sizeLabel ?? line.sizeCode ?? 'One size'} × {line.qty}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => updatePendingQty(i, -1)}
-                            className="h-7 w-7 rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                          >
-                            −
-                          </button>
-                          <span className="w-6 text-center text-slate-700">{line.qty}</span>
-                          <button
-                            type="button"
-                            onClick={() => updatePendingQty(i, 1)}
-                            className="h-7 w-7 rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                          >
-                            +
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removePending(i)}
-                            className="h-7 px-2 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-                            aria-label="Remove"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Size label */}
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      minWidth: 36,
+                    }}
+                  >
+                    {row.sizeLabel ?? row.sizeCode}
+                  </span>
+
+                  {/* Stock */}
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--h-gray-400)',
+                      flex: 1,
+                      marginLeft: 6,
+                    }}
+                  >
+                    {stock} left
+                  </span>
+
+                  {/* Qty controls */}
+                  {isSelected && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        background: 'var(--h-gray-100)',
+                        borderRadius: 6,
+                        overflow: 'hidden',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={handleDec}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: 18,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 6,
+                        }}
+                      >
+                        −
+                      </button>
+                      <span
+                        style={{
+                          minWidth: 28,
+                          textAlign: 'center',
+                          fontSize: 14,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {selectedQty}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleInc}
+                        disabled={!canIncrement}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: 18,
+                          cursor: canIncrement ? 'pointer' : 'not-allowed',
+                          opacity: canIncrement ? 1 : 0.35,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: 6,
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-
+              );
+            })
+          ) : (
+            <div style={{ paddingBottom: 12 }}>
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={pending.length === 0}
-                className="w-full rounded-xl bg-primary-600 py-3 font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-700 disabled:hover:bg-primary-600"
+                style={{
+                  width: '100%',
+                  padding: 14,
+                  borderRadius: 10,
+                  border: 'none',
+                  background: 'var(--h-blue)',
+                  color: 'white',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  cursor: 'pointer',
+                }}
               >
-                Add to cart
-                {pending.length > 0 && (
-                  <span className="ml-2 opacity-90">
-                    — GH₵{pending
-                      .reduce((s, l) => s + product.sellingPrice * l.qty, 0)
-                      .toLocaleString('en-GH', { minimumFractionDigits: 2 })}
-                  </span>
-                )}
+                Add to cart — GH₵
+                {(product.sellingPrice * qty).toLocaleString('en-GH', {
+                  minimumFractionDigits: 2,
+                })}
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              className="w-full rounded-xl bg-primary-600 py-3 font-semibold text-white"
-            >
-              Add to cart — GH₵{(product.sellingPrice * qty).toLocaleString('en-GH', { minimumFractionDigits: 2 })}
-            </button>
+            </div>
           )}
         </div>
+
+        {/* Sticky footer: summary + CTA */}
+        {isSized && (
+          <div
+            style={{
+              flexShrink: 0,
+              padding: '12px 20px 16px',
+              borderTop: '0.5px solid var(--h-gray-100)',
+              background: 'white',
+              position: 'sticky',
+              bottom: 0,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                marginBottom: 10,
+                minHeight: 24,
+                flexWrap: 'wrap',
+              }}
+            >
+              {pending.map((line, i) => (
+                <span
+                  key={`${line.sizeCode ?? 'NA'}-${i}`}
+                  style={{
+                    background: 'var(--h-blue-light)',
+                    color: 'var(--h-blue)',
+                    borderRadius: 6,
+                    padding: '3px 8px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}
+                >
+                  {(line.sizeLabel ?? line.sizeCode ?? 'One size') + ` ×${line.qty}`}
+                </span>
+              ))}
+              {pending.length > 0 && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--h-gray-400)',
+                    marginLeft: 2,
+                  }}
+                >
+                  = GH₵
+                  {totalSelected.toLocaleString('en-GH', {
+                    minimumFractionDigits: 2,
+                  })}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              disabled={pending.length === 0}
+              onClick={handleAddToCart}
+              style={{
+                width: '100%',
+                padding: 14,
+                border: 'none',
+                borderRadius: 10,
+                background:
+                  pending.length > 0 ? 'var(--h-blue)' : 'var(--h-gray-100)',
+                color:
+                  pending.length > 0 ? 'white' : 'var(--h-gray-400)',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: pending.length > 0 ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                transition: 'background 0.15s',
+              }}
+            >
+              {pending.length > 0
+                ? `Add to cart — GH₵${totalSelected.toLocaleString('en-GH', {
+                    minimumFractionDigits: 2,
+                  })}`
+                : 'Select a size to add'}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

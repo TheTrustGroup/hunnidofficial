@@ -285,6 +285,25 @@
     :root {
       --glass-blur: 6px;
     }
+
+    /* MOBILE LAYOUT TOKENS */
+    .page-title { font-size: 22px; }
+    .stat-value { font-size: 24px; }
+
+    .page-padding { padding-left: 16px; padding-right: 16px; }
+    .card-padding { padding: 14px 16px; }
+
+    .stats-grid,
+    .product-grid,
+    .pos-product-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 8px;
+      row-gap: 8px;
+    }
+
+    .page-scroll-content {
+      padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 16px);
+    }
   }
 
   /* Optional: reduce motion / low-end (no blur intensity change by RAM in CSS; we only do viewport) */

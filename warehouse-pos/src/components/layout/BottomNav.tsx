@@ -41,11 +41,14 @@ export function BottomNav() {
 
   return (
     <nav
-      className="lg:hidden fixed left-0 right-0 z-[200]"
+      className="lg:hidden fixed left-0 right-0"
       style={{
         height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         bottom: 0,
+        zIndex: 100,
+        background: 'white',
+        borderTop: '0.5px solid var(--h-gray-200)',
       }}
       aria-label="Main navigation"
     >

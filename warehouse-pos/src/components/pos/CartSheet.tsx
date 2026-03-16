@@ -246,8 +246,17 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
 
   return (
     <>
-      <div className={`fixed inset-0 z-40 transition-all duration-250 ${isOpen ? 'bg-black/40 backdrop-blur-[2px] pointer-events-auto' : 'bg-transparent pointer-events-none'}`} onClick={() => !isCharging && onClose()} />
-      <div className={`fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] flex flex-col max-h-[92vh] transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`} onClick={e => e.stopPropagation()}>
+      {/* Overlay leaves room for bottom nav */}
+      <div
+        className={`fixed inset-0 z-40 transition-all duration-250 ${isOpen ? 'bg-black/40 backdrop-blur-[2px] pointer-events-auto' : 'bg-transparent pointer-events-none'}`}
+        style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+        onClick={() => !isCharging && onClose()}
+      />
+      <div
+        className={`fixed left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] flex flex-col max-h-[80vh] transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+        onClick={e => e.stopPropagation()}
+      >
 
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0"><div className="w-10 h-1 rounded-full bg-slate-200" /></div>
 
@@ -409,7 +418,15 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
 
         {/* Charge button — IDLE / PROCESSING / SUCCESS / ERROR */}
         {lines.length > 0 && (
-          <div className="px-5 py-4 border-t flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+            <div
+              className="px-5 py-4 flex-shrink-0"
+              style={{
+                borderTop: '0.5px solid var(--h-gray-100)',
+                background: 'var(--h-white)',
+                position: 'sticky',
+                bottom: 0,
+              }}
+            >
             <button
               type="button"
               onClick={chargeStatus === 'error' ? onRetry : handleCharge}
