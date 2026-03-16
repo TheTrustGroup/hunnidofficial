@@ -120,6 +120,12 @@ interface InventoryContextType {
   storagePersistFailed: boolean;
   /** Current save phase for product form: idle | saving | verifying. Use for button label (Saving… / Verifying…). */
   savePhase: 'idle' | 'saving' | 'verifying';
+  /** True when more products can be loaded (API pagination). When false, InventoryPage does not show "Load more". */
+  hasMore: boolean;
+  /** Load next page of products. No-op when hasMore is false. */
+  loadMore: () => Promise<void>;
+  /** True while loadMore is in progress. */
+  isLoadingMore: boolean;
 }
 
 export interface ProductFilters {
@@ -1201,6 +1207,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       verifyProductSaved,
       storagePersistFailed,
       savePhase,
+      hasMore: false,
+      loadMore: async () => {},
+      isLoadingMore: false,
     }),
     [
       productsWithLocalImages,

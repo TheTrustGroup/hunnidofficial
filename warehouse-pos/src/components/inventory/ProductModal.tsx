@@ -85,7 +85,7 @@ export interface Product {
   sellingPrice: number;
   costPrice: number;
   reorderLevel?: number;
-  sizeKind: 'na' | 'one_size' | 'sized';
+  sizeKind?: 'na' | 'one_size' | 'sized';
   quantity: number;
   quantityBySize: Array<{ sizeCode: string; quantity: number }>;
   location?: { warehouse?: string; aisle?: string; rack?: string; bin?: string };

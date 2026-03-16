@@ -87,7 +87,7 @@ function logCircuitState(state: State): void {
   }
 }
 
-export function getApiCircuitBreaker(): CircuitBreaker {
+export function getApiCircuitBreaker(_name?: string): CircuitBreaker {
   if (!sharedCircuit) {
     sharedCircuit = new CircuitBreaker({
       failureThreshold: 8,
@@ -96,4 +96,14 @@ export function getApiCircuitBreaker(): CircuitBreaker {
     });
   }
   return sharedCircuit;
+}
+
+/** Reset state of the shared circuit so the app Retry button allows requests again. */
+export function resetAllApiCircuitBreakers(): void {
+  if (sharedCircuit) sharedCircuit.reset();
+}
+
+/** True if the shared circuit is open (for app-wide "Server unavailable" banner). */
+export function isAnyApiCircuitDegraded(): boolean {
+  return sharedCircuit?.isDegraded() ?? false;
 }

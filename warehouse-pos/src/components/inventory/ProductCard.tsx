@@ -8,6 +8,7 @@
 // ============================================================
 
 import { useState, useRef, useCallback, memo } from 'react';
+import type { Product } from '../../types';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -15,24 +16,6 @@ export interface SizeRow {
   sizeCode: string;
   quantity: number;
   sizeLabel?: string;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  barcode?: string;
-  category: string;
-  /** Product color for filter (e.g. Red, Black). Optional. */
-  color?: string | null;
-  sellingPrice: number;
-  costPrice: number;
-  quantity: number;
-  sizeKind: 'na' | 'one_size' | 'sized';
-  quantityBySize: SizeRow[];
-  location?: { aisle?: string; rack?: string; bin?: string; warehouse?: string };
-  images?: string[];
-  reorderLevel?: number;
 }
 
 interface ProductCardProps {
@@ -55,7 +38,8 @@ interface ProductCardProps {
 type StockStatus = 'in' | 'low' | 'out';
 
 function getTotalQuantity(product: Product): number {
-  if (product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0) {
+  const sizeKind = product.sizeKind ?? 'na';
+  if (sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0) {
     return (product.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
   }
   return product.quantity ?? 0;
@@ -121,7 +105,8 @@ function StockBadge({ status }: { status: StockStatus }) {
 // ── Size Pills ─────────────────────────────────────────────────────────────
 
 function SizePills({ product }: { product: Product }) {
-  if (product.sizeKind === 'na') {
+  const sizeKind = product.sizeKind ?? 'na';
+  if (sizeKind === 'na') {
     return (
       <div className="flex items-center gap-1.5 mb-3">
         <span
@@ -134,7 +119,7 @@ function SizePills({ product }: { product: Product }) {
     );
   }
 
-  if (product.sizeKind === 'one_size') {
+  if (sizeKind === 'one_size') {
     return (
       <div className="flex items-center gap-1.5 mb-3">
         <span
@@ -147,7 +132,8 @@ function SizePills({ product }: { product: Product }) {
     );
   }
 
-  if (product.quantityBySize.length === 0) {
+  const qtyBySize = product.quantityBySize ?? [];
+  if (qtyBySize.length === 0) {
     return (
       <div className="mb-3">
         <span className="text-[12px] italic" style={{ color: 'var(--text-3)' }}>No sizes recorded</span>
@@ -158,7 +144,7 @@ function SizePills({ product }: { product: Product }) {
   const reorder = product.reorderLevel ?? 3;
   return (
     <div className="flex flex-wrap gap-1 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-none">
-      {product.quantityBySize.map((row) => {
+      {qtyBySize.map((row) => {
         const isOut = row.quantity === 0;
         const isLow = row.quantity > 0 && row.quantity <= reorder;
         const pillStyle = isOut
@@ -190,12 +176,14 @@ interface StockEditorProps {
 }
 
 function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
+  const sizeKind = product.sizeKind ?? 'na';
+  const qtyBySize = product.quantityBySize ?? [];
   // Initialize local rows from product
   const [rows, setRows] = useState<SizeRow[]>(() => {
-    if (product.sizeKind === 'sized' && product.quantityBySize.length > 0) {
-      return product.quantityBySize.map(r => ({ ...r }));
+    if (sizeKind === 'sized' && qtyBySize.length > 0) {
+      return qtyBySize.map(r => ({ ...r }));
     }
-    return [{ sizeCode: product.sizeKind === 'one_size' ? 'ONE_SIZE' : 'QTY', quantity: product.quantity }];
+    return [{ sizeCode: sizeKind === 'one_size' ? 'ONE_SIZE' : 'QTY', quantity: product.quantity }];
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -208,10 +196,10 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
   async function handleSave() {
     setSaving(true);
     try {
-      const isSized = product.sizeKind === 'sized';
+      const isSized = sizeKind === 'sized';
       const total = rows.reduce((s, r) => s + r.quantity, 0);
       await onSave({
-        sizeKind: product.sizeKind,
+        sizeKind,
         quantity: total,
         quantityBySize: isSized ? rows : [],
       });
@@ -233,10 +221,10 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
           <div key={row.sizeCode} className="grid grid-cols-[1fr_96px] gap-2 items-center py-1.5 border-b border-slate-100 last:border-0">
             <div>
               <p className="text-[14px] font-semibold text-slate-700">
-                {product.sizeKind === 'sized' ? row.sizeCode : product.sizeKind === 'one_size' ? 'One size' : 'Quantity'}
+                {sizeKind === 'sized' ? row.sizeCode : sizeKind === 'one_size' ? 'One size' : 'Quantity'}
               </p>
-              <p className="text-[11px] text-slate-400">Was: {product.sizeKind === 'sized'
-                ? (product.quantityBySize.find(r => r.sizeCode === row.sizeCode)?.quantity ?? 0)
+              <p className="text-[11px] text-slate-400">Was: {sizeKind === 'sized'
+                ? (qtyBySize.find(r => r.sizeCode === row.sizeCode)?.quantity ?? 0)
                 : product.quantity
               }</p>
             </div>
@@ -262,7 +250,7 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
       </div>
 
       {/* Total for sized products */}
-      {product.sizeKind === 'sized' && rows.length > 1 && (
+      {sizeKind === 'sized' && rows.length > 1 && (
         <div className="flex justify-between items-center pt-2.5 mt-1">
           <span className="text-[12px] font-semibold text-slate-500">Total</span>
           <span className="text-[15px] font-bold text-slate-900">

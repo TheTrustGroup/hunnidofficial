@@ -11,7 +11,7 @@
 //     lastSaveTimeRef guard, pendingDeletesRef, size-wipe guard
 // ============================================================
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Package, AlertTriangle } from 'lucide-react';
 import ProductCard, { ProductCardSkeleton } from '../components/inventory/ProductCard';
@@ -200,7 +200,7 @@ function ToastContainer({ toasts }: { toasts: ToastItem[] }) {
 
 function DeleteDialog({
   product, onConfirm, onCancel
-}: { product: Product; onConfirm: () => void; onCancel: () => void; }) {
+}: { product: { name: string }; onConfirm: () => void; onCancel: () => void; }) {
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]" onClick={onCancel} aria-hidden />
@@ -984,10 +984,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
       {/* ══ Modals ══ */}
       <ProductModal
         isOpen={modalOpen}
-        product={editingProduct}
+        product={editingProduct as React.ComponentProps<typeof ProductModal>['product']}
         sizeCodes={sizeCodes}
         warehouseId={warehouseId}
-        onSubmit={handleSubmit}
+        onSubmit={handleSubmit as React.ComponentProps<typeof ProductModal>['onSubmit']}
         onClose={closeModal}
       />
 
