@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Check, ShoppingCart } from 'lucide-react';
 
 /**
@@ -118,6 +118,12 @@ interface SizePickerSheetProps {
 export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }: SizePickerSheetProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [qtyBySize, setQtyBySize] = useState<Record<string, number>>({});
+
+  // Reset selection when opening for a different product so previous product's sizes are not still highlighted.
+  useEffect(() => {
+    setSelectedIds(new Set());
+    setQtyBySize({});
+  }, [product?.id]);
 
   const variants = useMemo(() => product?.quantityBySize ?? [], [product]);
 
