@@ -285,6 +285,39 @@
     :root {
       --glass-blur: 6px;
     }
+
+    /* Mobile typography + spacing scale-down (visual only; desktop unchanged) */
+    body {
+      font-size: 13px;
+    }
+
+    h1,
+    .page-title,
+    [data-page-title='true'] {
+      font-size: 22px !important;
+      letter-spacing: 0.08em;
+    }
+
+    .stat-card-value,
+    [data-stat-value='true'] {
+      font-size: 24px !important;
+    }
+
+    .page-padding {
+      padding-left: 16px !important;
+      padding-right: 16px !important;
+    }
+
+    .card-padding {
+      padding: 14px 16px !important;
+    }
+
+    .grid-products,
+    .grid-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      column-gap: 8px !important;
+      row-gap: 8px !important;
+    }
   }
 
   /* Optional: reduce motion / low-end (no blur intensity change by RAM in CSS; we only do viewport) */

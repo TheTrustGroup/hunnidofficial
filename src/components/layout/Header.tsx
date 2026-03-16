@@ -80,12 +80,11 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 left-0 right-0 z-50 flex items-center justify-between gap-4 h-14 border-b"
+      className="sticky top-0 left-0 right-0 z-50 flex items-center justify-between gap-4 h-14 border-b page-padding"
       style={{
         background: 'var(--h-white)',
         borderColor: 'var(--h-gray-200)',
         borderWidth: '0.5px',
-        padding: '0 24px',
         height: 56,
       }}
     >
@@ -113,7 +112,8 @@ export function Header() {
 
       {/* Search + LIVE + bell + logout + CTA */}
       <div className="flex items-center gap-3 flex-1 justify-end min-w-0 max-w-[480px]">
-        <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0 max-w-[360px]">
+        {/* Desktop search input */}
+        <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0 max-w-[360px] hidden md:block">
           <Search
             className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
             style={{ color: 'var(--h-gray-400)' }}
@@ -137,6 +137,20 @@ export function Header() {
             aria-label="Search products, SKU or name"
           />
         </form>
+
+        {/* Mobile search icon (opens Inventory search via navigation) */}
+        <button
+          type="button"
+          onClick={() => {
+            if (isInventory) return;
+            navigate('/inventory');
+          }}
+          className="md:hidden w-9 h-9 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0"
+          style={{ background: 'var(--h-gray-100)', color: 'var(--h-gray-500)' }}
+          aria-label="Search"
+        >
+          <Search className="w-4 h-4" strokeWidth={2} />
+        </button>
 
         {/* LIVE pill */}
         <span

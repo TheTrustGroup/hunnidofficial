@@ -103,9 +103,8 @@ function CartLineItem({ line, onUpdateQty, onRemove }: { line: CartLine; onUpdat
           <button
             type="button"
             onClick={() => onUpdateQty(line.key, -1)}
-            disabled={line.qty <= 1}
-            className="min-w-[44px] min-h-[44px] rounded-lg border text-sm font-bold flex items-center justify-center active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 touch-manipulation"
-            style={{ background: 'var(--border)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
+            className="min-w-[44px] min-h-[44px] rounded-lg border text-sm font-bold flex items-center justify-center active:scale-95 transition-all duration-150 touch-manipulation"
+            style={{ background: 'var(--h-gray-100)', borderColor: 'var(--h-gray-200)', color: 'var(--h-gray-700)' }}
           >
             −
           </button>

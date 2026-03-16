@@ -215,7 +215,7 @@ function ProductGridInner({
         </select>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 flex-1 content-start">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 flex-1 content-start grid-products">
         {filtered.map((p) => (
           <POSProductCard key={p.id} product={p} onSelect={onSelect} />
         ))}

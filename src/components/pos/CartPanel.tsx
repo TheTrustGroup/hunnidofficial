@@ -124,8 +124,7 @@ export default function CartPanel({
                       <button
                         type="button"
                         onClick={() => onUpdateQty(line.key, -1)}
-                        disabled={line.qty <= 1}
-                        className="min-w-[28px] min-h-[28px] w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center font-semibold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="min-w-[28px] min-h-[28px] w-7 h-7 rounded-[var(--radius-sm)] flex items-center justify-center font-semibold border transition-colors"
                         style={{ border: '0.5px solid var(--h-gray-200)', background: 'var(--h-gray-50)', color: 'var(--h-gray-700)' }}
                       >
                         −

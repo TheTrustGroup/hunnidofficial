@@ -76,7 +76,7 @@ export default function POSHeader({
           </span>
         )}
       </div>
-      <div className="flex-1 min-w-0 relative">
+      <div className="flex-1 min-w-0 relative hidden md:block">
         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-3)' }}>
           <IconSearch />
         </span>
@@ -99,6 +99,19 @@ export default function POSHeader({
           Scan
         </button>
       </div>
+      {/* Mobile: search icon instead of full input */}
+      <button
+        type="button"
+        className="md:hidden min-h-touch min-w-touch w-10 h-10 rounded-xl border flex items-center justify-center"
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
+        aria-label="Search products"
+        onClick={() => {
+          const value = prompt('Search products or SKU');
+          if (value != null) onSearchChange(value);
+        }}
+      >
+        <IconSearch />
+      </button>
       <button
         type="button"
         onClick={onCartTap}
@@ -126,7 +139,7 @@ export default function POSHeader({
         <button
           type="button"
           onClick={onLogout}
-          className="flex items-center gap-2 min-h-touch min-w-touch px-4 rounded-xl border text-sm font-medium transition-colors"
+          className="hidden md:flex items-center gap-2 min-h-touch min-w-touch px-4 rounded-xl border text-sm font-medium transition-colors"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
           aria-label="Log out"
         >

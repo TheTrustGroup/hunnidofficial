@@ -258,7 +258,16 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   }
 
   function handleUpdateQty(key: string, delta: number) {
-    setCart(prev => prev.map(l => l.key === key ? { ...l, qty: Math.max(1, l.qty + delta) } : l));
+    setCart(prev =>
+      prev
+        .map(l => {
+          if (l.key !== key) return l;
+          const nextQty = l.qty + delta;
+          if (nextQty <= 0) return null;
+          return { ...l, qty: nextQty };
+        })
+        .filter((l): l is CartLine => l !== null)
+    );
   }
 
   function handleRemoveLine(key: string) {
@@ -416,8 +425,13 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       throw new Error('Sale failed to sync');
     }
 
-    // Step 4: Notify so Dashboard and Inventory refetch
-    if (syncOk) notifyInventoryUpdated();
+    // Step 4: Ensure product caches reflect latest stock, then notify Dashboard/Inventory listeners
+    if (syncOk && warehouse?.id) {
+      const key = productsQueryKey(warehouse.id);
+      await queryClient.invalidateQueries({ queryKey: key, exact: false });
+      await queryClient.refetchQueries({ queryKey: key, exact: false });
+      notifyInventoryUpdated();
+    }
   }
 
   // ── New sale ──────────────────────────────────────────────────────────────

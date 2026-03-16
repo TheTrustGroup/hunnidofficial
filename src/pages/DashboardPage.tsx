@@ -341,7 +341,7 @@ export default function DashboardPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen p-3 sm:p-4" style={{ background: 'var(--h-cream)' }}>
+    <div className="min-h-screen page-padding" style={{ background: 'var(--h-cream)' }}>
       <div className="max-w-5xl mx-auto space-y-4">
 
         {/* ── Header ── */}
@@ -454,7 +454,7 @@ export default function DashboardPage() {
         )}
 
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 grid-stats">
           <DashboardStatCard
             label="STOCK VALUE"
             value={loading || !stats ? '—' : formatGHCCompact(stats.totalStockValue)}

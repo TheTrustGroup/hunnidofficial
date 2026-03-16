@@ -803,7 +803,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen pb-28" style={{ background: 'var(--h-cream)' }}>
+    <div className="min-h-screen pb-28 page-padding" style={{ background: 'var(--h-cream)' }}>
 
       {/* ══ Page header ══ */}
       <div className="px-4 pt-4 pb-3 lg:pt-6 lg:pb-4 lg:px-0">
@@ -847,7 +847,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
       {/* ══ Stats: full warehouse totals when no filter; else filtered-list stats ══ */}
       {!loading && !error && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3 mb-3 lg:mb-5 px-4 lg:px-0">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3 mb-3 lg:mb-5 px-4 lg:px-0 grid-stats">
           <StatCard
             label="SKUs"
             value={totalCount > 0 ? totalCount : 0}
@@ -1019,7 +1019,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
 
         {/* Skeletons */}
         {loading && !error && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 grid-products">
             {Array.from({ length: 6 }).map((_, i) => <ProductCardSkeleton key={i}/>)}
           </div>
         )}
@@ -1079,7 +1079,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
         {/* Product grid — view-only cards (CHANGE 4: 14px gap, 10px radius cards) */}
         {!loading && !error && displayed.length > 0 && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 lg:gap-3.5">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 lg:gap-3.5 grid-products">
               {displayed.map(product => (
                 <ProductCard
                   key={product.id}
