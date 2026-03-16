@@ -347,6 +347,19 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     const timeoutMs = options?.timeoutMs;
     const wid = useSentinelForProductsRef.current ? SENTINEL_EMPTY_WAREHOUSE_ID : effectiveWarehouseIdRef.current;
 
+    // Skip API when warehouse is sentinel or invalid — backend returns 400 for unknown warehouse_id
+    const isInvalidWarehouse =
+      wid === SENTINEL_EMPTY_WAREHOUSE_ID ||
+      !wid ||
+      wid === '00000000-0000-0000-0000-000000000000';
+    if (isInvalidWarehouse) {
+      setProducts([]);
+      setIsLoading(false);
+      setError(null);
+      setBackgroundRefreshing(false);
+      return;
+    }
+
     const now = Date.now();
     if (silent) {
       if (now - lastSilentRefreshAtRef.current < SILENT_REFRESH_THROTTLE_MS) return;
