@@ -209,15 +209,15 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
 
   return (
     <>
-      {/* Overlay: on mobile leave room for bottom nav; desktop full cover */}
+      {/* Overlay: on mobile leave room for bottom nav (--bottom-nav-h); desktop full cover */}
       <div
         className={`fixed inset-0 z-40 transition-all duration-250 ${isOpen ? 'bg-black/40 backdrop-blur-[2px] pointer-events-auto' : 'bg-transparent pointer-events-none'}`}
-        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ paddingBottom: 'var(--bottom-nav-h)' }}
         onClick={() => !processing && onClose()}
       />
-      {/* Sheet: bottom-0 on desktop so closed state is fully off-screen; 60px offset on mobile for bottom nav */}
+      {/* Sheet: above bottom nav on mobile (var); flush bottom on desktop */}
       <div
-        className={`fixed left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] flex flex-col max-h-[80vh] transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[calc(60px+env(safe-area-inset-bottom,0px))] lg:bottom-0`}
+        className={`fixed left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] flex flex-col max-h-[80vh] transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[var(--bottom-nav-h)] lg:bottom-0`}
         onClick={e => e.stopPropagation()}
       >
 

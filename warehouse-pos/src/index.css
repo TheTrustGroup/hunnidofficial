@@ -86,12 +86,15 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  /* Z-index scale: 10=header, 40=mobile menu overlay, 50=modals, 60=toasts (transient only). Errors use in-flow layout, not stacking. */
+  /* Z-index scale: 10=header, 40=bottom nav (below modals), 50=modals, 60=toasts. Modals always above nav. */
   --z-header: 10;
   --z-banner: 9;
+  --z-bottom-nav: 40;
   --z-mobile-menu: 40;
   --z-modal: 50;
   --z-toast: 60;
+  /* Bottom nav: compact premium bar so modals/forms have room; single source of truth for sheets. */
+  --bottom-nav-h: calc(50px + env(safe-area-inset-bottom, 0px));
   /* Viewport: 100dvh first (mobile Safari safe); fallback 100vh for older browsers */
   --min-h-viewport: min(100dvh, 100vh);
   --h-viewport: 100dvh;
@@ -366,10 +369,10 @@
     max-width: 56rem;
   }
 
-  /* Add product modal: reserve space above bottom nav on mobile so Cancel / Add product sit above nav (nav height 60px + safe area). */
+  /* Modals/forms: reserve space above bottom nav on mobile so action bars are visible (use design token). */
   @media (max-width: 1023px) {
     .product-form-modal-overlay {
-      padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: calc(var(--bottom-nav-h) + 16px);
     }
   }
 

@@ -560,10 +560,10 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
 
   if (!isOpen) return null;
 
-  /* Modal above bottom nav (nav is z-100): use z-[110] so Cancel / Add product are visible and tappable on mobile. */
+  /* Modal z-50 (above bottom nav z-40); overlay padding reserves space for nav so action bar is visible. */
   return (
     <div
-      className="fixed inset-0 solid-overlay flex items-center justify-center z-[110] modal-overlay-padding product-form-modal-overlay"
+      className="fixed inset-0 solid-overlay flex items-center justify-center z-[var(--z-modal)] modal-overlay-padding product-form-modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="product-form-title"
@@ -963,8 +963,8 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
           </div>
           </div>
 
-          {/* Action bar always visible above bottom nav (not inside scroll); safe-area on mobile */}
-          <div className="flex flex-shrink-0 justify-end gap-3 pt-4 border-t border-slate-200/80 bg-white px-4 sm:px-6 lg:px-8 pb-[max(1rem,env(safe-area-inset-bottom,0px))] lg:pb-6">
+          {/* Action bar: fixed at bottom of modal, elevated strip so it never hides under nav */}
+          <div className="flex flex-shrink-0 justify-end gap-3 pt-4 border-t border-slate-200/80 bg-white px-4 sm:px-6 lg:px-8 pb-[max(1rem,env(safe-area-inset-bottom,0px))] lg:pb-6 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>

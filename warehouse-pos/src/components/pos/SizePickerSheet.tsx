@@ -31,7 +31,7 @@ export interface CartLineInput {
   imageUrl?: string | null;
 }
 
-const BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA = 'calc(60px + env(safe-area-inset-bottom, 0px))';
+const BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA = 'var(--bottom-nav-h)';
 
 interface SizeRowProps {
   variant: { sizeCode: string; sizeLabel?: string; quantity: number };
