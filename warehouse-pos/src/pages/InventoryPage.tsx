@@ -898,114 +898,122 @@ export default function InventoryPage(_props: InventoryPageProps) {
         </div>
       )}
 
-      {/* ══ Filter toolbar: single row — category pills, Size/Color dropdowns, Sort, count; scroll on narrow so no overflow ══ */}
-      <div className="px-4 pb-4 lg:px-0 overflow-x-auto overflow-y-hidden -mx-4 px-4 lg:mx-0 lg:overflow-visible scrollbar-none">
-        <div className="flex flex-wrap items-center gap-2 min-h-[44px]">
-          <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
-            {(['all', ...CATEGORIES] as string[]).map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setCategory(cat)}
-                className="flex-shrink-0 min-h-[44px] flex items-center px-4 rounded-[99px] border text-[12px] font-medium whitespace-nowrap transition-all touch-manipulation"
-                style={{
-                  fontFamily: 'var(--font-b)',
-                  ...(category === cat
-                    ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
-                    : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
-                }}
-              >
-                {cat === 'all' ? 'All' : cat}
-              </button>
-            ))}
-          <select
-            id="inv-size-filter"
-            value={sizeFilter}
-            onChange={(e) => setSizeFilter(e.target.value)}
-            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
-            style={{
-              fontFamily: 'var(--font-b)',
-              background: 'var(--surface)',
-              borderColor: 'var(--border)',
-              color: 'var(--text-2)',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-              backgroundPosition: 'right 10px center',
-            }}
-          >
-            <option value="all">Size: All</option>
-            {sizeCodes.map((s) => (
-              <option key={s.size_code} value={s.size_code}>
-                {s.size_label ?? s.size_code}
-              </option>
-            ))}
-          </select>
-          <select
-            id="inv-color-filter"
-            value={colorFilter}
-            onChange={(e) => setColorFilter(e.target.value)}
-            className="min-h-[44px] h-[30px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
-            style={{
-              fontFamily: 'var(--font-b)',
-              background: 'var(--surface)',
-              borderColor: 'var(--border)',
-              color: 'var(--text-2)',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-              backgroundPosition: 'right 10px center',
-            }}
-          >
-            <option value="all">Color: All</option>
-            {COLOR_OPTIONS.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <div className="relative flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setSortOpen((o) => !o)}
-              className="flex items-center gap-1.5 min-h-[44px] h-[30px] px-2.5 rounded-[99px] border text-[12px] font-medium transition-colors touch-manipulation hover:border-[var(--border-md)]"
-              style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="8" y1="6" x2="21" y2="6" />
-                <line x1="8" y1="12" x2="21" y2="12" />
-                <line x1="8" y1="18" x2="21" y2="18" />
-              </svg>
-              {SORT_OPTIONS.find((o) => o.key === sort)?.label}
-            </button>
-            {sortOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
-                <div
-                  className="absolute left-0 top-full mt-1 z-20 rounded-xl shadow-[var(--shadow-md)] border py-1.5 w-44"
-                  style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+      {/* ══ Filter toolbar: aligned touch targets, consistent surface ══ */}
+      <div className="pb-4 lg:px-0 overflow-x-auto overflow-y-hidden -mx-4 lg:mx-0 lg:overflow-visible scrollbar-none">
+        <div className="px-4 lg:px-0">
+          <div className="rounded-2xl border bg-[var(--surface)] shadow-[var(--shadow-sm)]" style={{ borderColor: 'var(--border)' }}>
+            <div className="p-3 flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+                {(['all', ...CATEGORIES] as string[]).map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategory(cat)}
+                    className="flex-shrink-0 min-h-[44px] flex items-center px-4 rounded-[99px] border text-[12px] font-medium whitespace-nowrap transition-all touch-manipulation"
+                    style={{
+                      fontFamily: 'var(--font-b)',
+                      ...(category === cat
+                        ? { background: 'var(--blue)', borderColor: 'var(--blue)', color: 'white', boxShadow: 'var(--blue-glow)' }
+                        : { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }),
+                    }}
+                  >
+                    {cat === 'all' ? 'All' : cat}
+                  </button>
+                ))}
+
+                <select
+                  id="inv-size-filter"
+                  value={sizeFilter}
+                  onChange={(e) => setSizeFilter(e.target.value)}
+                  className="min-h-[44px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
+                  style={{
+                    fontFamily: 'var(--font-b)',
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text-2)',
+                    backgroundImage: `url(\"data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")`,
+                    backgroundPosition: 'right 10px center',
+                  }}
                 >
-                  {SORT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => {
-                        setSort(opt.key);
-                        setSortOpen(false);
-                      }}
-                      className="w-full px-4 py-2 text-left text-[13px] font-medium transition-colors"
-                      style={{
-                        color: sort === opt.key ? 'var(--blue)' : 'var(--text-2)',
-                        background: sort === opt.key ? 'var(--blue-soft)' : 'transparent',
-                      }}
-                    >
-                      {opt.label}
-                    </button>
+                  <option value="all">Size: All</option>
+                  {sizeCodes.map((s) => (
+                    <option key={s.size_code} value={s.size_code}>
+                      {s.size_label ?? s.size_code}
+                    </option>
                   ))}
+                </select>
+
+                <select
+                  id="inv-color-filter"
+                  value={colorFilter}
+                  onChange={(e) => setColorFilter(e.target.value)}
+                  className="min-h-[44px] pl-3 pr-8 rounded-[99px] border text-[12px] font-medium appearance-none bg-no-repeat bg-[length:10px_6px] focus:outline-none touch-manipulation"
+                  style={{
+                    fontFamily: 'var(--font-b)',
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text-2)',
+                    backgroundImage: `url(\"data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23A1A1AA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")`,
+                    backgroundPosition: 'right 10px center',
+                  }}
+                >
+                  <option value="all">Color: All</option>
+                  {COLOR_OPTIONS.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+
+                <div className="relative flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setSortOpen((o) => !o)}
+                    className="flex items-center gap-1.5 min-h-[44px] px-2.5 rounded-[99px] border text-[12px] font-medium transition-colors touch-manipulation hover:border-[var(--border-md)]"
+                    style={{ fontFamily: 'var(--font-b)', background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-2)' }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="8" y1="6" x2="21" y2="6" />
+                      <line x1="8" y1="12" x2="21" y2="12" />
+                      <line x1="8" y1="18" x2="21" y2="18" />
+                    </svg>
+                    {SORT_OPTIONS.find((o) => o.key === sort)?.label}
+                  </button>
+                  {sortOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setSortOpen(false)} aria-hidden />
+                      <div
+                        className="absolute left-0 top-full mt-1 z-20 rounded-xl shadow-[var(--shadow-md)] border py-1.5 w-44"
+                        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+                      >
+                        {SORT_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            onClick={() => {
+                              setSort(opt.key);
+                              setSortOpen(false);
+                            }}
+                            className="w-full px-4 py-2 text-left text-[13px] font-medium transition-colors"
+                            style={{
+                              color: sort === opt.key ? 'var(--blue)' : 'var(--text-2)',
+                              background: sort === opt.key ? 'var(--blue-soft)' : 'transparent',
+                            }}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-              </>
-            )}
+              </div>
+
+              <span className="text-[11px] whitespace-nowrap" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
+                Showing <strong className="font-semibold" style={{ color: 'var(--text)' }}>
+                  {displayed.length === 0 ? 0 : 1}–{displayed.length}
+                </strong> of {totalCount}
+              </span>
+            </div>
           </div>
-        </div>
-          <span className="text-[11px] whitespace-nowrap" style={{ fontFamily: 'var(--font-b)', color: 'var(--text-3)' }}>
-            Showing <strong className="font-semibold" style={{ color: 'var(--text)' }}>
-              {displayed.length === 0 ? 0 : 1}–{displayed.length}
-            </strong> of {totalCount}
-          </span>
         </div>
       </div>
 

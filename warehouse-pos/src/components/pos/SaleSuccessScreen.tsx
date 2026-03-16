@@ -139,12 +139,10 @@ function downloadReceipt(sale: CompletedSale) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Receipt ${receiptNo} — Hunnid Official</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
-
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Arial, sans-serif;
     background: #f4f4f5;
     display: flex;
     align-items: flex-start;

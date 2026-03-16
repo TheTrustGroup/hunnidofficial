@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
-import { MobileBottomNav } from './MobileBottomNav';
 import { SyncStatusBar } from '../SyncStatusBar';
 import { ConflictModalContainer } from '../ConflictModalContainer';
 import { ApiStatusProvider, useApiStatus } from '../../contexts/ApiStatusContext';
@@ -143,20 +142,20 @@ function LayoutContent() {
           </Button>
         </div>
       )}
-      {/* Phase 6: main padding ≥16px; mobile: 52px topbar, clear bottom nav (64px + safe area + 16px) */}
+      {/* Phase 6: main padding ≥16px; mobile: 52px topbar, clear bottom nav (60px + safe area + 16px) */}
       <main
         className={`lg:ml-[244px] pt-[52px] md:pt-20 lg:pt-8 pl-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] lg:px-8 min-h-[calc(var(--min-h-viewport)-56px)] max-w-[1600px] overflow-x-hidden overflow-y-auto ${
           showDegradedBanner || showSyncingBar ? 'mt-0' : isPOS ? 'mt-0' : isMobile ? 'mt-0' : 'mt-[calc(56px+var(--safe-top))]'
         } ${
           isMobile
-            ? 'pb-[calc(64px+env(safe-area-inset-bottom,0px)+16px)]'
+            ? 'pb-[calc(60px+env(safe-area-inset-bottom,0px)+16px)]'
             : 'pb-[max(4rem,calc(var(--safe-bottom)+4rem))] lg:pb-[max(3.5rem,calc(var(--safe-bottom)+3.5rem))]'
         }`}
       >
         <Outlet />
       </main>
       <SyncStatusBar />
-      {isMobile ? <MobileBottomNav onMoreClick={() => {}} /> : <BottomNav />}
+      <BottomNav />
       <ConflictModalContainer />
     </div>
   );

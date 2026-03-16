@@ -101,9 +101,9 @@ function DashboardStatCardMobile({
 }) {
   if (loading) {
     return (
-      <div className="rounded-xl border-[0.5px] border-[#E0DED8] bg-white p-3 animate-pulse">
-        <div className="h-3 w-16 bg-[#E0DED8] rounded mb-1.5" />
-        <div className="h-7 w-20 bg-[#E0DED8] rounded" />
+      <div className="rounded-xl border-[0.5px] bg-[var(--surface)] p-3 animate-pulse" style={{ borderColor: 'var(--border)' }}>
+        <div className="h-3 w-16 rounded mb-1.5" style={{ background: 'var(--border)' }} />
+        <div className="h-7 w-20 rounded" style={{ background: 'var(--border)' }} />
       </div>
     );
   }
@@ -111,13 +111,18 @@ function DashboardStatCardMobile({
     <div
       className={`rounded-xl border-[0.5px] p-3 ${
         variant === 'blue'
-          ? 'bg-[#1B6FE8] border-[#1B6FE8]'
-          : 'bg-white border-[#E0DED8]'
+          ? 'text-white'
+          : 'bg-[var(--surface)]'
       }`}
+      style={
+        variant === 'blue'
+          ? { background: 'var(--blue)', borderColor: 'var(--blue)' }
+          : { borderColor: 'var(--border)' }
+      }
     >
       <p
         className={`text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5 ${
-          variant === 'blue' ? 'text-white/70' : 'text-[#9B9890]'
+          variant === 'blue' ? 'text-white/70' : 'text-[var(--text-3)]'
         }`}
       >
         {label}
@@ -127,10 +132,10 @@ function DashboardStatCardMobile({
           variant === 'blue'
             ? 'text-white'
             : valueColor === 'blue'
-              ? 'text-[#1B6FE8]'
+              ? 'text-[var(--blue)]'
               : valueColor === 'red'
-                ? 'text-[#E83B2E]'
-                : 'text-[#1A1916]'
+                ? 'text-[var(--red-status)]'
+                : 'text-[var(--text)]'
         }`}
         style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
       >
@@ -486,8 +491,11 @@ export default function DashboardPage() {
 
         {/* ── Today's sales by location: mobile = compact card; desktop = full ── */}
         {isMobile && firstTwoWarehouses.length > 0 ? (
-          <div className="bg-white rounded-2xl border border-[#E0DED8] p-3 mb-3 shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9B9890] mb-2">
+          <div
+            className="bg-[var(--surface)] rounded-2xl border p-3 mb-3 shadow-sm"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-3)] mb-2">
               Today&apos;s Sales by Location
             </p>
             <div className="flex gap-6">
@@ -496,8 +504,8 @@ export default function DashboardPage() {
                 const hasSales = !loading && amount > 0;
                 return (
                   <div key={w.id}>
-                    <p className="text-[11px] text-[#9B9890]">{w.name}</p>
-                    <p className={`text-[15px] font-semibold ${hasSales ? 'text-[#1B6FE8]' : 'text-[#9B9890]'}`}>
+                    <p className="text-[11px] text-[var(--text-3)]">{w.name}</p>
+                    <p className={`text-[15px] font-semibold ${hasSales ? 'text-[var(--blue)]' : 'text-[var(--text-3)]'}`}>
                       {loading ? '—' : formatGHCCompact(amount)}
                     </p>
                   </div>

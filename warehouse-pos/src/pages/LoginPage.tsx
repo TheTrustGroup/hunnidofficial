@@ -185,7 +185,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="min-h-screen flex flex-col md:flex-row">
 
       {/* ── Dark brand panel ────────────────────────────────── */}
       <div className="relative overflow-hidden md:w-[400px] md:min-h-screen flex-shrink-0
@@ -242,7 +242,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Form panel ──────────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center bg-slate-50 px-6 py-12 md:py-0">
+      <div className="flex-1 flex items-center justify-center px-6 py-12 md:py-0" style={{ background: 'var(--bg)' }}>
         <div className={`w-full max-w-[380px] transition-all duration-500
                          ${ready ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'}`}
              style={{ transitionTimingFunction: 'cubic-bezier(0.22,1,0.36,1)' }}>

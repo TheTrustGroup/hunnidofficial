@@ -111,34 +111,34 @@ export function Header() {
   if (isMobile) {
     return (
       <header
-        className="md:hidden fixed top-0 left-0 right-0 h-[52px] bg-white border-b border-[#E0DED8] flex items-center px-4 gap-2 z-50"
-        style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+        className="md:hidden fixed top-0 left-0 right-0 h-[52px] bg-[var(--surface)] border-b flex items-center px-4 gap-2 z-50"
+        style={{ borderColor: 'var(--border)' }}
       >
-        <span className="flex-1 text-[13px] font-medium text-[#1A1916] truncate">
+        <span className="flex-1 text-[13px] font-medium text-[var(--text)] truncate">
           {getPageTitle(location.pathname)}
         </span>
         <button
           type="button"
           onClick={() => navigate('/inventory')}
-          className="w-8 h-8 rounded-lg bg-[#EEEDE9] flex items-center justify-center"
+          className="w-8 h-8 rounded-lg bg-[var(--overlay)] flex items-center justify-center"
           aria-label="Search products"
         >
-          <Search size={14} className="text-[#6B6860]" />
+          <Search size={14} className="text-[var(--text-2)]" />
         </button>
-        <div className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold bg-[#E8F7EF] text-[#12A05C]">
-          <div className="w-[5px] h-[5px] rounded-full bg-[#12A05C]" />
+        <div className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold bg-[var(--green-dim)] text-[var(--green)]">
+          <div className="w-[5px] h-[5px] rounded-full bg-[var(--green)]" />
           LIVE
         </div>
         <button
           type="button"
-          className="w-8 h-8 rounded-lg bg-[#EEEDE9] relative flex items-center justify-center"
+          className="w-8 h-8 rounded-lg bg-[var(--overlay)] relative flex items-center justify-center"
           aria-label="Notifications"
         >
-          <Bell size={14} className="text-[#6B6860]" />
+          <Bell size={14} className="text-[var(--text-2)]" />
         </button>
         <Link
           to="/pos"
-          className="w-8 h-8 rounded-lg bg-[#1B6FE8] flex items-center justify-center"
+          className="w-8 h-8 rounded-lg bg-[var(--blue)] flex items-center justify-center"
           aria-label="Open POS"
         >
           <ShoppingCart size={14} className="text-white" />

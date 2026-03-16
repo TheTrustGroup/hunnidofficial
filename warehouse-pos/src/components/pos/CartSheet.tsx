@@ -212,12 +212,12 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
       {/* Overlay leaves room for bottom nav */}
       <div
         className={`fixed inset-0 z-40 transition-all duration-250 ${isOpen ? 'bg-black/40 backdrop-blur-[2px] pointer-events-auto' : 'bg-transparent pointer-events-none'}`}
-        style={{ paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
         onClick={() => !processing && onClose()}
       />
       <div
         className={`fixed left-0 right-0 z-50 bg-white rounded-t-[24px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] flex flex-col max-h-[80vh] transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
-        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))' }}
         onClick={e => e.stopPropagation()}
       >
 
@@ -248,7 +248,9 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
                 <ShoppingBag className="w-8 h-8" strokeWidth={1.5} />
               </div>
               <p className="text-[14px] font-semibold text-[#424958] mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>Cart is empty</p>
-              <p className="text-[12px] mb-5" style={{ fontFamily: "'DM Sans', sans-serif", color: '#8892A0' }}>Add products from the grid to get started.</p>
+              <p className="text-[12px] mb-5" style={{ color: 'var(--text-3)' }}>
+                Add products from the grid to get started.
+              </p>
               <button type="button" onClick={onClose} className="h-11 px-6 rounded-xl text-white text-sm font-bold transition-all active:scale-[0.98]" style={{ background: 'var(--blue)' }}>Start adding products</button>
             </div>
           )}

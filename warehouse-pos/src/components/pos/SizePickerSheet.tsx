@@ -31,7 +31,7 @@ export interface CartLineInput {
   imageUrl?: string | null;
 }
 
-const BOTTOM_NAV_HEIGHT_PX = 64;
+const BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA = 'calc(60px + env(safe-area-inset-bottom, 0px))';
 
 interface SizeRowProps {
   variant: { sizeCode: string; sizeLabel?: string; quantity: number };
@@ -59,39 +59,41 @@ function SizeRow({ variant, selected, qty, onToggle, onDecrement, onIncrement }:
       }}
       className={`flex items-center px-3 py-2.5 rounded-lg mb-1.5 cursor-pointer select-none transition-colors ${
         selected
-          ? 'border-[1.5px] border-[#1B6FE8] bg-[#EBF2FD]'
-          : 'border border-[#E0DED8] bg-white'
+          ? 'border-[1.5px] bg-[var(--blue-soft)]'
+          : 'border bg-[var(--surface)]'
       }`}
+      style={selected ? { borderColor: 'var(--blue)' } : { borderColor: 'var(--border)' }}
     >
       <div
         className={`w-[18px] h-[18px] rounded-[4px] mr-2.5 flex-shrink-0 flex items-center justify-center ${
-          selected ? 'bg-[#1B6FE8] border-[#1B6FE8]' : 'border border-[#C8C6BE]'
+          selected ? 'bg-[var(--blue)]' : 'border'
         }`}
+        style={selected ? undefined : { borderColor: 'var(--border-md)' }}
       >
         {selected && <Check size={9} color="white" strokeWidth={2.5} />}
       </div>
-      <span className="text-[14px] font-semibold text-[#1A1916] min-w-[36px]">{sizeLabel}</span>
-      <span className="text-[12px] text-[#9B9890] flex-1 ml-1.5">{stock} left</span>
+      <span className="text-[14px] font-semibold text-[var(--text)] min-w-[36px]">{sizeLabel}</span>
+      <span className="text-[12px] text-[var(--text-3)] flex-1 ml-1.5">{stock} left</span>
       {selected && (
         <div
-          className="flex items-center bg-[#EEEDE9] rounded-md overflow-hidden"
+          className="flex items-center bg-[var(--overlay)] rounded-md overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           <button
             type="button"
-            className="w-[30px] h-[30px] flex items-center justify-center text-base text-[#3A3832] active:bg-[#E0DED8]"
+            className="w-[30px] h-[30px] flex items-center justify-center text-base text-[var(--text)] active:bg-[var(--border)]"
             onClick={onDecrement}
             aria-label="Decrease quantity"
           >
             −
           </button>
-          <span className="min-w-[24px] text-center text-[13px] font-semibold text-[#1A1916]">
+          <span className="min-w-[24px] text-center text-[13px] font-semibold text-[var(--text)]">
             {qty}
           </span>
           <button
             type="button"
-            className={`w-[30px] h-[30px] flex items-center justify-center text-base active:bg-[#E0DED8] ${
-              qty >= stock ? 'text-[#C8C6BE] cursor-not-allowed' : 'text-[#3A3832]'
+            className={`w-[30px] h-[30px] flex items-center justify-center text-base active:bg-[var(--border)] ${
+              qty >= stock ? 'text-[var(--text-3)] cursor-not-allowed' : 'text-[var(--text)]'
             }`}
             disabled={qty >= stock}
             onClick={onIncrement}
@@ -185,36 +187,36 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       <>
         <div
           className="fixed inset-x-0 top-0 z-40 bg-black/50"
-          style={{ bottom: `${BOTTOM_NAV_HEIGHT_PX}px` }}
+          style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
           onClick={onClose}
           aria-hidden
         />
         <div
           className="fixed inset-x-0 top-0 z-50 flex flex-col justify-end bg-black/50"
-          style={{ bottom: `${BOTTOM_NAV_HEIGHT_PX}px` }}
+          style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
         >
           <div
             className="bg-white rounded-t-[20px] flex flex-col max-h-[85vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-8 h-1 bg-[#E0DED8] rounded-full mx-auto mt-2.5 flex-shrink-0" />
-            <div className="px-5 pt-3 pb-3 border-b border-[#EEEDE9] flex-shrink-0 flex items-start justify-between">
+            <div className="w-8 h-1 bg-[var(--border)] rounded-full mx-auto mt-2.5 flex-shrink-0" />
+            <div className="px-5 pt-3 pb-3 border-b flex-shrink-0 flex items-start justify-between" style={{ borderColor: 'var(--border)' }}>
               <div>
                 <h2 className="font-display text-[20px] tracking-[0.04em] leading-tight">
                   {product.name.toUpperCase()}
                 </h2>
-                <p className="text-[11px] text-[#9B9890] mt-0.5">{product.sku}</p>
+                <p className="text-[11px] text-[var(--text-3)] mt-0.5">{product.sku}</p>
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <button
                   type="button"
-                  className="w-6 h-6 rounded-full bg-[#EEEDE9] flex items-center justify-center text-[13px] text-[#6B6860]"
+                  className="w-6 h-6 rounded-full bg-[var(--overlay)] flex items-center justify-center text-[13px] text-[var(--text-2)]"
                   onClick={onClose}
                   aria-label="Close"
                 >
                   ✕
                 </button>
-                <span className="font-display text-[22px] text-[#1B6FE8]">
+                <span className="font-display text-[22px]" style={{ color: 'var(--blue)' }}>
                   GH₵{product.sellingPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
                 </span>
               </div>
@@ -235,7 +237,8 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                   });
                   onClose();
                 }}
-                className="w-full py-[14px] rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 bg-[#1B6FE8] text-white"
+                className="w-full py-[14px] rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 text-white"
+                style={{ background: 'var(--blue)' }}
               >
                 <ShoppingCart size={15} />
                 Add to cart — GH₵
@@ -253,39 +256,39 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       {/* Overlay stops above bottom nav so nav stays visible and tappable */}
       <div
         className="fixed inset-x-0 top-0 z-50 flex flex-col justify-end bg-black/50"
-        style={{ bottom: `${BOTTOM_NAV_HEIGHT_PX}px` }}
+        style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
       >
         <div
           className="bg-white rounded-t-[20px] flex flex-col max-h-[85vh]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="w-8 h-1 bg-[#E0DED8] rounded-full mx-auto mt-2.5 flex-shrink-0" />
+          <div className="w-8 h-1 bg-[var(--border)] rounded-full mx-auto mt-2.5 flex-shrink-0" />
 
-          <div className="px-5 pt-3 pb-3 border-b border-[#EEEDE9] flex-shrink-0">
+          <div className="px-5 pt-3 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="font-display text-[20px] tracking-[0.04em] leading-tight">
                   {product.name.toUpperCase()}
                 </h2>
-                <p className="text-[11px] text-[#9B9890] mt-0.5">{product.sku}</p>
+                <p className="text-[11px] text-[var(--text-3)] mt-0.5">{product.sku}</p>
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <button
                   type="button"
-                  className="w-6 h-6 rounded-full bg-[#EEEDE9] flex items-center justify-center text-[13px] text-[#6B6860]"
+                  className="w-6 h-6 rounded-full bg-[var(--overlay)] flex items-center justify-center text-[13px] text-[var(--text-2)]"
                   onClick={onClose}
                   aria-label="Close"
                 >
                   ✕
                 </button>
-                <span className="font-display text-[22px] text-[#1B6FE8]">
+                <span className="font-display text-[22px]" style={{ color: 'var(--blue)' }}>
                   GH₵{product.sellingPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
           </div>
 
-          <p className="px-5 pt-2.5 pb-1 text-[12px] text-[#9B9890] flex-shrink-0">
+          <p className="px-5 pt-2.5 pb-1 text-[12px] text-[var(--text-3)] flex-shrink-0">
             Select sizes and quantity
           </p>
 
@@ -303,18 +306,22 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
             ))}
           </div>
 
-          <div className="flex-shrink-0 px-5 pt-3 pb-4 border-t border-[#EEEDE9] bg-white">
+          <div
+            className="flex-shrink-0 px-5 pt-3 pb-4 border-t bg-[var(--surface)]"
+            style={{ borderColor: 'var(--border)' }}
+          >
             <div className="flex flex-wrap gap-1.5 mb-2.5 min-h-[22px] items-center">
               {selectedVariants.map((v) => (
                 <span
                   key={v.sizeCode}
-                  className="bg-[#EBF2FD] text-[#1B6FE8] rounded-[5px] px-2 py-0.5 text-[11px] font-semibold"
+                  className="bg-[var(--blue-soft)] rounded-[5px] px-2 py-0.5 text-[11px] font-semibold"
+                  style={{ color: 'var(--blue)' }}
                 >
                   {v.sizeLabel ?? v.sizeCode} ×{qtyBySize[v.sizeCode] ?? 1}
                 </span>
               ))}
               {selectedVariants.length > 0 && (
-                <span className="text-[11px] text-[#9B9890] ml-1">
+                <span className="text-[11px] text-[var(--text-3)] ml-1">
                   = GH₵{totalPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
                 </span>
               )}
@@ -325,9 +332,10 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
               onClick={handleAddToCart}
               className={`w-full py-[14px] rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors ${
                 selectedVariants.length > 0
-                  ? 'bg-[#1B6FE8] text-white cursor-pointer'
-                  : 'bg-[#EEEDE9] text-[#9B9890] cursor-not-allowed'
+                  ? 'text-white cursor-pointer'
+                  : 'bg-[var(--overlay)] text-[var(--text-3)] cursor-not-allowed'
               }`}
+              style={selectedVariants.length > 0 ? { background: 'var(--blue)' } : undefined}
             >
               <ShoppingCart size={15} />
               {selectedVariants.length > 0
@@ -339,7 +347,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       </div>
       <div
         className="fixed inset-0 z-40 bg-black/50"
-        style={{ bottom: `${BOTTOM_NAV_HEIGHT_PX}px` }}
+        style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
         onClick={onClose}
         aria-hidden
       />
