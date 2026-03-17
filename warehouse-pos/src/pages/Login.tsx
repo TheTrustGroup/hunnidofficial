@@ -7,6 +7,7 @@ import { apiRequest } from '../lib/apiClient';
 import { getUserFriendlyMessage } from '../lib/errorMessages';
 import { validateLoginForm } from '../lib/validationSchemas';
 import { Button } from '../components/ui/Button';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { Lock, Mail, WifiOff, Clock, ShieldAlert } from 'lucide-react';
 
 const SERVER_UNREACHABLE = 'Cannot reach the server. Check your connection and try again.';
@@ -179,7 +180,7 @@ export function Login() {
           >
             {isLoading ? (
               <>
-                <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0 border-2 border-white/30 border-t-white" style={{ animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />
+                <LoadingSpinner size="sm" inverse />
                 <span>Logging in...</span>
               </>
             ) : (

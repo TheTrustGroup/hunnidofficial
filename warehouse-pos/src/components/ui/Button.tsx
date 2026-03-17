@@ -68,7 +68,7 @@ export function Button({
     >
       {loading ? (
         <span className="flex items-center justify-center gap-2">
-          <LoadingSpinner size="sm" />
+          <LoadingSpinner size="sm" inverse={variant === 'primary' || variant === 'danger'} />
           <span>{children}</span>
         </span>
       ) : (

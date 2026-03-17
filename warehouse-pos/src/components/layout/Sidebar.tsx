@@ -59,11 +59,11 @@ export function Sidebar() {
 
   return (
     <aside
-      className="fixed left-0 top-0 w-[var(--sidebar-w)] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20 border-r border-[var(--border)] shadow-[var(--shadow-sm)]"
-      style={{ background: 'var(--surface)' }}
+      className="fixed left-0 top-0 w-[var(--sidebar-w)] min-w-[244px] h-[var(--h-viewport)] max-h-[var(--h-viewport)] flex flex-col flex-shrink-0 z-20"
+      style={{ background: 'var(--surface)', boxShadow: '2px 0 12px rgba(0,0,0,0.04)' }}
     >
       {/* Logo: blue H mark + wordmark */}
-      <div className="flex items-center gap-[11px] px-4 pt-[17px] pb-[15px] border-b border-[var(--border)] flex-shrink-0 bg-[var(--surface)]">
+      <div className="flex items-center gap-[11px] px-4 pt-[17px] pb-[15px] flex-shrink-0 bg-[var(--surface)]" style={{ borderBottom: '1px solid var(--edk-border)' }}>
         <div
           className="w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0"
           style={{ background: 'var(--blue)' }}
@@ -144,7 +144,7 @@ export function Sidebar() {
                       className="absolute left-0 top-full mt-1 z-20 min-w-[180px] py-1.5 rounded-[10px] border shadow-[var(--shadow-md)]"
                       style={{
                         background: 'var(--surface)',
-                        borderColor: 'var(--border)',
+                        borderColor: 'var(--edk-border)',
                       }}
                     >
                       {warehouses.map((w) => (

@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { Check, AlertCircle, XCircle, RefreshCw } from 'lucide-react';
+import { LoadingSpinner } from './ui/LoadingSpinner';
 
 export type ProductSyncStatus = 'synced' | 'pending' | 'syncing' | 'error';
 
@@ -36,7 +37,7 @@ export function ProductSyncBadge({ status, errorMessage, onRetry, className = ''
     status === 'synced' ? (
       <Check className="w-4 h-4 text-emerald-600" aria-hidden />
     ) : status === 'syncing' ? (
-      <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0" aria-hidden />
+      <LoadingSpinner size="sm" />
     ) : status === 'pending' ? (
       <AlertCircle className="w-4 h-4 text-amber-600" aria-hidden />
     ) : (

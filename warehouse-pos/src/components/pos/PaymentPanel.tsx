@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { Payment } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { Button } from '../ui/Button';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 interface PaymentPanelProps {
   onComplete: (payments: Payment[]) => void;
@@ -179,7 +180,7 @@ export function PaymentPanel({ onComplete, disableComplete = false, isCompleting
       >
         {isCompleting ? (
           <>
-            <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0 border-2 border-white/30 border-t-white" style={{ animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />
+            <LoadingSpinner size="sm" inverse />
             Processing…
           </>
         ) : (

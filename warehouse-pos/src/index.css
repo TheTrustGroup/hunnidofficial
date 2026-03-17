@@ -95,11 +95,20 @@
   --z-toast: 60;
   /* Bottom nav + sheets: single source of truth so nav and sheets never overlap. */
   --bottom-nav-h: calc(52px + env(safe-area-inset-bottom, 0px));
+  /* Reserve space below sheet so it never goes under mobile browser chrome (address bar, etc.). */
+  --sheet-browser-buffer: 56px;
+  /* Cart sheet max height: on mobile keeps sheet above nav + browser bar; on desktop see below. */
+  --cart-sheet-max-h: min(75dvh, calc(100dvh - var(--bottom-nav-h) - var(--sheet-browser-buffer)));
   /* Extra padding at bottom of sheet scroll content so Charge/actions never hidden. */
   --sheet-safe-padding-bottom: calc(var(--bottom-nav-h) + 32px);
   /* Viewport: 100dvh first (mobile Safari safe); fallback 100vh for older browsers */
   --min-h-viewport: min(100dvh, 100vh);
   --h-viewport: 100dvh;
+}
+@media (min-width: 1024px) {
+  :root {
+    --cart-sheet-max-h: 85vh;
+  }
 }
 @supports not (height: 100dvh) {
   :root {
@@ -112,6 +121,31 @@
 @keyframes edk-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Bouncing / wave dots: premium loading indicator (used by LoadingSpinner and inline spinners) */
+@keyframes wave-dot {
+  0%, 80%, 100% { transform: scale(0.75); opacity: 0.6; }
+  40% { transform: scale(1); opacity: 1; }
+}
+.loading-wave-dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.loading-wave-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--blue);
+  animation: wave-dot 0.9s ease-in-out infinite both;
+}
+.loading-wave-dots span:nth-child(1) { animation-delay: 0s; }
+.loading-wave-dots span:nth-child(2) { animation-delay: 0.15s; }
+.loading-wave-dots span:nth-child(3) { animation-delay: 0.3s; }
+.loading-wave-dots-sm span { width: 4px; height: 4px; }
+.loading-wave-dots-lg span { width: 8px; height: 8px; }
+.loading-wave-dots-inverse span { background: rgba(255,255,255,0.95); }
 
 @layer base {
   /* Slightly smaller base for zoomed-out, high-class consistency across app */

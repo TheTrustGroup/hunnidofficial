@@ -310,7 +310,7 @@ export function AdminDashboard() {
             className="flex items-center gap-2"
           >
             {syncing ? (
-              <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0" aria-hidden />
+              <LoadingSpinner size="sm" inverse />
             ) : (
               <RefreshCw className="w-4 h-4" />
             )}

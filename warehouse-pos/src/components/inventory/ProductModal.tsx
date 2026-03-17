@@ -17,6 +17,7 @@ import SizesSection, {
   type SizeCode,
   getValidationError,
 } from './SizesSection';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 // ── Image compression helper (canvas resize → compressed data-URL) ───────────
 // Resizes to max 800px, compresses to target quality; optionally enforces max byte size.
@@ -203,8 +204,6 @@ const IconRefresh = () => (
     <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
   </svg>
 );
-
-const IconSpinner = () => <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0" aria-hidden />;
 
 const IconUpload = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -428,7 +427,7 @@ function ImageUpload({ images, onChange, disabled }: ImageUploadProps) {
         >
           {uploading ? (
             <div className="flex flex-col items-center gap-2 text-slate-500 w-full px-4">
-              <IconSpinner />
+              <LoadingSpinner size="sm" />
               <span className="text-[13px] font-medium">Uploading…</span>
               {uploadProgress > 0 && (
                 <div className="w-full bg-slate-200 rounded-full h-1.5">
@@ -1050,7 +1049,7 @@ export default function ProductModal({
           >
             {isSubmitting ? (
               <>
-                <IconSpinner />
+                <LoadingSpinner size="sm" />
                 {isEdit ? 'Saving…' : 'Adding…'}
               </>
             ) : (

@@ -8,6 +8,7 @@ import { ConflictModalContainer } from '../ConflictModalContainer';
 import { ApiStatusProvider, useApiStatus } from '../../contexts/ApiStatusContext';
 import { useCriticalData } from '../../contexts/CriticalDataContext';
 import { Button } from '../ui/Button';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 const DISMISS_BANNER_KEY = 'dismiss_degraded_banner_session';
 /** Only show "server offline" banner after degraded for this long to avoid jitter from brief blips. */
@@ -113,7 +114,7 @@ function LayoutContent() {
           role="status"
           aria-live="polite"
         >
-          <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-[var(--edk-border-mid)] shrink-0" style={{ borderTopColor: 'var(--blue)', animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />
+          <LoadingSpinner size="sm" />
           Syncing inventory & orders…
         </div>
       )}

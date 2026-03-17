@@ -15,6 +15,7 @@ import { useAnimations } from '../hooks/useAnimations';
 import { syncBarVariants, pulseVariants } from '../animations/liquidGlass';
 import { hapticFeedback } from '../lib/haptics';
 import { triggerConfetti } from '../lib/confetti';
+import { LoadingSpinner } from './ui/LoadingSpinner';
 
 export function SyncStatusBar() {
   const { isOnline } = useNetworkStatusContext();
@@ -74,7 +75,7 @@ export function SyncStatusBar() {
     variant = 'syncing';
     const n = total || 1;
     label = `Syncing ${n} item${n !== 1 ? 's' : ''}...`;
-    icon = <span className="loading-spinner-ring loading-spinner-ring-md inline-block shrink-0 border-2 border-white/30 border-t-white" style={{ animation: 'loading-spin 0.8s linear infinite' }} aria-hidden />;
+    icon = <LoadingSpinner size="md" inverse />;
     barClass = 'bg-blue-600 text-white';
   } else if (total === 0 && isOnline) {
     variant = 'synced';

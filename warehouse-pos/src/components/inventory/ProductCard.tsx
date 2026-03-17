@@ -9,6 +9,7 @@
 
 import { useState, useRef, useCallback, memo } from 'react';
 import type { Product } from '../../types';
+import { LoadingSpinner } from '../ui/LoadingSpinner';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -79,8 +80,6 @@ const IconImage = () => (
     <polyline points="21 15 16 10 5 21"/>
   </svg>
 );
-
-const IconSpinner = () => <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0" aria-hidden />;
 
 // ── Stock Status Badge ─────────────────────────────────────────────────────
 
@@ -265,7 +264,7 @@ function StockEditor({ product, onSave, onCancel }: StockEditorProps) {
           disabled={saving || saved}
           className={`h-11 rounded-xl border-none text-[14px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all duration-200 ${saved ? 'bg-[var(--edk-green)]' : 'bg-[var(--blue)] hover:brightness-110 active:scale-[0.98]'}`}
         >
-          {saving ? <><IconSpinner /> Saving…</> : saved ? '✓ Saved' : 'Save stock'}
+          {saving ? <><LoadingSpinner size="sm" /> Saving…</> : saved ? '✓ Saved' : 'Save stock'}
         </button>
       </div>
     </div>

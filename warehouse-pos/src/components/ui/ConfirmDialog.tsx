@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Button } from './Button';
+import { LoadingSpinner } from './LoadingSpinner';
 import { AlertTriangle } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -80,7 +81,7 @@ export function ConfirmDialog({
           >
             {isConfirming ? (
               <>
-                <span className="loading-spinner-ring loading-spinner-ring-sm inline-block shrink-0" aria-hidden />
+                <LoadingSpinner size="sm" />
                 Confirming…
               </>
             ) : (
