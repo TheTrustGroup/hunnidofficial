@@ -10,27 +10,27 @@ import { useToast } from '../contexts/ToastContext';
 import { validateLoginForm } from '../lib/validationSchemas';
 
 const IconMail = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
     <polyline points="22,6 12,13 2,6"/>
   </svg>
 );
 
 const IconLock = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
     <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
   </svg>
 );
 
 const IconEyeOn = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
   </svg>
 );
 
 const IconEyeOff = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
     <line x1="1" y1="1" x2="23" y2="23"/>
   </svg>
@@ -249,10 +249,10 @@ export default function LoginPage() {
 
           {/* Form header */}
           <div className="mb-8">
-            <h2 className="text-[30px] font-black text-slate-900 tracking-tight leading-tight">
+            <h2 className="font-black text-slate-900 tracking-tight leading-tight" style={{ fontSize: 'var(--text-2xl)' }}>
               Welcome back
             </h2>
-            <p className="text-slate-400 text-[14px] mt-1.5 font-medium">
+            <p className="text-slate-400 mt-1.5 font-medium" style={{ fontSize: 'var(--text-sm)' }}>
               Sign in to your workspace
             </p>
           </div>
@@ -331,11 +331,10 @@ export default function LoginPage() {
                   placeholder="admin@hunnidofficial.com"
                   autoComplete="email"
                   disabled={loading}
-                  className="w-full pl-11 pr-4 rounded-2xl border-[1.5px] border-slate-200 bg-white
-                             text-[15px] text-slate-900 placeholder:text-slate-300
-                             focus:outline-none focus:border-primary-400 focus:ring-[3px] focus:ring-primary-100
+                  className="w-full pl-11 pr-4 rounded-2xl bg-white text-slate-900 placeholder:text-slate-300
+                             focus:outline-none focus:border-[var(--blue)] focus:ring-[3px] focus:ring-[var(--blue-soft)]
                              disabled:opacity-50 transition-all duration-150"
-                  style={{ height: '52px' }}
+                  style={{ height: '52px', fontSize: 'var(--text-base)', border: '1px solid var(--edk-border)' }}
                 />
               </div>
             </div>
@@ -359,11 +358,10 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={loading}
-                  className="w-full pl-11 pr-12 rounded-2xl border-[1.5px] border-slate-200 bg-white
-                             text-[15px] text-slate-900 placeholder:text-slate-300
-                             focus:outline-none focus:border-primary-400 focus:ring-[3px] focus:ring-primary-100
+                  className="w-full pl-11 pr-12 rounded-2xl bg-white text-slate-900 placeholder:text-slate-300
+                             focus:outline-none focus:ring-[3px] focus:ring-[var(--blue-soft)]
                              disabled:opacity-50 transition-all duration-150"
-                  style={{ height: '52px' }}
+                  style={{ height: '52px', fontSize: 'var(--text-base)', border: '1px solid var(--edk-border)' }}
                 />
                 <button type="button" tabIndex={-1}
                         onClick={() => setShowPw(v => !v)}
@@ -380,12 +378,13 @@ export default function LoginPage() {
                 type="submit"
                 disabled={loading}
                 className="w-full rounded-2xl border-none bg-primary-500 hover:bg-primary-600
-                           text-white text-[16px] font-extrabold tracking-wide
+                           text-white font-extrabold tracking-wide
                            flex items-center justify-center gap-3
                            disabled:bg-slate-200 disabled:text-slate-400
                            active:scale-[0.98] transition-all duration-150"
                 style={{
                   height: '56px',
+                  fontSize: 'var(--text-base)',
                   boxShadow: loading ? 'none' : '0 4px 20px rgba(92,172,250,0.35)',
                 }}
               >
@@ -397,7 +396,7 @@ export default function LoginPage() {
                 ) : (
                   <>
                     Sign in
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                          stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                     </svg>

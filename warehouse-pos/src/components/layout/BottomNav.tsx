@@ -24,8 +24,8 @@ function orderTabsWithPosCenter(tabs: typeof BOTTOM_NAV_TABS): (typeof BOTTOM_NA
   return [...left, pos, ...right];
 }
 
-const ICON_SIZE = 20;
-const LABEL_SIZE_PX = 11;
+const ICON_SIZE = 18;
+const LABEL_SIZE_PX = 10;
 
 export function BottomNav() {
   const { pathname } = useLocation();
@@ -60,7 +60,7 @@ export function BottomNav() {
         className="flex-1 grid items-center gap-0 px-2 min-h-0"
         style={{
           gridTemplateColumns: `repeat(${visibleTabs.length}, 1fr)`,
-          minHeight: 52,
+          minHeight: 48,
         }}
       >
         {visibleTabs.map((tab) => {

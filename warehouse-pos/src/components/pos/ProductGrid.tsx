@@ -151,37 +151,33 @@ function ProductGridInner({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Category tabs: solid background, EDK tokens */}
-      {categoryOptions.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-2 px-4 pt-2 flex-shrink-0" style={{ scrollbarWidth: 'none' }}>
-          {categoryOptions.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onCategoryChange(opt.value)}
-              className="flex-shrink-0 h-[30px] px-3 rounded-md border text-[12px] font-medium whitespace-nowrap transition-all outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1"
-              style={{
-                ...(category === opt.value
-                  ? { backgroundColor: '#2563eb', borderColor: '#2563eb', color: 'white' }
-                  : { backgroundColor: 'var(--edk-surface)', borderColor: 'var(--edk-border-mid)', color: 'var(--edk-ink-2)' }),
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Size and Color filters: solid white background, no outline glitches */}
-      <div className="pos-filters flex flex-wrap items-center gap-2 px-4 pb-2 flex-shrink-0">
+      {/* Linear filter row: category pills + Size + Color (like inventory page) */}
+      <div className="pos-filters flex flex-wrap items-center gap-2 px-4 pt-2 pb-2 flex-shrink-0">
+        {categoryOptions.length > 1 && categoryOptions.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onCategoryChange(opt.value)}
+            className="flex-shrink-0 h-[28px] px-2.5 rounded-[20px] border font-medium whitespace-nowrap transition-all outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1"
+            style={{
+              fontSize: 'var(--text-xs)',
+              ...(category === opt.value
+                ? { backgroundColor: 'var(--blue)', borderColor: 'var(--blue)', color: 'white' }
+                : { backgroundColor: 'var(--edk-surface)', borderColor: 'var(--edk-border)', color: 'var(--edk-ink-2)' }),
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
         <select
           aria-label="Filter by size"
           value={sizeFilter}
           onChange={(e) => onSizeFilterChange(e.target.value)}
-          className="h-[30px] min-w-[100px] pl-3 pr-8 rounded-full text-[12px] font-medium appearance-none bg-no-repeat outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-0 border"
+          className="h-[28px] min-w-[90px] pl-2.5 pr-7 rounded-[20px] font-medium appearance-none bg-no-repeat outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-0 border"
           style={{
+            fontSize: 'var(--text-xs)',
             backgroundColor: 'var(--edk-surface)',
-            borderColor: 'var(--edk-border-mid)',
+            borderColor: 'var(--edk-border)',
             color: 'var(--edk-ink-2)',
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238A8784' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
             backgroundPosition: 'right 10px center',
@@ -197,10 +193,11 @@ function ProductGridInner({
           aria-label="Filter by color"
           value={colorFilter}
           onChange={(e) => onColorFilterChange(e.target.value)}
-          className="h-[30px] min-w-[100px] pl-3 pr-8 rounded-full text-[12px] font-medium appearance-none bg-no-repeat outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-0 border"
+          className="h-[28px] min-w-[90px] pl-2.5 pr-7 rounded-[20px] font-medium appearance-none bg-no-repeat outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-0 border"
           style={{
+            fontSize: 'var(--text-xs)',
             backgroundColor: 'var(--edk-surface)',
-            borderColor: 'var(--edk-border-mid)',
+            borderColor: 'var(--edk-border)',
             color: 'var(--edk-ink-2)',
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238A8784' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
             backgroundPosition: 'right 10px center',
@@ -226,7 +223,7 @@ function ProductGridInner({
             disabled={loadingMore}
             onClick={onLoadMore}
             className="h-11 px-6 rounded-xl border text-[13px] font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            style={{ backgroundColor: 'var(--edk-surface)', borderColor: 'var(--edk-border-mid)', color: 'var(--edk-ink)' }}
+            style={{ backgroundColor: 'var(--edk-surface)', borderColor: 'var(--edk-border)', color: 'var(--edk-ink)', fontSize: 'var(--text-sm)' }}
           >
             {loadingMore ? 'Loading…' : `Load more (${products.length} of ${totalCount})`}
           </button>

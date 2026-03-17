@@ -71,16 +71,16 @@
   --radius-base: 8px;
   --radius-lg: 8px;
   --radius-card: 8px;
-  /* Typography hierarchy: H1 28/600, H2 20/600, Body 14–16, Meta 12–13 muted */
-  --text-meta: 0.75rem;      /* 12–13px muted */
-  --text-xs: 0.75rem;        /* 12px labels, captions */
-  --text-sm: 0.875rem;       /* 14px body */
-  --text-base: 1rem;         /* 16px body */
-  --text-lg: 1.125rem;       /* 18px card titles */
-  --text-h2: 1.25rem;        /* 20px section (H2) */
-  --text-h1: 1.75rem;        /* 28px page title (H1) */
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
+  /* Typography: slightly reduced for zoomed-out high-class feel (scale ~94%) */
+  --text-meta: 0.6875rem;   /* ~11px muted */
+  --text-xs: 0.6875rem;     /* ~11px labels, captions */
+  --text-sm: 0.8125rem;     /* ~13px body */
+  --text-base: 0.9375rem;   /* ~15px body */
+  --text-lg: 1.0625rem;     /* ~17px card titles */
+  --text-h2: 1.125rem;      /* ~18px section (H2) */
+  --text-h1: 1.5rem;        /* ~24px page title (H1) */
+  --text-xl: 1.125rem;
+  --text-2xl: 1.375rem;
   /* Safe area: iOS notch/home indicator; fixed elements respect these */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -94,9 +94,9 @@
   --z-modal: 50;
   --z-toast: 60;
   /* Bottom nav + sheets: single source of truth so nav and sheets never overlap. */
-  --bottom-nav-h: calc(56px + env(safe-area-inset-bottom, 0px));
-  /* Extra padding at bottom of sheet scroll content so primary actions stay visible above nav/browser chrome. */
-  --sheet-safe-padding-bottom: calc(var(--bottom-nav-h) + 28px);
+  --bottom-nav-h: calc(52px + env(safe-area-inset-bottom, 0px));
+  /* Extra padding at bottom of sheet scroll content so Charge/actions never hidden. */
+  --sheet-safe-padding-bottom: calc(var(--bottom-nav-h) + 32px);
   /* Viewport: 100dvh first (mobile Safari safe); fallback 100vh for older browsers */
   --min-h-viewport: min(100dvh, 100vh);
   --h-viewport: 100dvh;
@@ -114,18 +114,19 @@
 }
 
 @layer base {
+  /* Slightly smaller base for zoomed-out, high-class consistency across app */
+  html {
+    font-size: 15px;
+    scroll-behavior: smooth;
+  }
   body {
     background: var(--edk-bg);
     color: var(--edk-ink);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: var(--text-base);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: 'cv11', 'ss01';
-    /* Reduced font-weight noise: hierarchy via size/spacing, not bold overload */
-  }
-
-  html {
-    scroll-behavior: smooth;
   }
 }
 
@@ -141,17 +142,17 @@
     filter: brightness(1.05);
   }
 
-  /* Secondary: de-emphasized, grouped logically */
+  /* Secondary: de-emphasized; border uses design token (no black/harsh lines) */
   .btn-secondary {
     min-height: var(--touch-min);
     @apply px-6 py-3 rounded-xl font-medium transition-colors duration-200 active:scale-[0.98];
     background: rgba(241, 245, 249, 0.9);
     color: #475569;
-    border: 1px solid rgba(226, 232, 240, 0.7);
+    border: 1px solid var(--edk-border);
   }
   .btn-secondary:hover {
     background: rgba(248, 250, 252, 1);
-    border-color: rgba(203, 213, 225, 0.8);
+    border-color: var(--edk-border-mid);
   }
 
   /* Icon/ghost actions: consistent hit area (≥44px), centered; destructive clearly separated (Phase 6) */
@@ -172,20 +173,21 @@
     /* Destructive: clearly separated from primary so mistakes are avoidable */
   }
 
-  /* Inputs: solid background, clear borders, no transparency (Phase 3 form usability) */
+  /* Inputs: solid background, subtle border (no black); focus uses brand blue */
   .input-field {
     min-height: var(--input-height);
-    @apply w-full px-4 py-3 rounded-xl transition-all duration-200 text-base text-slate-900;
+    font-size: var(--text-base);
+    @apply w-full px-4 py-3 rounded-xl transition-all duration-200 text-slate-900;
     background-color: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--edk-border);
   }
   .input-field::placeholder {
     @apply text-slate-400;
   }
   .input-field:focus {
     @apply outline-none;
-    border-color: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px var(--blue-soft);
   }
   .input-field[aria-invalid="true"],
   .input-field.border-red-500 {
@@ -246,7 +248,7 @@
   .table-container {
     overflow: hidden;
     border-radius: var(--radius-card, 8px);
-    border: 1px solid rgba(226, 232, 240, 0.8);
+    border: 1px solid var(--edk-border);
     background-color: #fff;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -256,14 +258,16 @@
   }
 
   .table-header {
-    @apply bg-slate-50 border-b border-slate-200/80;
+    @apply bg-slate-50;
+    border-bottom: 1px solid var(--edk-border);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
 
   /* Stability: desktop table row 72px; consistent so list doesn't collapse during fetch (Phase 2/3). */
   .table-row {
-    @apply border-b border-slate-200/40 transition-colors duration-150;
+    border-bottom: 1px solid var(--edk-border);
+    @apply transition-colors duration-150;
     min-height: 72px;
   }
   /* Mobile grid card: consistent min-height to avoid layout jump (96–110px content block; card uses min-h). */
@@ -436,9 +440,9 @@
   }
 }
 
-/* Focus Visible for Accessibility */
+/* Focus Visible for Accessibility (brand blue, no black) */
 *:focus-visible {
-  outline: 2px solid #ef4444;
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
   border-radius: 8px;
 }

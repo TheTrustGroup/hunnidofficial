@@ -217,7 +217,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
       />
       {/* Sheet: above bottom nav; max-height so it never goes under browser chrome; premium handle + shadow */}
       <div
-        className={`fixed left-0 right-0 bg-white flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[var(--bottom-nav-h)] lg:bottom-0 rounded-t-3xl max-h-[72dvh] lg:max-h-[85vh]`}
+        className={`fixed left-0 right-0 bg-white flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[var(--bottom-nav-h)] lg:bottom-0 rounded-t-3xl max-h-[65dvh] lg:max-h-[85vh]`}
         style={{ zIndex: 'var(--z-modal)', boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -225,21 +225,21 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
           <div className="w-12 h-1.5 rounded-full bg-slate-300" />
         </div>
 
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--edk-border)' }}>
           <div className="flex items-center gap-2 min-w-0">
-            <h2 className="text-[18px] font-bold text-slate-900">Cart</h2>
+            <h2 className="font-bold text-slate-900" style={{ fontSize: 'var(--text-lg)' }}>Cart</h2>
             {lines.length > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[var(--blue)] text-white text-[11px] font-bold">
+              <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-[var(--blue)] text-white font-bold" style={{ fontSize: 'var(--text-xs)' }}>
                 {itemCount}
               </span>
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {lines.length > 0 && (
-              <span className="text-[14px] font-bold text-slate-900 tabular-nums">{fmt(subtotal)}</span>
+              <span className="font-bold text-slate-900 tabular-nums" style={{ fontSize: 'var(--text-sm)' }}>{fmt(subtotal)}</span>
             )}
-            {lines.length > 0 && <button type="button" onClick={onClearCart} disabled={processing} className="h-8 px-3 rounded-lg text-[12px] font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition-colors duration-150">Clear all</button>}
-            <button type="button" onClick={onClose} disabled={processing} className="w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 transition-all duration-150"><IconX /></button>
+            {lines.length > 0 && <button type="button" onClick={onClearCart} disabled={processing} className="h-8 px-3 rounded-lg font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition-colors duration-150" style={{ fontSize: 'var(--text-xs)' }}>Clear all</button>}
+            <button type="button" onClick={onClose} disabled={processing} className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 transition-all duration-150" style={{ border: '1px solid var(--edk-border)' }}><IconX /></button>
           </div>
         </div>
 
@@ -275,7 +275,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
                 const removeGroup = () => group.lines.forEach(l => onRemoveLine(l.key));
                 return (
                   <SwipeToRevealRow key={group.productId} onRemove={removeGroup}>
-                    <div className="px-4 py-3.5 rounded-[10px] mx-0" style={{ borderColor: 'var(--border)', background: 'var(--elevated)' }}>
+                    <div className="px-4 py-3.5 rounded-[10px] mx-0 border" style={{ borderColor: 'var(--edk-border)', background: 'var(--elevated)' }}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-[14px] font-bold truncate leading-snug flex-1 min-w-0" style={{ color: 'var(--text)' }}>{group.name}</p>
                         <div className="flex items-center gap-1 flex-shrink-0">
@@ -285,7 +285,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {group.lines.map((l) => (
-                          <div key={l.key} className="inline-flex items-center gap-0.5 rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+                          <div key={l.key} className="inline-flex items-center gap-0.5 rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--edk-border)', background: 'var(--surface)' }}>
                           <button type="button" onClick={() => onUpdateQty(l.key, -1)} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>−</button>
                             <span className="min-w-[2.5rem] text-center text-[12px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>{l.sizeLabel ?? 'One size'} ×{l.qty}</span>
                             <button type="button" onClick={() => onUpdateQty(l.key, 1)} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>+</button>

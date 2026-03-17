@@ -111,8 +111,8 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
         focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
       style={{
         background: 'var(--surface)',
-        borderColor: 'var(--border)',
-        boxShadow: 'var(--shadow-sm)',
+borderColor: 'var(--edk-border)',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
       }}
       onMouseEnter={(e) => {
         if (!isOut) {
@@ -121,8 +121,8 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
         }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border)';
-        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+        e.currentTarget.style.borderColor = 'var(--edk-border)';
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
       }}
     >
       <div
@@ -144,27 +144,27 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
 
       <div className="px-2.5 pt-2 pb-2.5">
         <p
-          className="text-[12px] font-semibold truncate leading-snug mb-1"
-          style={{ fontFamily: 'var(--font-b)', color: 'var(--text)' }}
+          className="font-semibold truncate leading-snug mb-1"
+          style={{ fontFamily: 'var(--font-b)', color: 'var(--text)', fontSize: 'var(--text-xs)' }}
         >
           {product.name}
         </p>
         <div className="flex items-end justify-between gap-1">
           <span
-            className="text-[14px] font-extrabold leading-none"
-            style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)' }}
+            className="font-extrabold leading-none"
+            style={{ fontFamily: 'var(--font-d)', color: 'var(--blue)', fontSize: 'var(--text-sm)' }}
           >
             {formatPrice(product.sellingPrice)}
           </span>
           <span
-            className="text-[10px] flex-shrink-0"
-            style={{ color: status === 'low' ? 'var(--amber)' : 'var(--text-3)' }}
+            className="flex-shrink-0"
+            style={{ fontSize: 'var(--text-meta)', color: status === 'low' ? 'var(--amber)' : 'var(--text-3)' }}
           >
             {stockLabel}
           </span>
         </div>
         {sizeBreakdown && (
-          <p className="text-[10px] mt-1 truncate" style={{ color: 'var(--text-3)' }} title={sizeBreakdown}>
+          <p className="mt-1 truncate" style={{ color: 'var(--text-3)', fontSize: 'var(--text-meta)' }} title={sizeBreakdown}>
             {sizeBreakdown}
           </p>
         )}
@@ -181,7 +181,7 @@ export function POSProductCardSkeleton() {
   return (
     <div
       className="rounded-[12px] overflow-hidden border"
-      style={{ background: 'var(--surface)', borderColor: 'var(--border)', boxShadow: 'var(--shadow-sm)' }}
+      style={{ background: 'var(--surface)', borderColor: 'var(--edk-border)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
     >
       <div className="w-full aspect-square animate-pulse" style={{ background: 'var(--elevated)' }} />
       <div className="px-2.5 pt-2 pb-2.5 flex flex-col gap-2">
