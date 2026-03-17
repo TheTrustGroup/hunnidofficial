@@ -208,8 +208,8 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
   const handleDragMove = useCallback((clientY: number) => {
     const deltaY = dragStartY.current - clientY;
     const next = expansion === 'expanded'
-      ? Math.min(maxDrag, Math.max(0, dragStartPx.current + deltaY))
-      : Math.min(maxDrag, Math.max(0, dragStartPx.current - deltaY));
+      ? Math.min(maxDrag, Math.max(0, dragStartPx.current - deltaY))
+      : Math.min(maxDrag, Math.max(0, dragStartPx.current + deltaY));
     setDragPx(next);
   }, [expansion, maxDrag]);
   const handleDragEnd = useCallback(() => {
@@ -338,7 +338,16 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
               <span className="font-bold text-slate-900 tabular-nums" style={{ fontSize: 'var(--text-sm)' }}>{fmt(subtotal)}</span>
             )}
             {lines.length > 0 && <button type="button" onClick={onClearCart} disabled={processing} className="h-8 px-3 rounded-lg font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition-colors duration-150" style={{ fontSize: 'var(--text-xs)' }}>Clear all</button>}
-            <button type="button" onClick={e => { e.stopPropagation(); if (!processing) onClose(); }} disabled={processing} className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 transition-all duration-150" style={{ border: '1px solid var(--edk-border)' }} aria-label="Close cart"><IconX /></button>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); e.preventDefault(); onClose(); }}
+              disabled={processing}
+              className="w-10 h-10 min-w-[44px] min-h-[44px] rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 transition-all duration-150 touch-manipulation"
+              style={{ border: '1px solid var(--edk-border)' }}
+              aria-label="Close cart"
+            >
+              <IconX />
+            </button>
           </div>
         </div>
 
