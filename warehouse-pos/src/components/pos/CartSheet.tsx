@@ -3,7 +3,7 @@
 // File: warehouse-pos/src/components/pos/CartSheet.tsx
 // ============================================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { Trash2, Check, X, ShoppingBag } from 'lucide-react';
 import { PayIcon } from './PaymentIcons';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
@@ -81,6 +81,9 @@ function groupLinesByProduct(lines: CartLine[]): Array<{ productId: string; name
     return { productId, name: first.name, sku: first.sku, lines: groupLines };
   });
 }
+
+/** Peek height: handle + header (Cart, count, total, Clear, X). Slide up to expand for checkout. */
+const CART_SHEET_PEEK_HEIGHT = 140;
 
 const SWIPE_REVEAL_PX = 80;
 const SWIPE_THRESHOLD_PX = 50;
@@ -164,9 +167,62 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
   const [expectedDate,     setExpectedDate]    = useState('');
   const customerInputRef = useRef<HTMLInputElement>(null);
 
+  // Slidable sheet: peek (summary only) or expanded (full checkout). Drag handle to snap.
+  const [expansion, setExpansion] = useState<'peek' | 'expanded'>('expanded');
+  const [dragPx, setDragPx] = useState(0);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const expandedHeightRef = useRef(400);
+  const dragStartY = useRef(0);
+  const dragStartPx = useRef(0);
+
   useEffect(() => {
-    if (isOpen) { setDiscountPct(0); setPaymentMethod('Cash'); setMixCash(''); setMixMoMo(''); setMixCard(''); setScheduleDelivery(false); setRecipientName(''); setRecipientPhone(''); setDeliveryAddress(''); setDeliveryNotes(''); setExpectedDate(''); }
+    if (isOpen) {
+      setExpansion('expanded');
+      setDragPx(0);
+      setDiscountPct(0);
+      setPaymentMethod('Cash');
+      setMixCash('');
+      setMixMoMo('');
+      setMixCard('');
+      setScheduleDelivery(false);
+      setRecipientName('');
+      setRecipientPhone('');
+      setDeliveryAddress('');
+      setDeliveryNotes('');
+      setExpectedDate('');
+    }
   }, [isOpen]);
+
+  useLayoutEffect(() => {
+    if (isOpen && expansion === 'expanded' && dragPx === 0 && sheetRef.current) {
+      const h = sheetRef.current.getBoundingClientRect().height;
+      if (h > 0) expandedHeightRef.current = h;
+    }
+  }, [isOpen, expansion, dragPx]);
+
+  const maxDrag = Math.max(0, expandedHeightRef.current - CART_SHEET_PEEK_HEIGHT);
+  const handleDragStart = useCallback((clientY: number) => {
+    dragStartY.current = clientY;
+    dragStartPx.current = dragPx;
+  }, [dragPx]);
+  const handleDragMove = useCallback((clientY: number) => {
+    const deltaY = dragStartY.current - clientY;
+    const next = expansion === 'expanded'
+      ? Math.min(maxDrag, Math.max(0, dragStartPx.current + deltaY))
+      : Math.min(maxDrag, Math.max(0, dragStartPx.current - deltaY));
+    setDragPx(next);
+  }, [expansion, maxDrag]);
+  const handleDragEnd = useCallback(() => {
+    const mid = maxDrag * 0.5;
+    if (dragPx > mid) {
+      setExpansion('peek');
+      setDragPx(0);
+    } else {
+      setExpansion('expanded');
+      setDragPx(0);
+    }
+  }, [dragPx, maxDrag]);
+
 
   useEffect(() => { if (isOpen) document.body.style.overflow = 'hidden'; else document.body.style.overflow = ''; return () => { document.body.style.overflow = ''; }; }, [isOpen]);
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && isOpen && !processing) onClose(); }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [isOpen, processing, onClose]);
@@ -215,23 +271,60 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
         style={{ zIndex: 'var(--z-modal)' }}
         onClick={() => !processing && onClose()}
       />
-      {/* Sheet: on mobile sits above bottom nav so it’s bottom = var(--cart-sheet-bottom): mobile above nav + browser chrome; desktop 0. */}
+      {/* Sheet: slidable — peek (summary) or expanded (checkout). Drag handle to snap; X closes. */}
       <div
-        className={`fixed left-0 right-0 bg-white flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} rounded-t-3xl`}
+        ref={sheetRef}
+        className={`fixed left-0 right-0 bg-white flex flex-col rounded-t-3xl ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
         style={{
           bottom: 'var(--cart-sheet-bottom)',
           zIndex: 'var(--z-modal)',
           boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)',
-          minHeight: 280,
-          maxHeight: 'var(--cart-sheet-max-h)',
+          transition: dragPx === 0 ? 'height 0.3s cubic-bezier(0.34,1.1,0.64,1)' : 'none',
+          ...(dragPx > 0
+            ? { height: expansion === 'expanded' ? expandedHeightRef.current - dragPx : CART_SHEET_PEEK_HEIGHT + dragPx }
+            : expansion === 'peek'
+              ? { height: CART_SHEET_PEEK_HEIGHT }
+              : { minHeight: 280, maxHeight: 'var(--cart-sheet-max-h)' }
+          ),
         }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-3 pb-2 flex-shrink-0" aria-hidden>
+        <div
+          className="flex justify-center pt-3 pb-2 flex-shrink-0 touch-none cursor-grab active:cursor-grabbing"
+          aria-hidden
+          role="button"
+          tabIndex={0}
+          aria-label={expansion === 'peek' ? 'Expand cart to checkout' : 'Drag to collapse or expand cart'}
+          onTouchStart={e => handleDragStart(e.touches[0].clientY)}
+          onTouchMove={e => handleDragMove(e.touches[0].clientY)}
+          onTouchEnd={handleDragEnd}
+          onTouchCancel={handleDragEnd}
+          onMouseDown={e => {
+            e.preventDefault();
+            handleDragStart(e.clientY);
+            const move = (e2: MouseEvent) => handleDragMove(e2.clientY);
+            const up = () => {
+              window.removeEventListener('mousemove', move);
+              window.removeEventListener('mouseup', up);
+              handleDragEnd();
+            };
+            window.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', up);
+          }}
+          onClick={() => { if (expansion === 'peek') setExpansion('expanded'); }}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (expansion === 'peek') setExpansion('expanded'); } }}
+        >
           <div className="w-12 h-1.5 rounded-full bg-slate-300" />
         </div>
 
-        <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--edk-border)' }}>
+        <div
+          className="flex items-center justify-between px-5 py-3 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--edk-border)' }}
+          role={expansion === 'peek' ? 'button' : undefined}
+          tabIndex={expansion === 'peek' ? 0 : undefined}
+          onClick={expansion === 'peek' ? () => setExpansion('expanded') : undefined}
+          onKeyDown={expansion === 'peek' ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpansion('expanded'); } } : undefined}
+        >
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="font-bold text-slate-900" style={{ fontSize: 'var(--text-lg)' }}>Cart</h2>
             {lines.length > 0 && (
@@ -245,7 +338,7 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
               <span className="font-bold text-slate-900 tabular-nums" style={{ fontSize: 'var(--text-sm)' }}>{fmt(subtotal)}</span>
             )}
             {lines.length > 0 && <button type="button" onClick={onClearCart} disabled={processing} className="h-8 px-3 rounded-lg font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition-colors duration-150" style={{ fontSize: 'var(--text-xs)' }}>Clear all</button>}
-            <button type="button" onClick={onClose} disabled={processing} className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 transition-all duration-150" style={{ border: '1px solid var(--edk-border)' }}><IconX /></button>
+            <button type="button" onClick={e => { e.stopPropagation(); if (!processing) onClose(); }} disabled={processing} className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 transition-all duration-150" style={{ border: '1px solid var(--edk-border)' }} aria-label="Close cart"><IconX /></button>
           </div>
         </div>
 
