@@ -504,7 +504,10 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
             category={category}
             sizeFilter={sizeFilter}
             colorFilter={colorFilter}
-            onSelect={product => setActiveProduct(structuredClone(product))}
+            onSelect={product => {
+              setActiveProduct(structuredClone(product));
+              setCartOpen(false);
+            }}
             onLoadMore={loadMore}
             loadingMore={loadingMore}
             totalCount={totalCount}
@@ -544,7 +547,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       />
 
       <CartSheet
-        isOpen={cartOpen}
+        isOpen={cartOpen && activeProduct == null}
         lines={cart}
         warehouseId={warehouse.id}
         chargeStatus={chargeStatus}

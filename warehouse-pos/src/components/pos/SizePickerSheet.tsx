@@ -31,7 +31,9 @@ export interface CartLineInput {
   imageUrl?: string | null;
 }
 
-const BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA = 'var(--bottom-nav-h)';
+/** Same as Cart sheet: above nav + browser chrome on mobile; desktop 0. Single slot, no overlap. */
+const SHEET_BOTTOM = 'var(--cart-sheet-bottom)';
+const SHEET_MAX_H = 'var(--cart-sheet-max-h)';
 
 interface SizeRowProps {
   variant: { sizeCode: string; sizeLabel?: string; quantity: number };
@@ -193,17 +195,17 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       <>
         <div
           className="fixed inset-x-0 top-0 z-40 bg-black/50"
-          style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
+          style={{ bottom: SHEET_BOTTOM }}
           onClick={onClose}
           aria-hidden
         />
         <div
           className="fixed inset-x-0 top-0 z-50 flex flex-col justify-end bg-black/50"
-          style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
+          style={{ bottom: SHEET_BOTTOM }}
         >
           <div
-            className="bg-white rounded-t-3xl flex flex-col max-h-[72dvh] lg:max-h-[85vh]"
-            style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)' }}
+            className="bg-white rounded-t-3xl flex flex-col"
+            style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)', minHeight: 260, maxHeight: SHEET_MAX_H }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto mt-3 mb-0.5 flex-shrink-0" aria-hidden />
@@ -263,11 +265,11 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       {/* Overlay stops above bottom nav so nav stays visible and tappable */}
       <div
         className="fixed inset-x-0 top-0 z-50 flex flex-col justify-end bg-black/50"
-        style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
+        style={{ bottom: SHEET_BOTTOM }}
       >
         <div
-          className="bg-white rounded-t-3xl flex flex-col max-h-[72dvh] lg:max-h-[85vh]"
-          style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)' }}
+          className="bg-white rounded-t-3xl flex flex-col"
+          style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)', minHeight: 260, maxHeight: SHEET_MAX_H }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto mt-3 mb-0.5 flex-shrink-0" aria-hidden />
@@ -358,7 +360,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       </div>
       <div
         className="fixed inset-0 z-40 bg-black/50"
-        style={{ bottom: BOTTOM_NAV_HEIGHT_WITH_SAFE_AREA }}
+        style={{ bottom: SHEET_BOTTOM }}
         onClick={onClose}
         aria-hidden
       />
