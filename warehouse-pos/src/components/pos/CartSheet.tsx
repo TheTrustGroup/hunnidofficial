@@ -1,9 +1,10 @@
 // ============================================================
-// CartSheet.tsx
-// File: warehouse-pos/src/components/pos/CartSheet.tsx
+// CartSheet.tsx — vaul Drawer (nuclear replacement)
+// No custom drag/peek logic. Snap points and touch handled by vaul.
 // ============================================================
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Drawer } from 'vaul';
 import { Trash2, Check, X, ShoppingBag } from 'lucide-react';
 import { PayIcon } from './PaymentIcons';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
@@ -36,7 +37,6 @@ export interface SalePayload {
   discountAmt:     number;
   total:           number;
   paymentMethod:   PaymentMethod;
-  /** When paymentMethod is Mix, breakdown must sum to total. */
   paymentMixBreakdown?: PaymentMixBreakdown | null;
   customerName:    string;
   warehouseId:     string;
@@ -69,7 +69,6 @@ function fmt(n: number) {
 }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
-/** Group cart lines by product (same productId) for multi-size rows with size chips. */
 function groupLinesByProduct(lines: CartLine[]): Array<{ productId: string; name: string; sku: string; lines: CartLine[] }> {
   const byProduct = new Map<string, CartLine[]>();
   for (const l of lines) {
@@ -81,9 +80,6 @@ function groupLinesByProduct(lines: CartLine[]): Array<{ productId: string; name
     return { productId, name: first.name, sku: first.sku, lines: groupLines };
   });
 }
-
-/** Drag down past this (px) on the handle to close the sheet. Single full-height sheet, no peek. */
-const DRAG_DOWN_TO_CLOSE_PX = 56;
 
 const SWIPE_REVEAL_PX = 80;
 const SWIPE_THRESHOLD_PX = 50;
@@ -142,7 +138,7 @@ function PayBtn({ method, selected, onSelect }: { method: PaymentMethod; selecte
   );
 }
 
-function FieldRow({ icon, placeholder, value, onChange, type = 'text', min }: { icon: React.ReactNode; placeholder: string; value: string; onChange: (v: string) => void; type?: string; min?: string; }) {
+function FieldRow({ icon, placeholder, value, onChange, type = 'text', min }: { icon: React.ReactNode; placeholder: string; value: string; onChange: (v: string) => void; type?: string; min?: string }) {
   return (
     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-amber-100/60 last:border-0">
       <span className="text-amber-500 flex-shrink-0">{icon}</span>
@@ -152,23 +148,26 @@ function FieldRow({ icon, placeholder, value, onChange, type = 'text', min }: { 
 }
 
 export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = 'idle', lastChargeError, onRetry, onUpdateQty, onRemoveLine, onClearCart, onCharge, onClose }: CartSheetProps) {
-  const [customerName,     setCustomerName]    = useState('');
-  const [discountPct,      setDiscountPct]     = useState<number | ''>(0);
-  const [paymentMethod,    setPaymentMethod]   = useState<PaymentMethod>('Cash');
-  const [mixCash,          setMixCash]         = useState<string>('');
-  const [mixMoMo,          setMixMoMo]         = useState<string>('');
-  const [mixCard,          setMixCard]         = useState<string>('');
+  const [customerName, setCustomerName] = useState('');
+  const [discountPct, setDiscountPct] = useState<number | ''>(0);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
+  const [mixCash, setMixCash] = useState<string>('');
+  const [mixMoMo, setMixMoMo] = useState<string>('');
+  const [mixCard, setMixCard] = useState<string>('');
   const processing = chargeStatus === 'processing';
   const [scheduleDelivery, setScheduleDelivery] = useState(false);
-  const [recipientName,    setRecipientName]   = useState('');
-  const [recipientPhone,   setRecipientPhone]  = useState('');
-  const [deliveryAddress,  setDeliveryAddress] = useState('');
-  const [deliveryNotes,    setDeliveryNotes]   = useState('');
-  const [expectedDate,     setExpectedDate]    = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
+  const [expectedDate, setExpectedDate] = useState('');
   const customerInputRef = useRef<HTMLInputElement>(null);
+  const [activeSnapPoint, setActiveSnapPoint] = useState<number | null>(0.5);
+  const setSnapPoint = (v: string | number | null) => setActiveSnapPoint(typeof v === 'number' ? v : v === null ? null : Number(v));
 
-  // Single full-height sheet. Drag handle down to close; X and overlay also close.
-  const dragStartY = useRef(0);
+  useEffect(() => {
+    if (isOpen) setActiveSnapPoint(0.5);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -186,43 +185,20 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
     }
   }, [isOpen]);
 
-  const handlePointerStart = useCallback((clientY: number) => { dragStartY.current = clientY; }, []);
-  const handlePointerEnd = useCallback((clientY: number) => {
-    if (dragStartY.current - clientY >= DRAG_DOWN_TO_CLOSE_PX) onClose();
-  }, [onClose]);
-
-  const [mouseListeners, setMouseListeners] = useState(false);
-  useEffect(() => {
-    if (!mouseListeners) return;
-    const up = (e: MouseEvent) => {
-      handlePointerEnd(e.clientY);
-      window.removeEventListener('mouseup', up);
-      window.removeEventListener('mouseleave', up);
-      setMouseListeners(false);
-    };
-    window.addEventListener('mouseup', up);
-    window.addEventListener('mouseleave', up);
-    return () => { window.removeEventListener('mouseup', up); window.removeEventListener('mouseleave', up); };
-  }, [mouseListeners, handlePointerEnd]);
-
-
   useEffect(() => { if (isOpen) document.body.style.overflow = 'hidden'; else document.body.style.overflow = ''; return () => { document.body.style.overflow = ''; }; }, [isOpen]);
   useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && isOpen && !processing) onClose(); }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [isOpen, processing, onClose]);
-
-  // Pre-fill recipient name from customer name when toggling delivery on
   useEffect(() => { if (scheduleDelivery && !recipientName && customerName) setRecipientName(customerName); }, [scheduleDelivery]);
 
-  const subtotal    = lines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
-  const disc        = Number(discountPct) || 0;
+  const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
+  const disc = Number(discountPct) || 0;
   const discountAmt = subtotal * (disc / 100);
-  const total       = subtotal - discountAmt;
-  const itemCount   = lines.reduce((s, l) => s + l.qty, 0);
+  const total = subtotal - discountAmt;
+  const itemCount = lines.reduce((s, l) => s + l.qty, 0);
   const deliveryReady = !scheduleDelivery || recipientName.trim().length > 0;
-
   const mixCashN = Number(mixCash) || 0;
   const mixMoMoN = Number(mixMoMo) || 0;
   const mixCardN = Number(mixCard) || 0;
-  const mixSum   = mixCashN + mixMoMoN + mixCardN;
+  const mixSum = mixCashN + mixMoMoN + mixCardN;
   const mixValid = paymentMethod !== 'Mix' || Math.abs(mixSum - total) < 0.01;
   const canCharge = deliveryReady && mixValid;
 
@@ -232,12 +208,12 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
     const payload: SalePayload = {
       lines, subtotal, discountPct: disc, discountAmt, total,
       paymentMethod, customerName: customerName.trim(), warehouseId,
-      deliveryStatus:  scheduleDelivery ? 'pending'  : 'delivered',
-      recipientName:   scheduleDelivery ? recipientName.trim()   : '',
-      recipientPhone:  scheduleDelivery ? recipientPhone.trim()  : '',
+      deliveryStatus: scheduleDelivery ? 'pending' : 'delivered',
+      recipientName: scheduleDelivery ? recipientName.trim() : '',
+      recipientPhone: scheduleDelivery ? recipientPhone.trim() : '',
       deliveryAddress: scheduleDelivery ? deliveryAddress.trim() : '',
-      deliveryNotes:   scheduleDelivery ? deliveryNotes.trim()   : '',
-      expectedDate:    scheduleDelivery ? expectedDate           : '',
+      deliveryNotes: scheduleDelivery ? deliveryNotes.trim() : '',
+      expectedDate: scheduleDelivery ? expectedDate : '',
     };
     if (paymentMethod === 'Mix') {
       payload.paymentMixBreakdown = { cash: mixCashN, momo: mixMoMoN, card: mixCardN };
@@ -246,245 +222,184 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
   }
 
   return (
-    <>
-      {/* Overlay: full viewport so sheet is clearly on top */}
-      <div
-        className={`fixed inset-0 transition-all duration-250 ${isOpen ? 'bg-black/40 backdrop-blur-[2px] pointer-events-auto' : 'bg-transparent pointer-events-none'}`}
-        style={{ zIndex: 'var(--z-modal)' }}
-        onClick={() => !processing && onClose()}
-      />
-      {/* Sheet: always full height. Drag handle down to close; X and overlay close. */}
-      <div
-        className={`fixed left-0 right-0 bg-white flex flex-col rounded-t-3xl transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
-        style={{
-          bottom: 'var(--cart-sheet-bottom)',
-          zIndex: 'var(--z-modal)',
-          boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)',
-          minHeight: 280,
-          maxHeight: 'var(--cart-sheet-max-h)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div
-          className="flex justify-center pt-3 pb-2 flex-shrink-0 cursor-grab active:cursor-grabbing touch-manipulation"
-          aria-label="Drag down to close cart"
-          onTouchStart={e => handlePointerStart(e.touches[0].clientY)}
-          onTouchEnd={e => { if (e.changedTouches[0]) handlePointerEnd(e.changedTouches[0].clientY); }}
-          onTouchCancel={e => { if (e.changedTouches[0]) handlePointerEnd(e.changedTouches[0].clientY); }}
-          onMouseDown={e => { e.preventDefault(); handlePointerStart(e.clientY); setMouseListeners(true); }}
-          onMouseUp={e => handlePointerEnd(e.clientY)}
+    <Drawer.Root
+      open={isOpen}
+      onOpenChange={(o) => { if (!o) onClose(); }}
+      snapPoints={[0.5, 1]}
+      activeSnapPoint={activeSnapPoint}
+      setActiveSnapPoint={setSnapPoint}
+      modal={false}
+      dismissible
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 bg-black/40 z-[var(--z-modal)]" onClick={onClose} />
+        <Drawer.Content
+          className="fixed bottom-0 left-0 right-0 z-[var(--z-modal)] bg-white flex flex-col outline-none rounded-t-3xl"
+          style={{
+            maxHeight: 'var(--cart-sheet-max-h)',
+            paddingBottom: 'env(safe-area-inset-bottom)',
+          }}
+          onClick={e => e.stopPropagation()}
         >
-          <div className="w-12 h-1.5 rounded-full bg-slate-300" aria-hidden />
-        </div>
-
-        <div
-          className="flex items-center justify-between px-5 py-3 flex-shrink-0"
-          style={{ borderBottom: '1px solid var(--edk-border)' }}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <h2 className="font-bold text-slate-900" style={{ fontSize: 'var(--text-lg)' }}>Cart</h2>
-            {lines.length > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-[var(--blue)] text-white font-bold" style={{ fontSize: 'var(--text-xs)' }}>
-                {itemCount}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {lines.length > 0 && (
-              <span className="font-bold text-slate-900 tabular-nums" style={{ fontSize: 'var(--text-sm)' }}>{fmt(subtotal)}</span>
-            )}
-            {lines.length > 0 && <button type="button" onClick={onClearCart} disabled={processing} className="h-8 px-3 rounded-lg font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition-colors duration-150" style={{ fontSize: 'var(--text-xs)' }}>Clear all</button>}
-            <button
-              type="button"
-              onClick={e => { e.stopPropagation(); e.preventDefault(); onClose(); }}
-              disabled={processing}
-              className="w-10 h-10 min-w-[44px] min-h-[44px] rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 transition-all duration-150 touch-manipulation"
-              style={{ border: '1px solid var(--edk-border)' }}
-              aria-label="Close cart"
-            >
-              <IconX />
-            </button>
-          </div>
-        </div>
-
-        <div
-          className="flex-1 overflow-y-auto overscroll-contain"
-          style={{ paddingBottom: 'var(--sheet-safe-padding-bottom)' }}
-        >
-          {lines.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 text-[#8892A0]" style={{ background: '#F4F6F9', border: '1px solid rgba(0,0,0,0.11)' }}>
-                <ShoppingBag className="w-8 h-8" strokeWidth={1.5} />
-              </div>
-              <p className="text-[14px] font-semibold text-[#424958] mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>Cart is empty</p>
-              <p className="text-[12px] mb-5" style={{ color: 'var(--text-3)' }}>
-                Add products from the grid to get started.
-              </p>
-              <button type="button" onClick={onClose} className="h-11 px-6 rounded-xl text-white text-sm font-bold transition-all active:scale-[0.98]" style={{ background: 'var(--blue)' }}>Start adding products</button>
-            </div>
-          )}
-
-          {lines.length > 0 && (<>
-            {/* Customer name */}
-            <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-100">
-              <span className="text-slate-400 flex-shrink-0"><IconUser /></span>
-              <input ref={customerInputRef} type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Search or add customer" className="flex-1 h-10 bg-transparent font-sans text-[14px] text-slate-900 placeholder:text-slate-300 outline-none border-none" />
-              {customerName && <button type="button" onClick={() => setCustomerName('')} className="text-slate-300 hover:text-slate-500 transition-colors"><IconX /></button>}
-            </div>
-
-            {/* Line items — grouped by product with size chips */}
-            <div className="px-2 space-y-2">
-              {groupLinesByProduct(lines).map((group) => {
-                const groupTotal = group.lines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
-                const removeGroup = () => group.lines.forEach(l => onRemoveLine(l.key));
-                return (
-                  <SwipeToRevealRow key={group.productId} onRemove={removeGroup}>
-                    <div className="px-4 py-3.5 rounded-[10px] mx-0 border" style={{ borderColor: 'var(--edk-border)', background: 'var(--elevated)' }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-[14px] font-bold truncate leading-snug flex-1 min-w-0" style={{ color: 'var(--text)' }}>{group.name}</p>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <p className="text-[14px] font-bold tabular-nums" style={{ color: 'var(--blue)', fontFamily: 'var(--font-m)' }}>{fmt(groupTotal)}</p>
-                          <button type="button" onClick={removeGroup} className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90 transition-colors" style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }}><Trash2 className="w-3.5 h-3.5" strokeWidth={2} /></button>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {group.lines.map((l) => (
-                          <div key={l.key} className="inline-flex items-center gap-0.5 rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--edk-border)', background: 'var(--surface)' }}>
-                          <button type="button" onClick={() => onUpdateQty(l.key, -1)} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>−</button>
-                            <span className="min-w-[2.5rem] text-center text-[12px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>{l.sizeLabel ?? 'One size'} ×{l.qty}</span>
-                            <button type="button" onClick={() => onUpdateQty(l.key, 1)} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>+</button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </SwipeToRevealRow>
-                );
-              })}
-            </div>
-
-            {/* Discount */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100">
-              <div>
-                <p className="text-[13px] font-semibold text-slate-700">Cart discount</p>
-                {disc > 0 && <p className="text-[12px] text-emerald-600 font-medium mt-0.5">Saving {fmt(discountAmt)}</p>}
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="number" min={0} max={100} value={discountPct} onChange={e => { const v = e.target.value; setDiscountPct(v === '' ? '' : Math.min(100, Math.max(0, Number(v)))); }} className="w-16 h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 text-center font-sans text-[16px] font-bold text-slate-900 focus:outline-none focus:border-primary-400 focus:bg-white focus:ring-[3px] focus:ring-primary-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all duration-150" />
-                <span className="text-[14px] font-semibold text-slate-400">%</span>
-              </div>
-            </div>
-
-            {/* Totals */}
-            <div className="px-5 py-4 border-t border-slate-100 space-y-2">
-              <div className="flex justify-between items-center"><span className="text-[12px] text-[#8892A0]">Subtotal</span><span className="text-[12px] font-medium text-[#424958] tabular-nums">{fmt(subtotal)}</span></div>
-              {disc > 0 && <div className="flex justify-between items-center"><span className="text-[12px] text-[#8892A0]">Discount ({disc}%)</span><span className="text-[12px] font-medium text-[#16A34A] tabular-nums">−{fmt(discountAmt)}</span></div>}
-              <div className="flex justify-between items-center pt-2 border-t border-[rgba(0,0,0,0.07)]"><span className="text-[13px] font-semibold text-[#0D1117]">Total</span><span className="text-[20px] font-extrabold tabular-nums" style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}>{fmt(total)}</span></div>
-            </div>
-
-            {/* Payment */}
-            <div className="px-5 pt-2 pb-3 border-t border-slate-100">
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Payment method</p>
-              <div className="flex gap-2">
-                {(['Cash', 'MoMo', 'Card', 'Mix'] as PaymentMethod[]).map((method) => (
-                  <PayBtn key={method} method={method} selected={paymentMethod === method} onSelect={() => setPaymentMethod(method)} />
-                ))}
-              </div>
-              {paymentMethod === 'Mix' && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-[11px] font-bold text-slate-500">Split total ({fmt(total)})</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">Cash</label>
-                      <input type="number" min={0} step={0.01} value={mixCash} onChange={e => setMixCash(e.target.value)} placeholder="0" className="w-full h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 px-2 text-[13px] font-semibold tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">MoMo</label>
-                      <input type="number" min={0} step={0.01} value={mixMoMo} onChange={e => setMixMoMo(e.target.value)} placeholder="0" className="w-full h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 px-2 text-[13px] font-semibold tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">Card</label>
-                      <input type="number" min={0} step={0.01} value={mixCard} onChange={e => setMixCard(e.target.value)} placeholder="0" className="w-full h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 px-2 text-[13px] font-semibold tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                    </div>
-                  </div>
-                  {!mixValid && mixSum > 0 && <p className="text-[11px] text-red-500 font-medium">Cash + MoMo + Card must equal total ({fmt(total)})</p>}
-                </div>
+          <Drawer.Handle />
+          <div className="flex items-center justify-between px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--edk-border)' }}>
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="font-bold text-slate-900" style={{ fontSize: 'var(--text-lg)' }}>Cart</h2>
+              {lines.length > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[20px] h-[20px] px-1.5 rounded-full bg-[var(--blue)] text-white font-bold" style={{ fontSize: 'var(--text-xs)' }}>
+                  {itemCount}
+                </span>
               )}
             </div>
-
-            {/* ── Schedule Delivery Toggle ─────────────────────────────── */}
-            <div className="px-5 py-3 border-t border-slate-100">
-              <button type="button" onClick={() => setScheduleDelivery(v => !v)} className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-[1.5px] transition-all duration-200 ${scheduleDelivery ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
-                <div className="flex items-center gap-2.5">
-                  <span className={`${scheduleDelivery ? 'text-amber-500' : 'text-slate-400'} transition-colors`}><IconTruck /></span>
-                  <div className="text-left">
-                    <p className={`text-[13px] font-bold leading-tight ${scheduleDelivery ? 'text-amber-700' : 'text-slate-700'}`}>Schedule Delivery</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Paid now · delivered later</p>
-                  </div>
-                </div>
-                <div className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${scheduleDelivery ? 'bg-amber-400' : 'bg-slate-200'}`}>
-                  <div className={`absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200 ${scheduleDelivery ? 'translate-x-[22px]' : 'translate-x-[3px]'}`} />
-                </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {lines.length > 0 && (
+                <span className="font-bold text-slate-900 tabular-nums" style={{ fontSize: 'var(--text-sm)' }}>{fmt(subtotal)}</span>
+              )}
+              {lines.length > 0 && <button type="button" onClick={onClearCart} disabled={processing} className="h-8 px-3 rounded-lg font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-40" style={{ fontSize: 'var(--text-xs)' }}>Clear all</button>}
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onClose(); }}
+                disabled={processing}
+                className="w-10 h-10 min-w-[44px] min-h-[44px] rounded-xl bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40 touch-manipulation"
+                style={{ border: '1px solid var(--edk-border)' }}
+                aria-label="Close cart"
+              >
+                <IconX />
               </button>
+            </div>
+          </div>
 
-              {/* Delivery fields */}
-              <div className={`overflow-hidden transition-all duration-300 ${scheduleDelivery ? 'max-h-[400px] opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}`}>
-                <div className="rounded-2xl border-[1.5px] border-amber-200 bg-amber-50/50 overflow-hidden">
-                  <div className="px-4 py-2.5 bg-amber-100/60 border-b border-amber-200">
-                    <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Delivery Details</p>
+          <div className="flex-1 overflow-y-auto overscroll-contain min-h-0" style={{ paddingBottom: 'var(--sheet-safe-padding-bottom)' }}>
+            {lines.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 text-[#8892A0]" style={{ background: '#F4F6F9', border: '1px solid rgba(0,0,0,0.11)' }}>
+                  <ShoppingBag className="w-8 h-8" strokeWidth={1.5} />
+                </div>
+                <p className="text-[14px] font-semibold text-[#424958] mb-1" style={{ fontFamily: 'Syne, sans-serif' }}>Cart is empty</p>
+                <p className="text-[12px] mb-5" style={{ color: 'var(--text-3)' }}>Add products from the grid to get started.</p>
+                <button type="button" onClick={onClose} className="h-11 px-6 rounded-xl text-white text-sm font-bold transition-all active:scale-[0.98]" style={{ background: 'var(--blue)' }}>Start adding products</button>
+              </div>
+            )}
+
+            {lines.length > 0 && (
+              <>
+                <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-100">
+                  <span className="text-slate-400 flex-shrink-0"><IconUser /></span>
+                  <input ref={customerInputRef} type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Search or add customer" className="flex-1 h-10 bg-transparent font-sans text-[14px] text-slate-900 placeholder:text-slate-300 outline-none border-none" />
+                  {customerName && <button type="button" onClick={() => setCustomerName('')} className="text-slate-300 hover:text-slate-500"><IconX /></button>}
+                </div>
+                <div className="px-2 space-y-2">
+                  {groupLinesByProduct(lines).map((group) => {
+                    const groupTotal = group.lines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
+                    const removeGroup = () => group.lines.forEach(l => onRemoveLine(l.key));
+                    return (
+                      <SwipeToRevealRow key={group.productId} onRemove={removeGroup}>
+                        <div className="px-4 py-3.5 rounded-[10px] border" style={{ borderColor: 'var(--edk-border)', background: 'var(--elevated)' }}>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-[14px] font-bold truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>{group.name}</p>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <p className="text-[14px] font-bold tabular-nums" style={{ color: 'var(--blue)', fontFamily: 'var(--font-m)' }}>{fmt(groupTotal)}</p>
+                              <button type="button" onClick={removeGroup} className="w-7 h-7 rounded-lg flex items-center justify-center active:scale-90" style={{ background: 'var(--red-dim)', color: 'var(--red-status)' }}><Trash2 className="w-3.5 h-3.5" strokeWidth={2} /></button>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {group.lines.map((l) => (
+                              <div key={l.key} className="inline-flex items-center gap-0.5 rounded-lg border px-2 py-1.5" style={{ borderColor: 'var(--edk-border)', background: 'var(--surface)' }}>
+                                <button type="button" onClick={() => onUpdateQty(l.key, -1)} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>−</button>
+                                <span className="min-w-[2.5rem] text-center text-[12px] font-bold tabular-nums" style={{ color: 'var(--text)' }}>{l.sizeLabel ?? 'One size'} ×{l.qty}</span>
+                                <button type="button" onClick={() => onUpdateQty(l.key, 1)} className="w-7 h-7 rounded flex items-center justify-center text-[14px] font-bold" style={{ color: 'var(--text-2)' }}>+</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </SwipeToRevealRow>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between px-5 py-3.5 border-t border-slate-100">
+                  <div>
+                    <p className="text-[13px] font-semibold text-slate-700">Cart discount</p>
+                    {disc > 0 && <p className="text-[12px] text-emerald-600 font-medium mt-0.5">Saving {fmt(discountAmt)}</p>}
                   </div>
-                  <FieldRow icon={<IconUser />}     placeholder="Recipient name *"      value={recipientName}   onChange={setRecipientName} />
-                  <FieldRow icon={<IconPhone />}    placeholder="Phone number"           value={recipientPhone}  onChange={setRecipientPhone}  type="tel" />
-                  <FieldRow icon={<IconMapPin />}   placeholder="Delivery address"       value={deliveryAddress} onChange={setDeliveryAddress} />
-                  <FieldRow icon={<IconCalendar />} placeholder="Expected delivery date" value={expectedDate}    onChange={setExpectedDate}    type="date" min={todayStr()} />
-                  <div className="px-4 py-2.5">
-                    <textarea value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} placeholder="Notes (optional)" rows={2} className="w-full bg-transparent resize-none font-sans text-[13px] text-slate-900 placeholder:text-slate-400 outline-none border-none" />
+                  <div className="flex items-center gap-2">
+                    <input type="number" min={0} max={100} value={discountPct} onChange={e => { const v = e.target.value; setDiscountPct(v === '' ? '' : Math.min(100, Math.max(0, Number(v)))); }} className="w-16 h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 text-center font-sans text-[16px] font-bold text-slate-900 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    <span className="text-[14px] font-semibold text-slate-400">%</span>
                   </div>
-                  {scheduleDelivery && !recipientName.trim() && (
-                    <div className="px-4 pb-2.5"><p className="text-[11px] text-amber-600 font-medium">⚠ Recipient name required to schedule delivery</p></div>
+                </div>
+                <div className="px-5 py-4 border-t border-slate-100 space-y-2">
+                  <div className="flex justify-between text-[12px] text-[#8892A0]"><span>Subtotal</span><span className="tabular-nums">{fmt(subtotal)}</span></div>
+                  {disc > 0 && <div className="flex justify-between text-[12px] text-[#8892A0]"><span>Discount ({disc}%)</span><span className="text-emerald-600 tabular-nums">−{fmt(discountAmt)}</span></div>}
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-100"><span className="text-[13px] font-semibold text-[#0D1117]">Total</span><span className="text-[20px] font-extrabold tabular-nums" style={{ fontFamily: 'Syne, sans-serif', color: '#0D1117' }}>{fmt(total)}</span></div>
+                </div>
+                <div className="px-5 pt-2 pb-3 border-t border-slate-100">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Payment method</p>
+                  <div className="flex gap-2">
+                    {(['Cash', 'MoMo', 'Card', 'Mix'] as PaymentMethod[]).map((method) => (
+                      <PayBtn key={method} method={method} selected={paymentMethod === method} onSelect={() => setPaymentMethod(method)} />
+                    ))}
+                  </div>
+                  {paymentMethod === 'Mix' && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-[11px] font-bold text-slate-500">Split total ({fmt(total)})</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div><label className="block text-[10px] font-semibold text-slate-400 mb-0.5">Cash</label><input type="number" min={0} step={0.01} value={mixCash} onChange={e => setMixCash(e.target.value)} placeholder="0" className="w-full h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 px-2 text-[13px] font-semibold tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" /></div>
+                        <div><label className="block text-[10px] font-semibold text-slate-400 mb-0.5">MoMo</label><input type="number" min={0} step={0.01} value={mixMoMo} onChange={e => setMixMoMo(e.target.value)} placeholder="0" className="w-full h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 px-2 text-[13px] font-semibold tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" /></div>
+                        <div><label className="block text-[10px] font-semibold text-slate-400 mb-0.5">Card</label><input type="number" min={0} step={0.01} value={mixCard} onChange={e => setMixCard(e.target.value)} placeholder="0" className="w-full h-10 rounded-xl border-[1.5px] border-slate-200 bg-slate-50 px-2 text-[13px] font-semibold tabular-nums [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" /></div>
+                      </div>
+                      {!mixValid && mixSum > 0 && <p className="text-[11px] text-red-500 font-medium">Cash + MoMo + Card must equal total ({fmt(total)})</p>}
+                    </div>
                   )}
                 </div>
-              </div>
-            </div>
-
-            <div className="h-4" />
-          </>)}
-        </div>
-
-        {/* Charge button — IDLE / PROCESSING / SUCCESS / ERROR */}
-        {lines.length > 0 && (
-          <div
-            className="px-5 py-4 flex-shrink-0 space-y-1"
-            style={{
-              borderTop: '0.5px solid var(--h-gray-100)',
-              background: 'var(--h-white)',
-              position: 'sticky',
-              bottom: 0,
-              paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
-            }}
-          >
-            {chargeStatus === 'error' && lastChargeError && (
-              <p className="text-[11px] text-red-500 font-medium text-center">
-                {lastChargeError}
-              </p>
+                <div className="px-5 py-3 border-t border-slate-100">
+                  <button type="button" onClick={() => setScheduleDelivery(v => !v)} className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border-[1.5px] ${scheduleDelivery ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
+                    <div className="flex items-center gap-2.5">
+                      <span className={scheduleDelivery ? 'text-amber-500' : 'text-slate-400'}><IconTruck /></span>
+                      <div className="text-left">
+                        <p className={`text-[13px] font-bold ${scheduleDelivery ? 'text-amber-700' : 'text-slate-700'}`}>Schedule Delivery</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Paid now · delivered later</p>
+                      </div>
+                    </div>
+                    <div className={`relative w-11 h-6 rounded-full flex-shrink-0 ${scheduleDelivery ? 'bg-amber-400' : 'bg-slate-200'}`}>
+                      <div className={`absolute top-[3px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200 ${scheduleDelivery ? 'translate-x-[22px]' : 'translate-x-[3px]'}`} />
+                    </div>
+                  </button>
+                  <div className={`overflow-hidden transition-all duration-300 ${scheduleDelivery ? 'max-h-[400px] opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}`}>
+                    <div className="rounded-2xl border-[1.5px] border-amber-200 bg-amber-50/50 overflow-hidden">
+                      <div className="px-4 py-2.5 bg-amber-100/60 border-b border-amber-200"><p className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Delivery Details</p></div>
+                      <FieldRow icon={<IconUser />} placeholder="Recipient name *" value={recipientName} onChange={setRecipientName} />
+                      <FieldRow icon={<IconPhone />} placeholder="Phone number" value={recipientPhone} onChange={setRecipientPhone} type="tel" />
+                      <FieldRow icon={<IconMapPin />} placeholder="Delivery address" value={deliveryAddress} onChange={setDeliveryAddress} />
+                      <FieldRow icon={<IconCalendar />} placeholder="Expected delivery date" value={expectedDate} onChange={setExpectedDate} type="date" min={todayStr()} />
+                      <div className="px-4 py-2.5"><textarea value={deliveryNotes} onChange={e => setDeliveryNotes(e.target.value)} placeholder="Notes (optional)" rows={2} className="w-full bg-transparent resize-none font-sans text-[13px] text-slate-900 placeholder:text-slate-400 outline-none border-none" /></div>
+                      {scheduleDelivery && !recipientName.trim() && <div className="px-4 pb-2.5"><p className="text-[11px] text-amber-600 font-medium">Recipient name required</p></div>}
+                    </div>
+                  </div>
+                </div>
+                <div className="h-4" />
+              </>
             )}
-            <button
-              type="button"
-              onClick={chargeStatus === 'error' ? onRetry : handleCharge}
-              disabled={lines.length === 0 || !canCharge || chargeStatus === 'processing' || chargeStatus === 'success'}
-              className="w-full h-12 rounded-[10px] border-none text-white flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-200 hover:-translate-y-px uppercase font-extrabold text-[16px]"
-              style={{
-                fontFamily: 'var(--font-d)',
-                background: chargeStatus === 'success' ? '#16A34A' : chargeStatus === 'error' ? 'var(--red-status)' : chargeStatus === 'processing' ? 'var(--border)' : scheduleDelivery ? 'var(--amber)' : 'var(--blue)',
-                color: chargeStatus === 'processing' ? 'var(--text-3)' : undefined,
-                boxShadow: chargeStatus === 'success' ? '0 4px 14px rgba(22,163,74,0.25)' : chargeStatus === 'error' ? '0 4px 14px rgba(239,68,68,0.2)' : chargeStatus === 'processing' ? 'none' : scheduleDelivery ? '0 4px 14px rgba(217,119,6,0.2)' : '0 4px 14px var(--blue-glow)',
-              }}
-            >
-              {chargeStatus === 'processing' ? (<><LoadingSpinner size="sm" inverse /> Processing…</>) : chargeStatus === 'success' ? (<><Check className="w-5 h-5" strokeWidth={2.5} /> Sale complete</>) : chargeStatus === 'error' ? (<><X className="w-5 h-5" strokeWidth={2.5} /> Failed — tap to retry</>) : scheduleDelivery ? (<><IconTruck /> Charge & Schedule — {fmt(total)}</>) : (`Charge ${fmt(total)}`)}
-            </button>
           </div>
-        )}
-      </div>
-      <style>{`@keyframes cart-spin { to { transform: rotate(360deg); } }`}</style>
-    </>
+
+          {lines.length > 0 && (
+            <div className="px-5 py-4 flex-shrink-0 space-y-1 border-t bg-white" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}>
+              {chargeStatus === 'error' && lastChargeError && <p className="text-[11px] text-red-500 font-medium text-center">{lastChargeError}</p>}
+              <button
+                type="button"
+                onClick={chargeStatus === 'error' ? onRetry : handleCharge}
+                disabled={lines.length === 0 || !canCharge || chargeStatus === 'processing' || chargeStatus === 'success'}
+                className="w-full h-12 rounded-[10px] border-none text-white flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] uppercase font-extrabold text-[16px]"
+                style={{
+                  fontFamily: 'var(--font-d)',
+                  background: chargeStatus === 'success' ? '#16A34A' : chargeStatus === 'error' ? 'var(--red-status)' : chargeStatus === 'processing' ? 'var(--border)' : scheduleDelivery ? 'var(--amber)' : 'var(--blue)',
+                  color: chargeStatus === 'processing' ? 'var(--text-3)' : undefined,
+                }}
+              >
+                {chargeStatus === 'processing' ? (<><LoadingSpinner size="sm" inverse /> Processing…</>) : chargeStatus === 'success' ? (<><Check className="w-5 h-5" strokeWidth={2.5} /> Sale complete</>) : chargeStatus === 'error' ? (<><X className="w-5 h-5" strokeWidth={2.5} /> Failed — tap to retry</>) : scheduleDelivery ? (<><IconTruck /> Charge & Schedule — {fmt(total)}</>) : (`Charge ${fmt(total)}`)}
+              </button>
+            </div>
+          )}
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }

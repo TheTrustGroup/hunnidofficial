@@ -30,6 +30,7 @@
     "react-router-dom": "^6.20.0",
     "recharts": "^2.10.3",
     "uuid": "^9.0.1",
+    "vaul": "^1.1.2",
     "workbox-window": "^7.4.0",
     "zod": "^4.3.6"
   },
