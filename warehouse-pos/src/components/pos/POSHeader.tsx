@@ -1,5 +1,5 @@
 /**
- * POS header: warehouse, search, scan, notifications, logout. No cart — cart is in bottom nav / cart bar.
+ * POS header: warehouse, search, scan, cart icon, notifications, logout.
  */
 export interface POSHeaderProps {
   warehouseName: string;
@@ -8,6 +8,9 @@ export interface POSHeaderProps {
   onWarehouseTap: () => void;
   /** When true, warehouse name is static (no tap, no chevron). Use for session-bound POS. */
   canChangeWarehouse?: boolean;
+  /** Cart icon: show when provided. Badge shows count when > 0. */
+  cartItemCount?: number;
+  onCartOpen?: () => void;
   /** Optional: called when user taps the Scan pill (e.g. focus barcode scanner). */
   onScanClick?: () => void;
   /** Optional: called when user taps Log out. */
@@ -26,12 +29,21 @@ const IconChevronDown = () => (
   </svg>
 );
 
+const IconCart = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+  </svg>
+);
+
 export default function POSHeader({
   warehouseName,
   search,
   onSearchChange,
   onWarehouseTap,
   canChangeWarehouse = true,
+  cartItemCount = 0,
+  onCartOpen,
   onScanClick,
   onLogout,
 }: POSHeaderProps) {
@@ -81,6 +93,24 @@ export default function POSHeader({
         </button>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
+        {onCartOpen != null && (
+          <button
+            type="button"
+            onClick={onCartOpen}
+            style={{ touchAction: 'manipulation' }}
+            className="relative w-9 h-9 min-w-[44px] min-h-[44px] rounded-lg flex items-center justify-center bg-[#1B6FE8] text-white focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1"
+            aria-label={cartItemCount > 0 ? `Cart, ${cartItemCount} items` : 'Open cart'}
+          >
+            <IconCart />
+            {cartItemCount > 0 && (
+              <span
+                className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#E83B2E] border-2 border-[var(--edk-surface)] flex items-center justify-center text-white text-[10px] font-bold leading-none"
+              >
+                {cartItemCount > 9 ? '9+' : cartItemCount}
+              </span>
+            )}
+          </button>
+        )}
         <button
           type="button"
           className="relative w-9 h-9 rounded-lg border flex items-center justify-center transition-colors bg-[var(--edk-surface)] border-[var(--edk-border-mid)] text-[var(--edk-ink-2)] focus:outline-none focus:ring-2 focus:ring-[var(--blue)] focus:ring-offset-1 disabled:opacity-50"

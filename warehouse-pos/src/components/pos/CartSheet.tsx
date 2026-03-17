@@ -162,11 +162,11 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [expectedDate, setExpectedDate] = useState('');
   const customerInputRef = useRef<HTMLInputElement>(null);
-  const [activeSnapPoint, setActiveSnapPoint] = useState<number | null>(0.5);
-  const setSnapPoint = (v: string | number | null) => setActiveSnapPoint(typeof v === 'number' ? v : v === null ? null : Number(v));
+  const [activeSnapPoint, setActiveSnapPoint] = useState<number | string | null>('355');
+  const setSnapPoint = (v: string | number | null) => setActiveSnapPoint(v);
 
   useEffect(() => {
-    if (isOpen) setActiveSnapPoint(0.5);
+    if (isOpen) setActiveSnapPoint('355');
   }, [isOpen]);
 
   useEffect(() => {
@@ -225,10 +225,10 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
     <Drawer.Root
       open={isOpen}
       onOpenChange={(o) => { if (!o) onClose(); }}
-      snapPoints={[0.5, 1]}
+      snapPoints={['355', 1]}
       activeSnapPoint={activeSnapPoint}
       setActiveSnapPoint={setSnapPoint}
-      modal={false}
+      modal
       dismissible
     >
       <Drawer.Portal>

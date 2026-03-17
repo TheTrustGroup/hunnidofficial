@@ -460,6 +460,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const cartCount = cart.reduce((s, l) => s + l.qty, 0);
+  const cartTotal = cart.reduce((s, l) => s + l.unitPrice * l.qty, 0);
 
   // ── Toast accent colour ───────────────────────────────────────────────────
 
@@ -490,13 +491,15 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
           onSearchChange={setSearch}
           onWarehouseTap={() => !isWarehouseBoundToSession && setSessionOpen(true)}
           canChangeWarehouse={!isWarehouseBoundToSession}
+          cartItemCount={cartCount}
+          onCartOpen={() => { setCartOpen(true); setChargeStatus('idle'); setLastChargeError(null); }}
           onLogout={async () => {
             await logout();
             navigate('/login', { replace: true });
           }}
         />
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className={`flex-1 overflow-y-auto min-h-0 ${cartCount > 0 ? 'pb-[calc(var(--bottom-nav-h)+72px)]' : ''}`}>
           <ProductGrid
             products={products}
             loading={loading}
@@ -519,10 +522,11 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
           />
         </div>
 
-        {/* Mobile: sticky cart bar; desktop cart is right panel */}
-        <div className="lg:hidden flex-shrink-0">
+        {/* Mobile: fixed cart bar above bottom nav when cart has items */}
+        <div className="lg:hidden">
           <CartBar
-            lines={cart}
+            itemCount={cartCount}
+            total={cartTotal}
             onOpen={() => { if (cartCount > 0) { setCartOpen(true); setChargeStatus('idle'); setLastChargeError(null); } }}
           />
         </div>

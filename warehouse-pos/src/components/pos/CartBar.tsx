@@ -1,43 +1,37 @@
 /**
- * POS cart bar (CHANGE 7): "[N] items · GH₵XXX · View Cart →", 44px min tap target, font ≥11px.
- * Opens full-screen cart drawer on tap.
+ * POS cart bar — fixed above bottom nav when cart has items.
+ * Tap to open full cart sheet.
  */
-import type { CartLine } from './CartSheet';
-
 export interface CartBarProps {
-  lines: CartLine[];
+  itemCount: number;
+  total: number;
   onOpen: () => void;
 }
 
-function fmt(n: number) {
-  return `GH₵${Number(n).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-export default function CartBar({ lines, onOpen }: CartBarProps) {
-  const itemCount = lines.reduce((s, l) => s + l.qty, 0);
-  const total = lines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
-
+export default function CartBar({ itemCount, total, onOpen }: CartBarProps) {
   if (itemCount === 0) return null;
 
   return (
     <div
-      className="flex-shrink-0 p-3 bg-[var(--surface)] border-t shadow-[0_-2px_12px_rgba(0,0,0,0.06)]"
-      style={{ borderColor: 'var(--edk-border)' }}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+      style={{ touchAction: 'manipulation' }}
+      className="fixed left-4 right-4 z-30 cursor-pointer bottom-[calc(64px+env(safe-area-inset-bottom)+8px)]"
+      aria-label={`View cart, ${itemCount} items, GH¢${total.toLocaleString()}`}
     >
-      <button
-        type="button"
-        onClick={onOpen}
-        className="w-full min-h-[44px] flex items-center justify-between gap-2 py-2.5 px-4 rounded-xl text-white active:scale-[0.99] transition-all duration-150 text-left"
-        style={{ background: 'var(--text)' }}
-      >
-        <span className="font-semibold" style={{ fontSize: 'var(--text-xs)' }}>
-          {itemCount} item{itemCount !== 1 ? 's' : ''} · {fmt(total)}
+      <div className="bg-[#1B6FE8] rounded-2xl px-4 py-3 flex items-center justify-between shadow-[0_4px_20px_rgba(27,111,232,0.4)]">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center">
+            <span className="text-white text-[13px] font-bold">{itemCount}</span>
+          </div>
+          <span className="text-white text-[14px] font-medium">View cart</span>
+        </div>
+        <span className="text-white font-display text-[18px] tracking-wide">
+          GH¢{total.toLocaleString()}
         </span>
-        <span className="font-medium text-[var(--blue)] flex items-center gap-0.5 shrink-0" style={{ fontSize: 'var(--text-meta)' }}>
-          View Cart
-          <span aria-hidden>→</span>
-        </span>
-      </button>
+      </div>
     </div>
   );
 }
