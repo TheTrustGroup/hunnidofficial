@@ -1,8 +1,29 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { writeFileSync } from 'fs';
+import { join } from 'path';
+
+const buildId = Date.now().toString();
+function versionPlugin() {
+  let outDir = 'dist';
+  return {
+    name: 'version',
+    config() {
+      return { define: { 'import.meta.env.VITE_BUILD_ID': JSON.stringify(buildId) } };
+    },
+    configResolved(config) {
+      outDir = config.build?.outDir ?? 'dist';
+    },
+    closeBundle() {
+      try {
+        writeFileSync(join(outDir, 'version.json'), JSON.stringify({ buildId }));
+      } catch (_) {}
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), versionPlugin()],
   base: '/',
   build: {
     outDir: 'dist',

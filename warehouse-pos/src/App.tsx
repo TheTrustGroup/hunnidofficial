@@ -21,6 +21,7 @@ import { Layout } from './components/layout/Layout';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import { DebugPanel } from './components/debug/DebugPanel';
 import { BrowserCheck } from './components/BrowserCheck';
+import { UpdateBanner } from './components/UpdateBanner';
 import { OnboardingModal } from './components/OnboardingModal';
 import { PERMISSIONS } from './types/permissions';
 
@@ -210,6 +211,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
     <BrowserCheck>
     <ToastProvider>
+      <UpdateBanner />
       <ServiceWorkerUpdateListener />
       <OfflineQuotaToastListener />
       <NetworkStatusProvider>

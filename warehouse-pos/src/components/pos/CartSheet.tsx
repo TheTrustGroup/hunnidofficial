@@ -3,7 +3,7 @@
 // File: warehouse-pos/src/components/pos/CartSheet.tsx
 // ============================================================
 
-import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Trash2, Check, X, ShoppingBag } from 'lucide-react';
 import { PayIcon } from './PaymentIcons';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
@@ -82,8 +82,8 @@ function groupLinesByProduct(lines: CartLine[]): Array<{ productId: string; name
   });
 }
 
-/** Peek height: handle + header (Cart, count, total, Clear, X). Slide up to expand for checkout. */
-const CART_SHEET_PEEK_HEIGHT = 140;
+/** Drag down past this (px) on the handle to close the sheet. Single full-height sheet, no peek. */
+const DRAG_DOWN_TO_CLOSE_PX = 56;
 
 const SWIPE_REVEAL_PX = 80;
 const SWIPE_THRESHOLD_PX = 50;
@@ -167,18 +167,11 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
   const [expectedDate,     setExpectedDate]    = useState('');
   const customerInputRef = useRef<HTMLInputElement>(null);
 
-  // Slidable sheet: peek (summary only) or expanded (full checkout). Drag handle to snap.
-  const [expansion, setExpansion] = useState<'peek' | 'expanded'>('expanded');
-  const [dragPx, setDragPx] = useState(0);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const expandedHeightRef = useRef(400);
+  // Single full-height sheet. Drag handle down to close; X and overlay also close.
   const dragStartY = useRef(0);
-  const dragStartPx = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
-      setExpansion('expanded');
-      setDragPx(0);
       setDiscountPct(0);
       setPaymentMethod('Cash');
       setMixCash('');
@@ -193,35 +186,24 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
     }
   }, [isOpen]);
 
-  useLayoutEffect(() => {
-    if (isOpen && expansion === 'expanded' && dragPx === 0 && sheetRef.current) {
-      const h = sheetRef.current.getBoundingClientRect().height;
-      if (h > 0) expandedHeightRef.current = h;
-    }
-  }, [isOpen, expansion, dragPx]);
+  const handlePointerStart = useCallback((clientY: number) => { dragStartY.current = clientY; }, []);
+  const handlePointerEnd = useCallback((clientY: number) => {
+    if (dragStartY.current - clientY >= DRAG_DOWN_TO_CLOSE_PX) onClose();
+  }, [onClose]);
 
-  const maxDrag = Math.max(0, expandedHeightRef.current - CART_SHEET_PEEK_HEIGHT);
-  const handleDragStart = useCallback((clientY: number) => {
-    dragStartY.current = clientY;
-    dragStartPx.current = dragPx;
-  }, [dragPx]);
-  const handleDragMove = useCallback((clientY: number) => {
-    const deltaY = dragStartY.current - clientY;
-    const next = expansion === 'expanded'
-      ? Math.min(maxDrag, Math.max(0, dragStartPx.current - deltaY))
-      : Math.min(maxDrag, Math.max(0, dragStartPx.current + deltaY));
-    setDragPx(next);
-  }, [expansion, maxDrag]);
-  const handleDragEnd = useCallback(() => {
-    const mid = maxDrag * 0.5;
-    if (dragPx > mid) {
-      setExpansion('peek');
-      setDragPx(0);
-    } else {
-      setExpansion('expanded');
-      setDragPx(0);
-    }
-  }, [dragPx, maxDrag]);
+  const [mouseListeners, setMouseListeners] = useState(false);
+  useEffect(() => {
+    if (!mouseListeners) return;
+    const up = (e: MouseEvent) => {
+      handlePointerEnd(e.clientY);
+      window.removeEventListener('mouseup', up);
+      window.removeEventListener('mouseleave', up);
+      setMouseListeners(false);
+    };
+    window.addEventListener('mouseup', up);
+    window.addEventListener('mouseleave', up);
+    return () => { window.removeEventListener('mouseup', up); window.removeEventListener('mouseleave', up); };
+  }, [mouseListeners, handlePointerEnd]);
 
 
   useEffect(() => { if (isOpen) document.body.style.overflow = 'hidden'; else document.body.style.overflow = ''; return () => { document.body.style.overflow = ''; }; }, [isOpen]);
@@ -271,59 +253,33 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
         style={{ zIndex: 'var(--z-modal)' }}
         onClick={() => !processing && onClose()}
       />
-      {/* Sheet: slidable — peek (summary) or expanded (checkout). Drag handle to snap; X closes. */}
+      {/* Sheet: always full height. Drag handle down to close; X and overlay close. */}
       <div
-        ref={sheetRef}
-        className={`fixed left-0 right-0 bg-white flex flex-col rounded-t-3xl ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`fixed left-0 right-0 bg-white flex flex-col rounded-t-3xl transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
         style={{
           bottom: 'var(--cart-sheet-bottom)',
           zIndex: 'var(--z-modal)',
           boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)',
-          transition: dragPx === 0 ? 'height 0.3s cubic-bezier(0.34,1.1,0.64,1)' : 'none',
-          ...(dragPx > 0
-            ? { height: expansion === 'expanded' ? expandedHeightRef.current - dragPx : CART_SHEET_PEEK_HEIGHT + dragPx }
-            : expansion === 'peek'
-              ? { height: CART_SHEET_PEEK_HEIGHT }
-              : { minHeight: 280, maxHeight: 'var(--cart-sheet-max-h)' }
-          ),
+          minHeight: 280,
+          maxHeight: 'var(--cart-sheet-max-h)',
         }}
         onClick={e => e.stopPropagation()}
       >
         <div
-          className="flex justify-center pt-3 pb-2 flex-shrink-0 touch-none cursor-grab active:cursor-grabbing"
-          aria-hidden
-          role="button"
-          tabIndex={0}
-          aria-label={expansion === 'peek' ? 'Expand cart to checkout' : 'Drag to collapse or expand cart'}
-          onTouchStart={e => handleDragStart(e.touches[0].clientY)}
-          onTouchMove={e => handleDragMove(e.touches[0].clientY)}
-          onTouchEnd={handleDragEnd}
-          onTouchCancel={handleDragEnd}
-          onMouseDown={e => {
-            e.preventDefault();
-            handleDragStart(e.clientY);
-            const move = (e2: MouseEvent) => handleDragMove(e2.clientY);
-            const up = () => {
-              window.removeEventListener('mousemove', move);
-              window.removeEventListener('mouseup', up);
-              handleDragEnd();
-            };
-            window.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', up);
-          }}
-          onClick={() => { if (expansion === 'peek') setExpansion('expanded'); }}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (expansion === 'peek') setExpansion('expanded'); } }}
+          className="flex justify-center pt-3 pb-2 flex-shrink-0 cursor-grab active:cursor-grabbing touch-manipulation"
+          aria-label="Drag down to close cart"
+          onTouchStart={e => handlePointerStart(e.touches[0].clientY)}
+          onTouchEnd={e => { if (e.changedTouches[0]) handlePointerEnd(e.changedTouches[0].clientY); }}
+          onTouchCancel={e => { if (e.changedTouches[0]) handlePointerEnd(e.changedTouches[0].clientY); }}
+          onMouseDown={e => { e.preventDefault(); handlePointerStart(e.clientY); setMouseListeners(true); }}
+          onMouseUp={e => handlePointerEnd(e.clientY)}
         >
-          <div className="w-12 h-1.5 rounded-full bg-slate-300" />
+          <div className="w-12 h-1.5 rounded-full bg-slate-300" aria-hidden />
         </div>
 
         <div
           className="flex items-center justify-between px-5 py-3 flex-shrink-0"
           style={{ borderBottom: '1px solid var(--edk-border)' }}
-          role={expansion === 'peek' ? 'button' : undefined}
-          tabIndex={expansion === 'peek' ? 0 : undefined}
-          onClick={expansion === 'peek' ? () => setExpansion('expanded') : undefined}
-          onKeyDown={expansion === 'peek' ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpansion('expanded'); } } : undefined}
         >
           <div className="flex items-center gap-2 min-w-0">
             <h2 className="font-bold text-slate-900" style={{ fontSize: 'var(--text-lg)' }}>Cart</h2>
