@@ -215,10 +215,11 @@ export default function CartSheet({ isOpen, lines, warehouseId, chargeStatus = '
         style={{ zIndex: 'var(--z-modal)' }}
         onClick={() => !processing && onClose()}
       />
-      {/* Sheet: on mobile sits above bottom nav so it’s never stuck under nav or browser bar; full width, aligned. */}
+      {/* Sheet: on mobile sits above bottom nav so it’s bottom = var(--cart-sheet-bottom): mobile above nav + browser chrome; desktop 0. */}
       <div
-        className={`fixed left-0 right-0 bg-white flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} bottom-[var(--bottom-nav-h)] lg:bottom-0 rounded-t-3xl`}
+        className={`fixed left-0 right-0 bg-white flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.34,1.1,0.64,1)] ${isOpen ? 'translate-y-0' : 'translate-y-full'} rounded-t-3xl`}
         style={{
+          bottom: 'var(--cart-sheet-bottom)',
           zIndex: 'var(--z-modal)',
           boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)',
           minHeight: 280,

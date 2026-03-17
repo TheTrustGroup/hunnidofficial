@@ -67,7 +67,7 @@ export function Header() {
 
   return (
     <>
-      {/* Mobile: page title, search, LIVE, bell, logout — cart is in bottom nav only */}
+      {/* Mobile: page title, search, live sync status, bell, logout — cart is in bottom nav only */}
       <header
         className="lg:hidden fixed top-0 left-0 right-0 h-[var(--edk-topbar-h)] bg-[var(--edk-surface)] border-b border-[var(--edk-border)] flex items-center gap-1 pl-[max(0.75rem,var(--safe-left))] pr-[max(0.75rem,var(--safe-right))] z-10"
         style={{ fontFamily: "'DM Sans', system-ui, sans-serif", paddingTop: 'var(--safe-top)' }}
@@ -83,9 +83,8 @@ export function Header() {
         >
           <Search className="w-4 h-4" strokeWidth={2} />
         </button>
-        <span className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold bg-[var(--edk-green-bg)] text-[var(--edk-green)] shrink-0">
-          <span className="w-1.5 h-1.5 rounded-full bg-[var(--edk-green)]" aria-hidden />
-          LIVE
+        <span className="flex items-center rounded-full px-2 py-1 min-h-[28px] bg-[var(--edk-bg)] border border-[var(--edk-border-mid)] shrink-0">
+          <RealtimeSyncIndicator alwaysShowLabel />
         </span>
         <button
           type="button"

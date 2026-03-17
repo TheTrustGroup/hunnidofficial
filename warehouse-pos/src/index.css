@@ -95,9 +95,11 @@
   --z-toast: 60;
   /* Bottom nav + sheets: single source of truth so nav and sheets never overlap. */
   --bottom-nav-h: calc(52px + env(safe-area-inset-bottom, 0px));
-  /* Reserve space below sheet so it never goes under mobile browser chrome (address bar, etc.). */
-  --sheet-browser-buffer: 56px;
-  /* Cart sheet max height: on mobile keeps sheet above nav + browser bar; on desktop see below. */
+  /* Reserve space for mobile browser chrome (address bar / bottom bar). Sheet bottom is raised by this so it never sits under browser UI. */
+  --sheet-browser-buffer: 88px;
+  /* Cart sheet bottom edge: mobile = above nav + browser chrome; desktop = viewport bottom. */
+  --cart-sheet-bottom: calc(var(--bottom-nav-h) + var(--sheet-browser-buffer));
+  /* Cart sheet max height: mobile = viewport minus (nav + buffer) so content stays visible; desktop see below. */
   --cart-sheet-max-h: min(75dvh, calc(100dvh - var(--bottom-nav-h) - var(--sheet-browser-buffer)));
   /* Extra padding at bottom of sheet scroll content so Charge/actions never hidden. */
   --sheet-safe-padding-bottom: calc(var(--bottom-nav-h) + 32px);
@@ -107,6 +109,7 @@
 }
 @media (min-width: 1024px) {
   :root {
+    --cart-sheet-bottom: 0;
     --cart-sheet-max-h: 85vh;
   }
 }
