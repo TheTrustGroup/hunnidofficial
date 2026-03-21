@@ -32,6 +32,7 @@ import {
   SIZE_UPDATE_COOLDOWN_MS,
   INVENTORY_POLL_MS,
   INVENTORY_PAGE_SIZE,
+  LAST_UPDATED_PRESERVE_MS,
 } from '../constants/inventory';
 
 /** Per-warehouse cache key so we can show the right list immediately on login/refresh. */
@@ -233,6 +234,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [productsTotal, setProductsTotal] = useState<number | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const loadMoreInflightRef = useRef(false);
+  /** Prevents overlapping main list fetches; pair with loadProductsAbortRef. */
+  const loadProductsInflightRef = useRef(false);
+  const loadProductsAbortRef = useRef<AbortController | null>(null);
   const syncRef = useRef<(() => Promise<{ synced: number; failed: number; total: number; syncedIds: string[] }>) | null>(null);
 
   // Persist current products to localStorage for legacy/fallback (products now from Dexie via hook)
@@ -405,8 +409,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         if (typeof totalFromApi === 'number') setProductsTotal(totalFromApi);
         setProducts((prev) => {
           const existingIds = new Set(prev.map((p) => p.id));
-          const fresh = nextItems.filter((p) => !existingIds.has(p.id));
-          const next = [...prev, ...fresh];
+          const newOnly = nextItems.filter((p) => !existingIds.has(p.id));
+          const ru = lastUpdatedProductRef.current;
+          let next: Product[];
+          if (ru && Date.now() - ru.at <= LAST_UPDATED_PRESERVE_MS) {
+            next = [...prev, ...newOnly].map((p) => (p.id === ru.product.id ? ru.product : p));
+          } else {
+            next = [...prev, ...newOnly];
+          }
           if (effectiveWarehouseIdRef.current === wid) {
             cacheRef.current[wid] = { data: next, ts: Date.now() };
             if (isStorageAvailable()) setStoredData(productsCacheKey(wid), next);
@@ -436,6 +446,27 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       lastSilentRefreshAtRef.current = now;
     }
 
+    if (loadProductsInflightRef.current) {
+      if (silent) return;
+      loadProductsAbortRef.current?.abort();
+      return;
+    }
+    loadProductsInflightRef.current = true;
+    const mainAbort = new AbortController();
+    loadProductsAbortRef.current = mainAbort;
+    const mergeAbortSignals = (a?: AbortSignal, b?: AbortSignal): AbortSignal | undefined => {
+      if (!a) return b;
+      if (!b) return a;
+      const c = new AbortController();
+      const onAbort = () => {
+        c.abort();
+      };
+      a.addEventListener('abort', onAbort);
+      b.addEventListener('abort', onAbort);
+      return c.signal;
+    };
+    const effectiveSignal = mergeAbortSignals(signal, mainAbort.signal);
+
     const cached = cacheRef.current[wid];
     const cacheValid = !bypassCache && cached && (now - cached.ts) < PRODUCTS_CACHE_TTL_MS;
     if (cacheValid && cached.data.length > 0) {
@@ -454,7 +485,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       try {
         const path = productsPath('/api/products', { limit: INVENTORY_PAGE_SIZE, offset: 0, view: 'list' });
         // Fail fast on server/network errors so we show cached products instead of spinning (maxRetries: 0).
-        const getOpts = { signal, timeoutMs, maxRetries: 0 };
+        const getOpts = { signal: effectiveSignal, timeoutMs, maxRetries: 0 };
         let raw: { data?: Product[]; total?: number } | Product[] | null = null;
         try {
           raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(API_BASE_URL, path, getOpts);
@@ -666,6 +697,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         }
       }
     } finally {
+      loadProductsInflightRef.current = false;
       if (silent) setBackgroundRefreshing(false);
       setIsLoading(false);
     }

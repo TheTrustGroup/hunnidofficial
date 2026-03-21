@@ -449,7 +449,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
       const isNetErr = err.name === 'AbortError' || err.name === 'TypeError' ||
                        err.message?.includes('Failed to fetch') ||
                        err.message?.includes('network connection was lost');
-      if (isReadOnly && isNetErr && _retryCount < 3) {
+      if (isReadOnly && isNetErr && _retryCount < 1) {
         const delay = (2 ** _retryCount) * 800;
         await new Promise(r => setTimeout(r, delay));
         return apiFetch(path, init, _retryCount + 1);
