@@ -14,6 +14,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import { getSupabaseClient } from '../lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { useRealtimeContext } from './RealtimeContext';
 
 const CHANNEL_NAME = 'warehouse-pos-presence';
 const ACTIVITY_THROTTLE_MS = 30_000; // update lastActivity at most every 30s
@@ -101,6 +102,8 @@ export function PresenceProvider({
   isAuthenticated: boolean;
 }) {
   const location = useLocation();
+  const realtimeCtx = useRealtimeContext();
+  const setRealtimeStatus = realtimeCtx?.setStatus;
   const [presenceState, setPresenceState] = useState<Record<string, PresencePayload[]>>({});
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [receivedLowStockAlerts, setReceivedLowStockAlerts] = useState<ReceivedLowStockAlert[]>([]);
@@ -149,11 +152,17 @@ export function PresenceProvider({
       }
       setPresenceState({});
       setIsSubscribed(false);
+      setRealtimeStatus?.('disconnected');
       return;
     }
 
     const supabase = getSupabaseClient();
-    if (!supabase) return;
+    if (!supabase) {
+      setRealtimeStatus?.('disconnected');
+      return;
+    }
+
+    setRealtimeStatus?.('connecting');
 
     const ch = supabase.channel(CHANNEL_NAME, {
       config: { presence: { key: currentUserEmail.trim().toLowerCase() } },
@@ -178,8 +187,13 @@ export function PresenceProvider({
       .subscribe((status: string) => {
         setIsSubscribed(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED') {
+          setRealtimeStatus?.('connected');
           channelRef.current = ch;
           ch.track(payloadRef.current);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setRealtimeStatus?.('error');
+        } else if (status === 'CLOSED') {
+          setRealtimeStatus?.('disconnected');
         }
       });
 
@@ -190,8 +204,9 @@ export function PresenceProvider({
       setPresenceState({});
       setIsSubscribed(false);
       setReceivedLowStockAlerts([]);
+      setRealtimeStatus?.('disconnected');
     };
-  }, [isAuthenticated, currentUserEmail]);
+  }, [isAuthenticated, currentUserEmail, setRealtimeStatus]);
 
   const sendLowStockAlert = useCallback(
     (p: Omit<LowStockAlertPayload, 'senderEmail' | 'senderName'>) => {

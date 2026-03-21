@@ -13,6 +13,8 @@ import { OrderProvider } from './contexts/OrderContext';
 import { CriticalDataProvider, CriticalDataGate } from './contexts/CriticalDataContext';
 import { ToastProvider, useToast } from './contexts/ToastContext';
 import { NetworkStatusProvider } from './contexts/NetworkStatusContext';
+import { RealtimeProvider } from './contexts/RealtimeContext';
+import { AuthenticatedPresenceBridge } from './contexts/AuthenticatedPresenceBridge';
 import { QUOTA_EVENT } from './lib/offlineQuota';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { RouteErrorBoundary } from './components/ui/RouteErrorBoundary';
@@ -182,21 +184,25 @@ function ProtectedRoutes() {
   }
 
   return (
-    <CriticalDataProvider>
-      <StoreProvider>
-        <WarehouseProvider>
-          <InventoryProvider>
-            <POSProvider>
-              <OrderProvider>
-                <CriticalDataGate>
-                  <Layout />
-                </CriticalDataGate>
-              </OrderProvider>
-            </POSProvider>
-          </InventoryProvider>
-        </WarehouseProvider>
-      </StoreProvider>
-    </CriticalDataProvider>
+    <RealtimeProvider>
+      <CriticalDataProvider>
+        <StoreProvider>
+          <WarehouseProvider>
+            <AuthenticatedPresenceBridge>
+              <InventoryProvider>
+                <POSProvider>
+                  <OrderProvider>
+                    <CriticalDataGate>
+                      <Layout />
+                    </CriticalDataGate>
+                  </OrderProvider>
+                </POSProvider>
+              </InventoryProvider>
+            </AuthenticatedPresenceBridge>
+          </WarehouseProvider>
+        </StoreProvider>
+      </CriticalDataProvider>
+    </RealtimeProvider>
   );
 }
 
