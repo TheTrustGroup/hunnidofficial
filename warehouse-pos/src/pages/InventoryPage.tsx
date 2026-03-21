@@ -325,6 +325,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
     isLoading: loading,
     error,
     refreshProducts,
+    productsTotal,
     hasMore,
     loadMore,
     isLoadingMore,
@@ -916,9 +917,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
               {Array.from({ length: isMobileViewport ? 4 : 6 }).map((_, i) => <ProductCardSkeleton key={`page-load-${i}`} />)}
             </div>
             <p className="text-[13px] text-[var(--edk-ink-3)]">{isLoadingMore ? 'Loading page…' : 'Load more to view this page'}</p>
-            {!isLoadingMore && hasMore && (
+            {!isLoadingMore && hasMore && productsTotal != null && productsTotal > 0 && (
               <Button type="button" variant="secondary" size="sm" onClick={() => loadMore()}>
-                Load more
+                Load more ({Math.min(products.length, productsTotal)} of {productsTotal})
               </Button>
             )}
           </div>
@@ -982,7 +983,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
               </div>
             )}
             {/* Load more (fetch next page from API) */}
-            {hasMore && (
+            {hasMore && productsTotal != null && productsTotal > 0 && (
               <div className="flex justify-center py-4">
                 <Button
                   type="button"
@@ -992,7 +993,9 @@ export default function InventoryPage(_props: InventoryPageProps) {
                   disabled={isLoadingMore}
                   loading={isLoadingMore}
                 >
-                  {isLoadingMore ? 'Loading…' : 'Load more'}
+                  {isLoadingMore
+                    ? 'Loading…'
+                    : `Load more (${Math.min(products.length, productsTotal)} of ${productsTotal})`}
                 </Button>
               </div>
             )}

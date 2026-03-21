@@ -104,6 +104,8 @@ interface InventoryContextType {
   searchProducts: (query: string) => Product[];
   filterProducts: (filters: ProductFilters) => Product[];
   refreshProducts: (options?: { silent?: boolean; bypassCache?: boolean; timeoutMs?: number }) => Promise<void>;
+  /** Total rows for this warehouse from the list API (`total`); null offline or unknown. */
+  productsTotal: number | null;
   /** True when a background (silent) refresh is in progress — show "Updating..." indicator. */
   isBackgroundRefreshing: boolean;
   /** Push products that exist only in this browser's storage to the API so they appear everywhere. */
@@ -126,6 +128,14 @@ interface InventoryContextType {
   loadMore: () => Promise<void>;
   /** True while loadMore is in progress. */
   isLoadingMore: boolean;
+}
+
+function readTotalFromProductsResponse(raw: { data?: Product[]; total?: number } | Product[] | null): number | undefined {
+  if (raw != null && typeof raw === 'object' && !Array.isArray(raw) && 'total' in raw) {
+    const t = (raw as { total?: number }).total;
+    if (typeof t === 'number') return t;
+  }
+  return undefined;
 }
 
 export interface ProductFilters {
@@ -157,7 +167,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
   const offline = useOfflineInventory();
   /** Refs to keep refreshProducts stable and avoid re-run loops when server is down (prevents list jitter). */
-  const loadProductsRef = useRef<(signal?: AbortSignal, options?: { silent?: boolean; bypassCache?: boolean; timeoutMs?: number }) => Promise<void>>(() => Promise.resolve());
+  const loadProductsRef = useRef<
+    (signal?: AbortSignal, options?: { silent?: boolean; bypassCache?: boolean; timeoutMs?: number; append?: boolean; requestLimit?: number }) => Promise<void>
+  >(() => Promise.resolve());
   const offlineRef = useRef(offline);
   offlineRef.current = offline;
   /** Mirror of current products for equivalence check during silent refresh (avoids setState when nothing changed → no jitter). */
@@ -217,6 +229,10 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [savePhase, setSavePhase] = useState<'idle' | 'saving' | 'verifying'>('idle');
   /** True while a silent (background) refresh is in progress — for "Updating..." indicator. */
   const [isBackgroundRefreshing, setBackgroundRefreshing] = useState(false);
+  /** Server total from GET /api/products (`total`); required for Load more. */
+  const [productsTotal, setProductsTotal] = useState<number | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadMoreInflightRef = useRef(false);
   const syncRef = useRef<(() => Promise<{ synced: number; failed: number; total: number; syncedIds: string[] }>) | null>(null);
 
   // Persist current products to localStorage for legacy/fallback (products now from Dexie via hook)
@@ -248,7 +264,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const recentlyDeletedIdsRef = useRef<Set<string>>(new Set());
   const lastSizeUpdateAtRef = useRef<number>(0);
 
-  const productsPath = (base: string, opts?: { limit?: number; offset?: number; q?: string; category?: string; low_stock?: boolean; out_of_stock?: boolean }) => {
+  const productsPath = (base: string, opts?: { limit?: number; offset?: number; q?: string; category?: string; low_stock?: boolean; out_of_stock?: boolean; view?: 'list' }) => {
     const params = new URLSearchParams();
     params.set('warehouse_id', effectiveWarehouseId);
     if (opts?.limit != null) params.set('limit', String(opts.limit));
@@ -257,6 +273,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     if (opts?.category) params.set('category', opts.category);
     if (opts?.low_stock) params.set('low_stock', 'true');
     if (opts?.out_of_stock) params.set('out_of_stock', 'true');
+    if (opts?.view === 'list') params.set('view', 'list');
     const qs = params.toString();
     return `${base}${base.includes('?') ? '&' : '?'}${qs}`;
   };
@@ -329,11 +346,16 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
    * @param signal - AbortSignal for cancellation (e.g. on unmount).
    * @param options.silent - If true, do not show full-page loading (for background refresh). Default false.
    * @param options.bypassCache - If true, always fetch from server (e.g. when opening Inventory page for fresh data).
+   * @param options.append - If true, fetch next page (offset = current list length) and append; does not replace list.
    */
-  const loadProducts = async (signal?: AbortSignal, options?: { silent?: boolean; bypassCache?: boolean; timeoutMs?: number }) => {
+  const loadProducts = async (
+    signal?: AbortSignal,
+    options?: { silent?: boolean; bypassCache?: boolean; timeoutMs?: number; append?: boolean; requestLimit?: number }
+  ) => {
     const silent = options?.silent === true;
     const bypassCache = options?.bypassCache === true;
     const timeoutMs = options?.timeoutMs;
+    const append = options?.append === true;
     const wid = effectiveWarehouseIdRef.current;
 
     // Skip API when warehouse id is missing or all-zeros — backend returns 400 for unknown warehouse_id
@@ -343,6 +365,67 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
       setError(null);
       setBackgroundRefreshing(false);
+      if (!append) setProductsTotal(null);
+      return;
+    }
+
+    // Load next page: append only (API-only path)
+    if (append) {
+      if (offlineEnabled) return;
+      if (loadMoreInflightRef.current) return;
+      loadMoreInflightRef.current = true;
+      setIsLoadingMore(true);
+      try {
+        const offset = productsRef.current.length;
+        const limit = options?.requestLimit ?? INVENTORY_PAGE_SIZE;
+        const getOpts = { signal, timeoutMs, maxRetries: 0 };
+        let raw: { data?: Product[]; total?: number } | Product[] | null = null;
+        try {
+          raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(
+            API_BASE_URL,
+            productsPath('/api/products', { limit, offset, view: 'list' }),
+            getOpts
+          );
+        } catch (e) {
+          const status = (e as { status?: number })?.status;
+          if (status === 404) {
+            raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(
+              API_BASE_URL,
+              productsPath('/admin/api/products', { limit, offset, view: 'list' }),
+              getOpts
+            );
+          } else {
+            throw e;
+          }
+        }
+        const parsed = parseProductsResponse(raw);
+        if (!parsed.success) return;
+        const nextItems = parsed.items.map((p) => normalizeProduct(p));
+        const totalFromApi = readTotalFromProductsResponse(raw);
+        if (typeof totalFromApi === 'number') setProductsTotal(totalFromApi);
+        setProducts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const fresh = nextItems.filter((p) => !existingIds.has(p.id));
+          const next = [...prev, ...fresh];
+          if (effectiveWarehouseIdRef.current === wid) {
+            cacheRef.current[wid] = { data: next, ts: Date.now() };
+            if (isStorageAvailable()) setStoredData(productsCacheKey(wid), next);
+            if (isIndexedDBAvailable()) {
+              saveProductsToDb(next).catch((e) => {
+                reportError(e instanceof Error ? e : new Error(String(e)), { context: 'saveProductsToDb', listLength: next.length });
+              });
+            }
+          }
+          return next;
+        });
+        setLastSyncAt(new Date());
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        reportError(err, { context: 'loadProductsAppend' });
+      } finally {
+        loadMoreInflightRef.current = false;
+        setIsLoadingMore(false);
+      }
       return;
     }
 
@@ -369,7 +452,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const path = productsPath('/api/products', { limit: INVENTORY_PAGE_SIZE });
+        const path = productsPath('/api/products', { limit: INVENTORY_PAGE_SIZE, offset: 0, view: 'list' });
         // Fail fast on server/network errors so we show cached products instead of spinning (maxRetries: 0).
         const getOpts = { signal, timeoutMs, maxRetries: 0 };
         let raw: { data?: Product[]; total?: number } | Product[] | null = null;
@@ -379,11 +462,16 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           const status = (e as { status?: number })?.status;
           // Only fall back to admin endpoint when /api/products is not found (404). Never on 403 — cashiers must use /api/products only.
           if (status === 404) {
-            raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(API_BASE_URL, productsPath('/admin/api/products', { limit: INVENTORY_PAGE_SIZE }), getOpts);
+            raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(
+              API_BASE_URL,
+              productsPath('/admin/api/products', { limit: INVENTORY_PAGE_SIZE, offset: 0, view: 'list' }),
+              getOpts
+            );
           } else {
             throw e;
           }
         }
+        const totalFromApi = readTotalFromProductsResponse(raw);
         const parsed = parseProductsResponse(raw);
         if (!parsed.success) {
           setError(parsed.message);
@@ -520,6 +608,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           setProducts(listToSet);
           if (!silent) setError(null);
           setLastSyncAt(new Date());
+          setProductsTotal(typeof totalFromApi === 'number' ? totalFromApi : null);
         }
         cacheRef.current[wid] = { data: listToSet, ts: Date.now() };
         if (isIndexedDBAvailable()) {
@@ -592,6 +681,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
     // Always clear first so we never show the previous warehouse's stats under the new warehouse's name.
     setProducts([]);
+    setProductsTotal(null);
     setError(null);
     const productsFromCache = getCachedProductsForWarehouse(effectiveWarehouseId);
     if (productsFromCache.length > 0) {
@@ -1184,6 +1274,16 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     [offlineEnabled]
   );
 
+  const hasMore = useMemo(
+    () => !offlineEnabled && productsTotal != null && productsTotal > 0 && products.length < productsTotal,
+    [offlineEnabled, productsTotal, products.length]
+  );
+
+  const loadMore = useCallback(async () => {
+    if (offlineEnabled) return;
+    await loadProductsRef.current(undefined, { append: true, bypassCache: true, silent: true });
+  }, [offlineEnabled]);
+
   const contextValue = useMemo(
     () => ({
       products: productsWithLocalImages,
@@ -1198,6 +1298,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       searchProducts,
       filterProducts,
       refreshProducts,
+      productsTotal,
       isBackgroundRefreshing: offlineEnabled ? offline.isSyncing : isBackgroundRefreshing,
       syncLocalInventoryToApi,
       unsyncedCount: offlineEnabled ? unsyncedCountFromHook + localOnlyIds.size : 0,
@@ -1206,9 +1307,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       verifyProductSaved,
       storagePersistFailed,
       savePhase,
-      hasMore: false,
-      loadMore: async () => {},
-      isLoadingMore: false,
+      hasMore,
+      loadMore,
+      isLoadingMore,
     }),
     [
       productsWithLocalImages,
@@ -1225,6 +1326,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       searchProducts,
       filterProducts,
       refreshProducts,
+      productsTotal,
       isBackgroundRefreshing,
       syncLocalInventoryToApi,
       unsyncedCountFromHook,
@@ -1234,6 +1336,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       verifyProductSaved,
       storagePersistFailed,
       savePhase,
+      hasMore,
+      loadMore,
+      isLoadingMore,
     ]
   );
 
