@@ -9,7 +9,7 @@
 // ============================================================
 
 import { memo } from 'react';
-import { safeProductImageUrl, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
+import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
 import { type POSProduct } from './SizePickerSheet';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ function POSProductCard({ product, onSelect }: POSProductCardProps) {
   const status = getStockStatus(product);
   const isOut = status === 'out';
   const firstImage = (product.images ?? [])[0];
-  const safeSrc = firstImage ? safeProductImageUrl(firstImage) : '';
+  const safeSrc = firstImage ? getSafeProductImageUrlSized(firstImage, 'thumb') : '';
   const hasImage = safeSrc && safeSrc !== EMPTY_IMAGE_DATA_URL;
 
   const stockLabel =

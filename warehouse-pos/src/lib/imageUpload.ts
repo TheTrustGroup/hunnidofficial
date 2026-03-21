@@ -16,6 +16,10 @@
 // SETUP: Run 20250222130000_master_sql_v2.sql (creates 'product-images' bucket).
 // ============================================================
 
+import { getProductImageUrl, type ProductImageSize } from './productImageUrl';
+
+export type { ProductImageSize };
+
 const BUCKET = 'product-images';
 
 /** Max upload size in bytes. Must match API and Supabase bucket file_size_limit. */
@@ -256,3 +260,16 @@ export function safeProductImageUrl(src: string): string {
 /** 1x1 transparent GIF used when image URL is not allowed (XSS). */
 export const EMPTY_IMAGE_DATA_URL =
   'data:image/gif;base64,R0lGOODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+/**
+ * XSS-safe display URL with optional Supabase Image Transform (thumb/medium/full).
+ * Use for POS and inventory lists. Data URLs and allowed Storage URLs only.
+ */
+export function getSafeProductImageUrlSized(
+  src: string,
+  size: ProductImageSize = 'thumb'
+): string {
+  const safe = safeProductImageUrl(src);
+  if (safe === EMPTY_IMAGE_DATA_URL) return safe;
+  return getProductImageUrl(safe, size);
+}

@@ -10,6 +10,7 @@
 import { useState, useRef, useCallback, memo } from 'react';
 import type { Product } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -286,7 +287,9 @@ function ProductCardInner({
   const editing = supportsInlineStock && isEditing;
 
   const status = getStockStatus(product);
-  const hasImage = Array.isArray(product.images) && product.images.length > 0;
+  const firstImage = (product.images ?? [])[0];
+  const imageSrc = firstImage ? getSafeProductImageUrlSized(firstImage, 'thumb') : '';
+  const hasImage = Boolean(imageSrc && imageSrc !== EMPTY_IMAGE_DATA_URL);
 
   return (
     <article
@@ -304,7 +307,7 @@ function ProductCardInner({
       >
         {hasImage ? (
           <img
-            src={product.images![0]}
+            src={imageSrc}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-[1.02]"
             loading="lazy"

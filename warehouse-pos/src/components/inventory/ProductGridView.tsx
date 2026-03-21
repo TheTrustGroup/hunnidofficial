@@ -10,6 +10,7 @@ import { Button } from '../ui/Button';
 import { useAnimations } from '../../hooks/useAnimations';
 import { glassReveal, glassHover, liquidMorph, rippleVariants } from '../../animations/liquidGlass';
 import { hapticFeedback } from '../../lib/haptics';
+import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
 
 export type SaveStockPayload = { quantityBySize?: Array<{ sizeCode: string; quantity: number }>; quantity?: number };
 
@@ -217,18 +218,22 @@ export function ProductGridView({
             )}
             {/* Fixed aspect image area — consistent card height */}
             <div className="w-full aspect-square max-h-52 bg-slate-100 rounded-t-lg overflow-hidden shrink-0">
-              {Array.isArray(product.images) && product.images[0] ? (
+              {(() => {
+                const raw = Array.isArray(product.images) ? product.images[0] : '';
+                const src = raw ? getSafeProductImageUrlSized(raw, 'thumb') : '';
+                return src && src !== EMPTY_IMAGE_DATA_URL ? (
                 <img
-                  src={product.images[0]}
+                  src={src}
                   alt={product.name}
                   loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                 />
-              ) : (
+                ) : (
                 <div className="w-full h-full flex items-center justify-center border-0 border-b border-slate-200/50">
                   <Package className="w-14 h-14 text-slate-400" />
                 </div>
-              )}
+                );
+              })()}
             </div>
 
             <div className="inventory-card-content flex flex-col flex-1 min-h-0 overflow-visible">

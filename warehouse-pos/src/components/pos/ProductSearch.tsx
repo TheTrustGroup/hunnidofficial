@@ -3,7 +3,7 @@ import { Search, Scan, Package } from 'lucide-react';
 import { useInventory } from '../../contexts/InventoryContext';
 import { usePOS } from '../../contexts/POSContext';
 import { formatCurrency, getCategoryDisplay } from '../../lib/utils';
-import { safeProductImageUrl, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
+import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
 import { Button } from '../ui/Button';
 
 /** Products from useInventory() are used as POSProduct-compatible (see SizePickerSheet POSProduct). */
@@ -107,7 +107,7 @@ export function ProductSearch() {
           >
             {(() => {
               const firstImage = (product.images ?? [])[0];
-              const safeSrc = firstImage ? safeProductImageUrl(firstImage) : '';
+              const safeSrc = firstImage ? getSafeProductImageUrlSized(firstImage, 'thumb') : '';
               const hasImage = safeSrc && safeSrc !== EMPTY_IMAGE_DATA_URL;
               return hasImage ? (
                 <img

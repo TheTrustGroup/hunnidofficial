@@ -9,6 +9,7 @@ import { Product } from '../../types';
 import { formatCurrency, getLocationDisplay } from '../../lib/utils';
 import { Button } from '../ui/Button';
 import { Package, Pencil, Layers, MapPin } from 'lucide-react';
+import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
 
 export interface InventoryCardProps {
   product: Product;
@@ -205,9 +206,12 @@ export function InventoryCard({
     >
       {/* Image 16:9 */}
       <div className="relative w-full pt-[56.25%] bg-slate-100 overflow-hidden">
-        {Array.isArray(product.images) && product.images[0] ? (
+        {(() => {
+          const raw = Array.isArray(product.images) ? product.images[0] : '';
+          const src = raw ? getSafeProductImageUrlSized(raw, 'thumb') : '';
+          return src && src !== EMPTY_IMAGE_DATA_URL ? (
           <img
-            src={product.images[0]}
+            src={src}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
@@ -215,7 +219,8 @@ export function InventoryCard({
           <div className="absolute inset-0 flex items-center justify-center text-slate-300">
             <Package className="w-10 h-10" strokeWidth={1.2} />
           </div>
-        )}
+        );
+        })()}
         <span className="absolute top-2.5 left-2.5 h-6 px-2.5 rounded-full bg-white/90 backdrop-blur-sm text-[11px] font-semibold text-slate-700 flex items-center">
           {product.category || 'Uncategorized'}
         </span>

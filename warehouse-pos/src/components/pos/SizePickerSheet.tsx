@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Check, ShoppingCart } from 'lucide-react';
+import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
 
 /**
  * POS product shape. Inventory Product (from useInventory) passed into POS views
@@ -171,7 +172,12 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
 
   const handleAddToCart = () => {
     if (selectedVariants.length === 0) return;
-    const lines: CartLineInput[] = selectedVariants.map((v) => ({
+    const lines: CartLineInput[] = selectedVariants.map((v) => {
+      const first = product.images?.[0];
+      const sized = first ? getSafeProductImageUrlSized(first, 'thumb') : '';
+      const imageUrl =
+        sized && sized !== EMPTY_IMAGE_DATA_URL ? sized : null;
+      return {
       productId: product.id,
       name: product.name,
       sku: product.sku,
@@ -179,8 +185,9 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       sizeLabel: v.sizeLabel ?? v.sizeCode,
       unitPrice: product.sellingPrice,
       qty: qtyBySize[v.sizeCode] ?? 1,
-      imageUrl: product.images?.[0] ?? null,
-    }));
+      imageUrl,
+    };
+    });
     if (lines.length > 1 && onAddBatch) {
       onAddBatch(lines);
     } else {
@@ -234,6 +241,10 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
               <button
                 type="button"
                 onClick={() => {
+                  const first = product.images?.[0];
+                  const sized = first ? getSafeProductImageUrlSized(first, 'thumb') : '';
+                  const imageUrl =
+                    sized && sized !== EMPTY_IMAGE_DATA_URL ? sized : null;
                   onAdd({
                     productId: product.id,
                     name: product.name,
@@ -242,7 +253,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                     sizeLabel: null,
                     unitPrice: product.sellingPrice,
                     qty: 1,
-                    imageUrl: product.images?.[0] ?? null,
+                    imageUrl,
                   });
                   onClose();
                 }}

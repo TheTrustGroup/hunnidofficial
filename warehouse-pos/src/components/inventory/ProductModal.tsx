@@ -18,6 +18,7 @@ import SizesSection, {
   getValidationError,
 } from './SizesSection';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { getProductImageUrl } from '../../lib/productImageUrl';
 
 // ── Image compression helper (canvas resize → compressed data-URL) ───────────
 // Resizes to max 800px, compresses to target quality; optionally enforces max byte size.
@@ -362,7 +363,7 @@ function ImageUpload({ images, onChange, disabled }: ImageUploadProps) {
           {images.map((src, idx) => (
             <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-slate-200 bg-slate-50">
               <img
-                src={src}
+                src={getProductImageUrl(src, 'medium')}
                 alt={`Product image ${idx + 1}`}
                 className="w-full h-full object-cover"
                 loading="lazy"
@@ -689,7 +690,7 @@ export default function ProductModal({
             {/* Primary image thumbnail in header if available */}
             {form.images.length > 0 && (
               <div className="w-9 h-9 rounded-xl overflow-hidden border border-slate-200 flex-shrink-0">
-                <img src={form.images[0]} alt="" className="w-full h-full object-cover" />
+                <img src={getProductImageUrl(form.images[0], 'thumb')} alt="" className="w-full h-full object-cover" />
               </div>
             )}
             <div>
