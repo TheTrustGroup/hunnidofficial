@@ -8,7 +8,6 @@ import { StoreProvider } from './contexts/StoreContext';
 import { WarehouseProvider, useWarehouse } from './contexts/WarehouseContext';
 import { InventoryProvider } from './contexts/InventoryContext';
 import { API_BASE_URL } from './lib/api';
-import { POSProvider } from './contexts/POSContext';
 import { OrderProvider } from './contexts/OrderContext';
 import { CriticalDataProvider, CriticalDataGate } from './contexts/CriticalDataContext';
 import { ToastProvider, useToast } from './contexts/ToastContext';
@@ -170,13 +169,11 @@ function ProtectedRoutes() {
           <WarehouseProvider>
             <AuthenticatedPresenceBridge>
               <InventoryProvider>
-                <POSProvider>
-                  <OrderProvider>
-                    <CriticalDataGate>
-                      <Layout />
-                    </CriticalDataGate>
-                  </OrderProvider>
-                </POSProvider>
+                <OrderProvider>
+                  <CriticalDataGate>
+                    <Layout />
+                  </CriticalDataGate>
+                </OrderProvider>
               </InventoryProvider>
             </AuthenticatedPresenceBridge>
           </WarehouseProvider>
