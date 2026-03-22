@@ -14,7 +14,24 @@
 
 import Dexie from 'dexie';
 import { v4 as uuidv4 } from 'uuid';
-import { setOfflineQuotaExceeded, isQuotaExceededError } from '../lib/offlineQuota';
+
+const QUOTA_FLAG_KEY = 'offline_storage_quota_exceeded';
+
+function isQuotaExceededError(err) {
+  if (err instanceof DOMException && err.name === 'QuotaExceededError') return true;
+  if (err && typeof err === 'object' && err.name === 'QuotaExceededError') return true;
+  return false;
+}
+
+function setOfflineQuotaExceeded() {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(QUOTA_FLAG_KEY, '1');
+    }
+  } catch {
+    // ignore
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types (JSDoc)

@@ -15,7 +15,6 @@ import { ToastProvider, useToast } from './contexts/ToastContext';
 import { NetworkStatusProvider } from './contexts/NetworkStatusContext';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { AuthenticatedPresenceBridge } from './contexts/AuthenticatedPresenceBridge';
-import { QUOTA_EVENT } from './lib/offlineQuota';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { RouteErrorBoundary } from './components/ui/RouteErrorBoundary';
 import { Button } from './components/ui/Button';
@@ -125,25 +124,6 @@ function ServiceWorkerUpdateListener() {
   return null;
 }
 
-/** Listens for offline storage quota exceeded and shows toast once (INTEGRATION_PLAN). */
-function OfflineQuotaToastListener() {
-  const { showToast } = useToast();
-  const shownRef = useRef(false);
-  useEffect(() => {
-    const handler = () => {
-      if (shownRef.current) return;
-      shownRef.current = true;
-      showToast(
-        'warning',
-        'Local storage is full. Some offline features are disabled. Clear local data in Settings → Admin & logs if needed.'
-      );
-    };
-    window.addEventListener(QUOTA_EVENT, handler);
-    return () => window.removeEventListener(QUOTA_EVENT, handler);
-  }, [showToast]);
-  return null;
-}
-
 /**
  * Protected Routes: block dashboard until role confirmed from server (Phase 1 stability).
  * No role fallback; invalid role → authError → redirect to login.
@@ -219,7 +199,6 @@ function App() {
     <ToastProvider>
       <UpdateBanner />
       <ServiceWorkerUpdateListener />
-      <OfflineQuotaToastListener />
       <NetworkStatusProvider>
         <SettingsProvider>
           <AuthProvider>

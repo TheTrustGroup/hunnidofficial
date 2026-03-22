@@ -21,7 +21,6 @@ import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 import { getCategoryDisplay, normalizeProductLocation } from '../lib/utils';
 import { parseProductsResponse } from '../lib/apiSchemas';
-import { useInventory as useOfflineInventory } from '../hooks/useInventory';
 import { getProductImages, setProductImages } from '../lib/productImagesStore';
 import {
   PRODUCTS_CACHE_TTL_MS,
@@ -80,11 +79,8 @@ function getCachedProductsForWarehouse(warehouseId: string): Product[] {
     return [];
   }
 }
-import { saveProductsToDb, isIndexedDBAvailable } from '../lib/offlineDb';
 import { reportError } from '../lib/errorReporting';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
-import { isOfflineEnabled } from '../lib/offlineFeatureFlag';
-import { mirrorProductsFromApi } from '../db/inventoryDB';
 import {
   logInventoryCreate,
   logInventoryUpdate,
@@ -161,18 +157,13 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const { tryRefreshSession } = useAuth();
   const effectiveWarehouseId = (currentWarehouseId?.trim?.() && currentWarehouseId) ? currentWarehouseId : DEFAULT_WAREHOUSE_ID;
 
-  // Feature flag: when off, use API-only (state); when on, use offline hook (Dexie). INTEGRATION_PLAN Phase 5/7.
-  const offlineEnabled = isOfflineEnabled();
   const [apiOnlyProducts, setApiOnlyProductsState] = useState<Product[]>([]);
   const [apiOnlyLoading, setApiOnlyLoadingState] = useState(true);
 
-  const offline = useOfflineInventory();
   /** Refs to keep refreshProducts stable and avoid re-run loops when server is down (prevents list jitter). */
   const loadProductsRef = useRef<
     (signal?: AbortSignal, options?: { silent?: boolean; bypassCache?: boolean; timeoutMs?: number; append?: boolean; requestLimit?: number }) => Promise<void>
   >(() => Promise.resolve());
-  const offlineRef = useRef(offline);
-  offlineRef.current = offline;
   /** Mirror of current products for equivalence check during silent refresh (avoids setState when nothing changed → no jitter). */
   const productsRef = useRef<Product[]>([]);
   const effectiveWarehouseIdRef = useRef(effectiveWarehouseId) as React.MutableRefObject<string>;
@@ -182,10 +173,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   /** Throttle silent refresh so poll + visibility + mount don't cause back-to-back requests (reduces list jitter). */
   const lastSilentRefreshAtRef = useRef<number>(0);
 
-  const products = useMemo(
-    (): Product[] => (offlineEnabled ? (offline.products ?? []) : apiOnlyProducts),
-    [offlineEnabled, offline.products, apiOnlyProducts]
-  );
+  const products = useMemo((): Product[] => apiOnlyProducts, [apiOnlyProducts]);
   /** Merge in client-saved images so they stay visible even when API/refresh omits them. */
   const productsWithLocalImages = useMemo(
     () =>
@@ -195,29 +183,21 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       })),
     [products]
   );
-  const isLoading = offlineEnabled ? offline.isLoading : apiOnlyLoading;
-  const unsyncedCountFromHook = offline.unsyncedCount ?? 0;
+  const isLoading = apiOnlyLoading;
 
   useEffect(() => {
     productsRef.current = products;
   }, [products]);
 
-  /** When offline disabled: update API-only state. When enabled: no-op (list from Dexie). */
   const setProducts = useCallback(
     (arg: Product[] | ((prev: Product[]) => Product[])) => {
-      if (!offlineEnabled) {
-        setApiOnlyProductsState(typeof arg === 'function' ? (arg as (prev: Product[]) => Product[])(apiOnlyProducts) : arg);
-      }
+      setApiOnlyProductsState(typeof arg === 'function' ? (arg as (prev: Product[]) => Product[])(apiOnlyProducts) : arg);
     },
-    [offlineEnabled, apiOnlyProducts]
+    [apiOnlyProducts]
   );
-  /** When offline disabled: update loading state for loadProducts. When enabled: no-op. */
-  const setIsLoading = useCallback(
-    (value: boolean) => {
-      if (!offlineEnabled) setApiOnlyLoadingState(value);
-    },
-    [offlineEnabled]
-  );
+  const setIsLoading = useCallback((value: boolean) => {
+    setApiOnlyLoadingState(value);
+  }, []);
 
   const [error, setError] = useState<string | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
@@ -375,7 +355,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
     // Load next page: append only (API-only path)
     if (append) {
-      if (offlineEnabled) return;
       if (loadMoreInflightRef.current) return;
       loadMoreInflightRef.current = true;
       setIsLoadingMore(true);
@@ -420,11 +399,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           if (effectiveWarehouseIdRef.current === wid) {
             cacheRef.current[wid] = { data: next, ts: Date.now() };
             if (isStorageAvailable()) setStoredData(productsCacheKey(wid), next);
-            if (isIndexedDBAvailable()) {
-              saveProductsToDb(next).catch((e) => {
-                reportError(e instanceof Error ? e : new Error(String(e)), { context: 'saveProductsToDb', listLength: next.length });
-              });
-            }
           }
           return next;
         });
@@ -642,16 +616,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           setProductsTotal(typeof totalFromApi === 'number' ? totalFromApi : null);
         }
         cacheRef.current[wid] = { data: listToSet, ts: Date.now() };
-        if (isIndexedDBAvailable()) {
-          saveProductsToDb(listToSet).catch((e) => {
-            reportError(e instanceof Error ? e : new Error(String(e)), { context: 'saveProductsToDb', listLength: listToSet.length });
-          });
-        }
-        if (offlineEnabled) {
-          mirrorProductsFromApi(merged).catch((e) => {
-            reportError(e instanceof Error ? e : new Error(String(e)), { context: 'mirrorProductsFromApi', listLength: merged.length });
-          });
-        }
         logInventoryRead({ listLength: listToSet.length, environment: import.meta.env.PROD ? 'production' : 'development' });
         // Persist per-warehouse list (including []) so Dashboard/Inventory never show another warehouse's cached data.
         if (isStorageAvailable()) {
@@ -897,16 +861,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setSavePhase('saving');
     setError(null);
     try {
-      if (offlineEnabled) {
-        const id = await offline.addProduct(productData);
-        const imgs = Array.isArray(productData.images) ? productData.images : [];
-        if (imgs.length > 0) setProductImages(id, imgs);
-        const addedProduct: Product = { ...productData, id, createdAt: new Date(), updatedAt: new Date() } as Product;
-        lastAddedProductRef.current = { product: addedProduct, at: Date.now() };
-        logInventoryCreate({ productId: id, sku: productData.sku ?? '', listLength: products.length + 1 });
-        showToast('success', 'Product saved. Syncing to server when online.');
-        return id;
-      }
       if (!getApiCircuitBreaker().allowRequest()) {
         throw new Error('Server is temporarily unavailable. Writes disabled until connection is restored.');
       }
@@ -992,12 +946,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         const nextList = [normalized, ...apiOnlyProducts.filter((p) => p.id !== tempId)];
         setStoredData(productsCacheKey(effectiveWarehouseId), nextList);
       }
-      if (isIndexedDBAvailable()) {
-        const nextList = [normalized, ...apiOnlyProducts.filter((p) => p.id !== tempId)];
-        saveProductsToDb(nextList).catch((e) => {
-          reportError(e instanceof Error ? e : new Error(String(e)), { context: 'saveProductsToDb', listLength: nextList.length });
-        });
-      }
       logInventoryCreate({ productId: resolvedId, sku: productData.sku ?? '', listLength: apiOnlyProducts.length + 1 });
       showToast('success', 'Product saved.');
       if (import.meta.env?.DEV) {
@@ -1037,12 +985,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setSavePhase('saving');
     setError(null);
     try {
-      if (offlineEnabled) {
-        await offline.updateProduct(id, updates);
-        logInventoryUpdate({ productId: id, sku: product.sku });
-        showToast('success', 'Product updated. Syncing to server when online.');
-        return;
-      }
       const updated: Product = { ...product, ...updates, updatedAt: new Date(), id: product.id };
       const isSized = updates.sizeKind === 'sized' || updated.sizeKind === 'sized';
       const payload = { ...productToPayload(updated), warehouseId: (updates.warehouseId ?? effectiveWarehouseId) || DEFAULT_WAREHOUSE_ID } as Record<string, unknown>;
@@ -1100,11 +1042,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       lastUpdatedProductRef.current = { product: finalProduct, at };
       if (isSized) lastSizeUpdateAtRef.current = at;
       if (isStorageAvailable()) setStoredData(productsCacheKey(effectiveWarehouseId), newList);
-      if (isIndexedDBAvailable()) {
-        saveProductsToDb(newList).catch((e) => {
-          reportError(e instanceof Error ? e : new Error(String(e)), { context: 'saveProductsToDb', listLength: newList.length });
-        });
-      }
       setLastSyncAt(new Date());
       logInventoryUpdate({ productId: id, sku: product.sku });
       showToast('success', 'Product updated.');
@@ -1136,11 +1073,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
    */
   const deleteProduct = async (id: string) => {
     try {
-      if (offlineEnabled) {
-        await offline.deleteProduct(id);
-        logInventoryDelete({ productId: id });
-        return;
-      }
       try {
         await apiDelete(API_BASE_URL, productByIdPath('/admin/api/products', id));
       } catch {
@@ -1172,21 +1104,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
    */
   const deleteProducts = async (ids: string[]) => {
     if (ids.length === 0) return;
-    if (offlineEnabled) {
-      const errors: string[] = [];
-      for (const id of ids) {
-        try {
-          await offline.deleteProduct(id);
-          logInventoryDelete({ productId: id });
-        } catch (err) {
-          errors.push(err instanceof Error ? err.message : 'Delete failed');
-        }
-      }
-      if (errors.length > 0) {
-        throw new Error(`Failed to delete ${errors.length} product(s): ${errors[0]}`);
-      }
-      return;
-    }
     const idSet = new Set(ids);
     for (const id of ids) {
       try {
@@ -1298,23 +1215,18 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   };
 
   /** Stable so Inventory page effect doesn't re-run in a loop when server is down (prevents list jitter). */
-  const refreshProducts = useCallback(
-    (options?: { silent?: boolean; bypassCache?: boolean; timeoutMs?: number }) => {
-      if (offlineEnabled) return offlineRef.current.forceSync();
-      return loadProductsRef.current(undefined, { bypassCache: true, ...options });
-    },
-    [offlineEnabled]
-  );
+  const refreshProducts = useCallback((options?: { silent?: boolean; bypassCache?: boolean; timeoutMs?: number }) => {
+    return loadProductsRef.current(undefined, { bypassCache: true, ...options });
+  }, []);
 
   const hasMore = useMemo(
-    () => !offlineEnabled && productsTotal != null && productsTotal > 0 && products.length < productsTotal,
-    [offlineEnabled, productsTotal, products.length]
+    () => productsTotal != null && productsTotal > 0 && products.length < productsTotal,
+    [productsTotal, products.length]
   );
 
   const loadMore = useCallback(async () => {
-    if (offlineEnabled) return;
     await loadProductsRef.current(undefined, { append: true, bypassCache: true, silent: true });
-  }, [offlineEnabled]);
+  }, []);
 
   const contextValue = useMemo(
     () => ({
@@ -1325,15 +1237,15 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       updateProduct,
       deleteProduct,
       deleteProducts,
-      undoAddProduct: offlineEnabled ? offline.undoAddProduct : async () => {},
+      undoAddProduct: async () => {},
       getProduct,
       searchProducts,
       filterProducts,
       refreshProducts,
       productsTotal,
-      isBackgroundRefreshing: offlineEnabled ? offline.isSyncing : isBackgroundRefreshing,
+      isBackgroundRefreshing,
       syncLocalInventoryToApi,
-      unsyncedCount: offlineEnabled ? unsyncedCountFromHook + localOnlyIds.size : 0,
+      unsyncedCount: localOnlyIds.size,
       lastSyncAt,
       isUnsynced,
       verifyProductSaved,
@@ -1351,9 +1263,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       updateProduct,
       deleteProduct,
       deleteProducts,
-      offlineEnabled,
-      offline.undoAddProduct,
-      offline.isSyncing,
       getProduct,
       searchProducts,
       filterProducts,
@@ -1361,7 +1270,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       productsTotal,
       isBackgroundRefreshing,
       syncLocalInventoryToApi,
-      unsyncedCountFromHook,
       localOnlyIds.size,
       lastSyncAt,
       isUnsynced,

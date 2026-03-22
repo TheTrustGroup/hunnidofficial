@@ -32,7 +32,6 @@ import {
   clearLogs,
 } from '../../utils/logger';
 import { getErrorReportingConsent, setErrorReportingConsent } from '../../lib/initErrorHandlers';
-import { clearOfflineQuotaExceeded } from '../../lib/offlineQuota';
 
 type QueueItem = {
   id: number;
@@ -191,7 +190,13 @@ export function AdminDashboard() {
       return;
     try {
       await clearAllLocalProductData();
-      clearOfflineQuotaExceeded();
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem('offline_storage_quota_exceeded');
+        }
+      } catch {
+        /* ignore */
+      }
       await load();
       alert('Local products and sync queue cleared. Reload the app or refresh the inventory list to load from server.');
     } catch (e) {

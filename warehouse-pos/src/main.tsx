@@ -22,8 +22,6 @@ if (typeof document !== 'undefined' && API_BASE_URL) {
   }
 }
 import { initErrorHandlers } from './lib/initErrorHandlers';
-import * as serviceWorkerRegistration from './serviceWorkerRegistration';
-import { isOfflineEnabled } from './lib/offlineFeatureFlag';
 // Error reporting: set VITE_SENTRY_DSN and wire Sentry.captureException(err, { extra: ctx }) here.
 // Only send to Sentry when getErrorReportingConsent() is true (user consent in Settings/Admin).
 initObservability({
@@ -53,12 +51,3 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>,
 );
-
-// Register service worker only when offline mode is enabled (INTEGRATION_PLAN Phase 9)
-if (typeof window !== 'undefined' && isOfflineEnabled()) {
-  serviceWorkerRegistration.register({
-    onUpdate: () => {
-      window.dispatchEvent(new CustomEvent('sw-update'));
-    },
-  });
-}

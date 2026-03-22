@@ -54,7 +54,7 @@ export function Receipt({ transaction, onClose }: ReceiptProps) {
             <h1 className="text-2xl font-extrabold gradient-text">Hunnid Official</h1>
             <p className="text-sm text-slate-600 font-medium">Your trusted kids fashion store</p>
             <p className="text-xs text-slate-500 mt-1">Accra, Ghana</p>
-            <p className="text-xs text-slate-500">Tel: +233 XX XXX XXXX</p>
+            <p className="text-xs text-slate-500">Tel: 0249190804</p>
           </div>
 
           {/* Transaction Info */}

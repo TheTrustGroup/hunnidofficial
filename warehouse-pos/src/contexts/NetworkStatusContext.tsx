@@ -15,7 +15,6 @@ import {
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { syncService } from '../services/syncService';
 import { recordOfflineDuration } from '../lib/telemetry';
-import { isOfflineEnabled } from '../lib/offlineFeatureFlag';
 
 const BACK_ONLINE_DISPLAY_MS = 4000;
 const FADE_OUT_MS = 400;
@@ -83,9 +82,6 @@ export function NetworkStatusProvider({ children }: NetworkStatusProviderProps) 
       setShowBackOnlineBanner(true);
       setBackOnlineFadeOut(false);
       clearHideTimeouts();
-      if (isOfflineEnabled()) {
-        syncService.processSyncQueue().catch(() => {});
-      }
     }
     previousOnlineRef.current = isOnline;
   }, [isOnline, clearHideTimeouts]);

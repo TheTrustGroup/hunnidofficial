@@ -30,12 +30,6 @@ vi.mock('../lib/storage', () => ({
   isStorageAvailable: () => true,
 }));
 
-vi.mock('../lib/offlineDb', () => ({
-  loadProductsFromDb: () => Promise.resolve([]),
-  saveProductsToDb: () => Promise.resolve(),
-  isIndexedDBAvailable: () => false,
-}));
-
 vi.mock('../lib/observability', () => ({
   reportError: vi.fn(),
 }));

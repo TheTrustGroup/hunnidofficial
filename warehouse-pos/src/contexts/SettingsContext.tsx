@@ -34,7 +34,7 @@ interface SettingsContextType {
 const defaultBusinessSettings: BusinessSettings = {
   businessName: 'Hunnid Official',
   address: 'Accra, Greater Accra, Ghana',
-  phone: '+233 XX XXX XXXX',
+  phone: '0249190804',
   email: 'admin@hunnidofficial.com',
   taxRate: 15,
   currency: 'GHS',
