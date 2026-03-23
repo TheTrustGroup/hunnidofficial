@@ -542,6 +542,18 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         if (updated && Date.now() - updated.at < RECENT_UPDATE_WINDOW_MS) {
           merged = merged.map((p) => (p.id === updated.product.id ? updated.product : p));
         }
+        // When doing a silent refresh after load-more, keep already loaded tail pages
+        // so the list doesn't collapse back to page 1 while the user is scrolling.
+        if (silent && currentForMerge.length > merged.length) {
+          const mergedIds = new Set(merged.map((p) => p.id));
+          const carryOver = currentForMerge.filter(
+            (p) => !mergedIds.has(p.id) && !recentlyDeletedIdsRef.current.has(p.id)
+          );
+          if (carryOver.length > 0) {
+            merged = [...merged, ...carryOver];
+          }
+        }
+
         // Fallback only when API returned empty: use only this warehouse's cache so we never show another warehouse's data.
         if (merged.length === 0 && isStorageAvailable()) {
           if (effectiveWarehouseIdRef.current !== wid) {

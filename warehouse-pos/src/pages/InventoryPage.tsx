@@ -38,7 +38,6 @@ interface InventoryPageProps {}
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
-const POLL_MS    = 30_000;
 /** Desktop: show 50 per page. Mobile: smaller for faster paint and less scroll. */
 const PAGE_SIZE_DESKTOP = 50;
 const PAGE_SIZE_MOBILE  = 20;
@@ -62,12 +61,6 @@ const FALLBACK_WAREHOUSES: Pick<Warehouse, 'id' | 'name'>[] = [
   { id: '00000000-0000-0000-0000-000000000001', name: 'Main Jeff' },
   { id: '00000000-0000-0000-0000-000000000002', name: 'Hunnid Main' },
 ];
-
-/** Reject empty or all-zeros warehouse id so we never call APIs with an invalid scope. */
-function isValidWarehouseId(id: string): boolean {
-  const t = (id ?? '').trim();
-  return t.length > 0 && t !== '00000000-0000-0000-0000-000000000000';
-}
 
 // ── Stat helpers ──────────────────────────────────────────────────────────
 
@@ -351,9 +344,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
 
   const modalOpenRef = useRef(false);
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSaveTimeRef = useRef<number>(0);
-  const didInitialLoad = useRef(false);
 
   /** Mobile-first: smaller first request and page size on narrow viewports. */
   const [isMobileViewport, setIsMobileViewport] = useState(() =>
@@ -478,42 +469,14 @@ export default function InventoryPage(_props: InventoryPageProps) {
     } catch { /* non-critical */ }
   }, [apiFetch]);
 
-  // ── Polling ───────────────────────────────────────────────────────────────
-
-  function startPoll() {
-    stopPoll();
-    const interval = isMobileViewport ? Math.max(POLL_MS, 60_000) : POLL_MS;
-    pollTimerRef.current = setInterval(() => {
-      if (!modalOpenRef.current && document.visibilityState === 'visible') {
-        refreshProducts({ silent: true });
-      }
-    }, interval);
-  }
-  function stopPoll() {
-    if (pollTimerRef.current) { clearInterval(pollTimerRef.current); pollTimerRef.current = null; }
-  }
-
   // ── Lifecycle ─────────────────────────────────────────────────────────────
-  // Context loads products on warehouse change. We only load size codes and start poll.
+  // Context loads products and owns realtime refresh. Page only loads size codes.
 
   useEffect(() => {
     setCategory('all');
-    didInitialLoad.current = false;
     loadSizeCodes();
-    const pollDelay = isValidWarehouseId(warehouseId) ? setTimeout(() => startPoll(), 5000) : null;
-    const onVisible = () => {
-      if (!didInitialLoad.current) return;
-      if (document.visibilityState === 'visible' && !modalOpenRef.current && isValidWarehouseId(warehouseId)) {
-        refreshProducts({ silent: true });
-      }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    const initGate = setTimeout(() => { didInitialLoad.current = true; }, 500);
     return () => {
-      if (pollDelay != null) clearTimeout(pollDelay);
-      clearTimeout(initGate);
-      stopPoll();
-      document.removeEventListener('visibilitychange', onVisible);
+      // no-op cleanup; refresh is handled in InventoryContext
     };
   }, [warehouseId]); // eslint-disable-line react-hooks/exhaustive-deps
 
