@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Check, ShoppingCart } from 'lucide-react';
 import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
 
 /**
@@ -36,76 +35,85 @@ export interface CartLineInput {
 const SHEET_BOTTOM = 'var(--cart-sheet-bottom)';
 const SHEET_MAX_H = 'var(--cart-sheet-max-h)';
 
-interface SizeRowProps {
+/** Client reference: light blue CTA (distinct from primary link blue). */
+const ADD_TO_CART_BG = '#A5C9F3';
+
+interface SizeGridCardProps {
   variant: { sizeCode: string; sizeLabel?: string; quantity: number };
   selected: boolean;
-  qty: number;
-  onToggle: () => void;
-  onDecrement: () => void;
-  onIncrement: () => void;
+  disabled: boolean;
+  onSelect: () => void;
 }
 
-function SizeRow({ variant, selected, qty, onToggle, onDecrement, onIncrement }: SizeRowProps) {
+function SizeGridCard({ variant, selected, disabled, onSelect }: SizeGridCardProps) {
   const sizeLabel = variant.sizeLabel ?? variant.sizeCode;
   const stock = variant.quantity;
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onToggle}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onToggle();
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onSelect}
+      className={`
+        rounded-lg border px-2 py-3 text-center transition-colors min-h-[72px] flex flex-col items-center justify-center
+        ${disabled ? 'opacity-45 cursor-not-allowed bg-slate-50' : 'cursor-pointer active:scale-[0.98]'}
+        ${
+          selected && !disabled
+            ? 'border-[1.5px] bg-[var(--blue-soft)]'
+            : 'border bg-white'
         }
-      }}
-      className={`flex items-center px-3 py-2.5 rounded-lg mb-1.5 cursor-pointer select-none transition-colors ${
-        selected
-          ? 'border-[1.5px] bg-[var(--blue-soft)]'
-          : 'border bg-[var(--surface)]'
-      }`}
-      style={selected ? { borderColor: 'var(--blue)' } : { borderColor: 'var(--border)' }}
+      `}
+      style={
+        selected && !disabled
+          ? { borderColor: 'var(--blue)' }
+          : { borderColor: 'var(--border)' }
+      }
     >
+      <span className="text-[15px] font-semibold text-[var(--text)] leading-tight">{sizeLabel}</span>
+      <span className="text-[12px] text-[var(--text-3)] mt-1">Stock: {stock}</span>
+    </button>
+  );
+}
+
+interface QtyPerTapRowProps {
+  value: number;
+  min: number;
+  max: number;
+  disabled?: boolean;
+  onDecrement: () => void;
+  onIncrement: () => void;
+}
+
+function QtyPerTapRow({ value, min, max, disabled, onDecrement, onIncrement }: QtyPerTapRowProps) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-1 flex-shrink-0">
+      <span className="text-[14px] font-medium text-[var(--text)]">Qty per tap</span>
       <div
-        className={`w-[18px] h-[18px] rounded-[4px] mr-2.5 flex-shrink-0 flex items-center justify-center ${
-          selected ? 'bg-[var(--blue)]' : 'border'
-        }`}
-        style={selected ? undefined : { borderColor: 'var(--border-md)' }}
+        className="flex items-center rounded-lg border overflow-hidden bg-white"
+        style={{ borderColor: 'var(--border)' }}
       >
-        {selected && <Check size={9} color="white" strokeWidth={2.5} />}
-      </div>
-      <span className="text-[14px] font-semibold text-[var(--text)] min-w-[36px]">{sizeLabel}</span>
-      <span className="text-[12px] text-[var(--text-3)] flex-1 ml-1.5">{stock} left</span>
-      {selected && (
-        <div
-          className="flex items-center bg-[var(--overlay)] rounded-md overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
+        <button
+          type="button"
+          className="w-9 h-9 flex items-center justify-center text-lg text-[var(--text)] active:bg-slate-100 disabled:opacity-40"
+          disabled={disabled || value <= min}
+          onClick={onDecrement}
+          aria-label="Decrease quantity"
         >
-          <button
-            type="button"
-            className="w-[30px] h-[30px] flex items-center justify-center text-base text-[var(--text)] active:bg-[var(--border)]"
-            onClick={onDecrement}
-            aria-label="Decrease quantity"
-          >
-            −
-          </button>
-          <span className="min-w-[24px] text-center text-[13px] font-semibold text-[var(--text)]">
-            {qty}
-          </span>
-          <button
-            type="button"
-            className={`w-[30px] h-[30px] flex items-center justify-center text-base active:bg-[var(--border)] ${
-              qty >= stock ? 'text-[var(--text-3)] cursor-not-allowed' : 'text-[var(--text)]'
-            }`}
-            disabled={qty >= stock}
-            onClick={onIncrement}
-            aria-label="Increase quantity"
-          >
-            +
-          </button>
-        </div>
-      )}
+          −
+        </button>
+        <span className="min-w-[36px] text-center text-[15px] font-semibold text-[var(--text)] tabular-nums">
+          {value}
+        </span>
+        <button
+          type="button"
+          className="w-9 h-9 flex items-center justify-center text-lg text-[var(--text)] active:bg-slate-100 disabled:opacity-40"
+          disabled={disabled || value >= max}
+          onClick={onIncrement}
+          aria-label="Increase quantity"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }
@@ -120,42 +128,52 @@ interface SizePickerSheetProps {
 
 export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }: SizePickerSheetProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [qtyBySize, setQtyBySize] = useState<Record<string, number>>({});
+  const [qtyPerTap, setQtyPerTap] = useState(1);
 
   // Reset selection when opening for a different product so previous product's sizes are not still highlighted.
   useEffect(() => {
     setSelectedIds(new Set());
-    setQtyBySize({});
+    setQtyPerTap(1);
   }, [product?.id]);
 
   const variants = useMemo(() => product?.quantityBySize ?? [], [product]);
+
+  const maxQtyPerTapForSelection = useMemo(() => {
+    if (selectedIds.size === 0) return 1;
+    const stocks = variants.filter((v) => selectedIds.has(v.sizeCode)).map((v) => v.quantity);
+    if (stocks.length === 0) return 1;
+    return Math.max(1, Math.min(...stocks));
+  }, [selectedIds, variants]);
+
+  useEffect(() => {
+    if (selectedIds.size === 0) {
+      setQtyPerTap(1);
+      return;
+    }
+    setQtyPerTap((q) => Math.min(Math.max(1, q), maxQtyPerTapForSelection));
+  }, [maxQtyPerTapForSelection, selectedIds.size]);
 
   const toggleVariant = useCallback((sizeCode: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(sizeCode)) {
         next.delete(sizeCode);
-        return next;
+      } else {
+        next.add(sizeCode);
       }
-      next.add(sizeCode);
-      return next;
-    });
-    setQtyBySize((prev) => {
-      const next = { ...prev };
-      if (!next[sizeCode]) next[sizeCode] = 1;
       return next;
     });
   }, []);
 
-  const setVariantQty = useCallback((sizeCode: string, delta: number) => {
-    setQtyBySize((prev) => {
-      const current = prev[sizeCode] ?? 1;
-      const variant = variants.find((v) => v.sizeCode === sizeCode);
-      const max = variant?.quantity ?? 1;
-      const next = Math.max(1, Math.min(max, current + delta));
-      return { ...prev, [sizeCode]: next };
-    });
-  }, [variants]);
+  const bumpQtyPerTap = useCallback(
+    (delta: number) => {
+      setQtyPerTap((q) => {
+        const next = q + delta;
+        return Math.max(1, Math.min(maxQtyPerTapForSelection, next));
+      });
+    },
+    [maxQtyPerTapForSelection]
+  );
 
   if (!product) return null;
 
@@ -166,7 +184,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
 
   const selectedVariants = variants.filter((v) => selectedIds.has(v.sizeCode));
   const totalPrice = selectedVariants.reduce(
-    (sum, v) => sum + product.sellingPrice * (qtyBySize[v.sizeCode] ?? 1),
+    (sum, _v) => sum + product.sellingPrice * qtyPerTap,
     0
   );
 
@@ -178,15 +196,15 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       const imageUrl =
         sized && sized !== EMPTY_IMAGE_DATA_URL ? sized : null;
       return {
-      productId: product.id,
-      name: product.name,
-      sku: product.sku,
-      sizeCode: v.sizeCode,
-      sizeLabel: v.sizeLabel ?? v.sizeCode,
-      unitPrice: product.sellingPrice,
-      qty: qtyBySize[v.sizeCode] ?? 1,
-      imageUrl,
-    };
+        productId: product.id,
+        name: product.name,
+        sku: product.sku,
+        sizeCode: v.sizeCode,
+        sizeLabel: v.sizeLabel ?? v.sizeCode,
+        unitPrice: product.sellingPrice,
+        qty: qtyPerTap,
+        imageUrl,
+      };
     });
     if (lines.length > 1 && onAddBatch) {
       onAddBatch(lines);
@@ -196,8 +214,36 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
     onClose();
   };
 
-  // One-size / NA: single "Add to cart" with one qty (overlay still stops above bottom nav)
+  const sheetHeader = (
+    <div className="px-5 pt-3 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-[18px] sm:text-[20px] font-semibold tracking-tight text-[var(--text)] leading-snug">
+            {product.name}
+          </h2>
+          <p className="text-[11px] text-[var(--text-3)] mt-0.5 truncate">{product.sku}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            className="w-7 h-7 rounded-full bg-[var(--overlay)] flex items-center justify-center text-[15px] text-[var(--text-2)] leading-none"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <span className="font-display text-[18px] sm:text-[20px] font-semibold" style={{ color: 'var(--blue)' }}>
+            GH₵{product.sellingPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // One-size / NA: qty stepper + single CTA (same visual system as sized sheet)
   if (!isSized) {
+    const maxOne = Math.max(1, product.quantity);
+
     return (
       <>
         <div
@@ -212,32 +258,28 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
         >
           <div
             className="bg-white rounded-t-3xl flex flex-col"
-            style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)', minHeight: 260, maxHeight: SHEET_MAX_H }}
+            style={{
+              boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)',
+              minHeight: 260,
+              maxHeight: SHEET_MAX_H,
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto mt-3 mb-0.5 flex-shrink-0" aria-hidden />
-            <div className="px-5 pt-3 pb-3 border-b flex-shrink-0 flex items-start justify-between" style={{ borderColor: 'var(--border)' }}>
-              <div>
-                <h2 className="font-display text-[20px] tracking-[0.04em] leading-tight">
-                  {product.name.toUpperCase()}
-                </h2>
-                <p className="text-[11px] text-[var(--text-3)] mt-0.5">{product.sku}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1.5">
-                <button
-                  type="button"
-                  className="w-6 h-6 rounded-full bg-[var(--overlay)] flex items-center justify-center text-[13px] text-[var(--text-2)]"
-                  onClick={onClose}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-                <span className="font-display text-[22px]" style={{ color: 'var(--blue)' }}>
-                  GH₵{product.sellingPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
+            {sheetHeader}
+            <div className="px-5 pt-4 pb-2 flex-1 min-h-0 flex flex-col gap-4">
+              <QtyPerTapRow
+                value={qtyPerTap}
+                min={1}
+                max={maxOne}
+                onDecrement={() => setQtyPerTap((q) => Math.max(1, q - 1))}
+                onIncrement={() => setQtyPerTap((q) => Math.min(maxOne, q + 1))}
+              />
             </div>
-            <div className="p-5" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom, 0px))' }}>
+            <div
+              className="flex-shrink-0 px-5 pt-2 pb-4 border-t bg-[var(--surface)]"
+              style={{ borderColor: 'var(--border)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -252,17 +294,15 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                     sizeCode: null,
                     sizeLabel: null,
                     unitPrice: product.sellingPrice,
-                    qty: 1,
+                    qty: qtyPerTap,
                     imageUrl,
                   });
                   onClose();
                 }}
-                className="w-full py-[14px] rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 text-white"
-                style={{ background: 'var(--blue)' }}
+                className="w-full py-[14px] rounded-xl text-[15px] font-semibold flex items-center justify-center gap-2 text-white shadow-sm"
+                style={{ background: ADD_TO_CART_BG }}
               >
-                <ShoppingCart size={15} />
-                Add to cart — GH₵
-                {product.sellingPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+                Add to cart
               </button>
             </div>
           </div>
@@ -273,108 +313,88 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
 
   return (
     <>
-      {/* Overlay stops above bottom nav so nav stays visible and tappable */}
+      <div
+        className="fixed inset-x-0 top-0 z-40 bg-black/50"
+        style={{ bottom: SHEET_BOTTOM }}
+        onClick={onClose}
+        aria-hidden
+      />
       <div
         className="fixed inset-x-0 top-0 z-50 flex flex-col justify-end bg-black/50"
         style={{ bottom: SHEET_BOTTOM }}
       >
         <div
           className="bg-white rounded-t-3xl flex flex-col"
-          style={{ boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)', minHeight: 260, maxHeight: SHEET_MAX_H }}
+          style={{
+            boxShadow: '0 -12px 48px rgba(0,0,0,0.14), 0 -2px 12px rgba(0,0,0,0.06)',
+            minHeight: 260,
+            maxHeight: SHEET_MAX_H,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto mt-3 mb-0.5 flex-shrink-0" aria-hidden />
 
-          <div className="px-5 pt-3 pb-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="font-display text-[20px] tracking-[0.04em] leading-tight">
-                  {product.name.toUpperCase()}
-                </h2>
-                <p className="text-[11px] text-[var(--text-3)] mt-0.5">{product.sku}</p>
-              </div>
-              <div className="flex flex-col items-end gap-1.5">
-                <button
-                  type="button"
-                  className="w-6 h-6 rounded-full bg-[var(--overlay)] flex items-center justify-center text-[13px] text-[var(--text-2)]"
-                  onClick={onClose}
-                  aria-label="Close"
-                >
-                  ✕
-                </button>
-                <span className="font-display text-[22px]" style={{ color: 'var(--blue)' }}>
-                  GH₵{product.sellingPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-          </div>
+          {sheetHeader}
 
-          <p className="px-5 pt-2.5 pb-1 text-[12px] text-[var(--text-3)] flex-shrink-0">
-            Select sizes and quantity
-          </p>
+          <div className="px-5 pt-3 pb-2 flex-shrink-0 flex flex-col gap-3">
+            <QtyPerTapRow
+              value={qtyPerTap}
+              min={1}
+              max={maxQtyPerTapForSelection}
+              disabled={selectedIds.size === 0}
+              onDecrement={() => bumpQtyPerTap(-1)}
+              onIncrement={() => bumpQtyPerTap(1)}
+            />
+          </div>
 
           <div
             className="flex-1 overflow-y-auto px-5 pt-1 min-h-0"
             style={{ paddingBottom: 'var(--sheet-safe-padding-bottom)' }}
           >
-            {variants.map((v) => (
-              <SizeRow
-                key={v.sizeCode}
-                variant={v}
-                selected={selectedIds.has(v.sizeCode)}
-                qty={qtyBySize[v.sizeCode] ?? 1}
-                onToggle={() => toggleVariant(v.sizeCode)}
-                onDecrement={() => setVariantQty(v.sizeCode, -1)}
-                onIncrement={() => setVariantQty(v.sizeCode, 1)}
-              />
-            ))}
+            <div className="grid grid-cols-3 gap-2 pb-2">
+              {variants.map((v) => {
+                const out = v.quantity <= 0;
+                return (
+                  <SizeGridCard
+                    key={v.sizeCode}
+                    variant={v}
+                    selected={selectedIds.has(v.sizeCode)}
+                    disabled={out}
+                    onSelect={() => {
+                      if (!out) toggleVariant(v.sizeCode);
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
 
           <div
             className="flex-shrink-0 px-5 pt-3 pb-4 border-t bg-[var(--surface)]"
             style={{ borderColor: 'var(--border)', paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
           >
-            <div className="flex flex-wrap gap-1.5 mb-2.5 min-h-[22px] items-center">
-              {selectedVariants.map((v) => (
-                <span
-                  key={v.sizeCode}
-                  className="bg-[var(--blue-soft)] rounded-[5px] px-2 py-0.5 text-[11px] font-semibold"
-                  style={{ color: 'var(--blue)' }}
-                >
-                  {v.sizeLabel ?? v.sizeCode} ×{qtyBySize[v.sizeCode] ?? 1}
-                </span>
-              ))}
-              {selectedVariants.length > 0 && (
-                <span className="text-[11px] text-[var(--text-3)] ml-1">
-                  = GH₵{totalPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
-                </span>
-              )}
-            </div>
+            {selectedVariants.length > 0 && (
+              <p className="text-[12px] text-[var(--text-3)] mb-2 text-center">
+                {selectedVariants.length} size{selectedVariants.length === 1 ? '' : 's'} · GH₵
+                {totalPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+              </p>
+            )}
             <button
               type="button"
               disabled={selectedVariants.length === 0}
               onClick={handleAddToCart}
-              className={`w-full py-[14px] rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 transition-colors ${
+              className={`w-full py-[14px] rounded-xl text-[15px] font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm ${
                 selectedVariants.length > 0
                   ? 'text-white cursor-pointer'
-                  : 'bg-[var(--overlay)] text-[var(--text-3)] cursor-not-allowed'
+                  : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
               }`}
-              style={selectedVariants.length > 0 ? { background: 'var(--blue)' } : undefined}
+              style={selectedVariants.length > 0 ? { background: ADD_TO_CART_BG } : undefined}
             >
-              <ShoppingCart size={15} />
-              {selectedVariants.length > 0
-                ? `Add to cart — GH₵${totalPrice.toLocaleString('en-GH', { minimumFractionDigits: 2 })}`
-                : 'Select a size to add'}
+              {selectedVariants.length > 0 ? 'Add to cart' : 'Select a size'}
             </button>
           </div>
         </div>
       </div>
-      <div
-        className="fixed inset-0 z-40 bg-black/50"
-        style={{ bottom: SHEET_BOTTOM }}
-        onClick={onClose}
-        aria-hidden
-      />
     </>
   );
 }
