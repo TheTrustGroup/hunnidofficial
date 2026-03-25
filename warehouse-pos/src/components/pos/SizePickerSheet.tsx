@@ -35,9 +35,6 @@ export interface CartLineInput {
 const SHEET_BOTTOM = 'var(--cart-sheet-bottom)';
 const SHEET_MAX_H = 'var(--cart-sheet-max-h)';
 
-/** Client reference: light blue CTA (distinct from primary link blue). */
-const ADD_TO_CART_BG = '#A5C9F3';
-
 interface SizeGridCardProps {
   variant: { sizeCode: string; sizeLabel?: string; quantity: number };
   selected: boolean;
@@ -321,8 +318,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                   });
                   onClose();
                 }}
-                className="w-full py-[14px] rounded-xl text-[15px] font-semibold flex items-center justify-center gap-2 text-white shadow-sm"
-                style={{ background: ADD_TO_CART_BG }}
+                className="w-full py-[14px] rounded-xl text-[15px] font-semibold flex items-center justify-center gap-2 text-white shadow-sm bg-[var(--blue)] active:opacity-95"
               >
                 Add to cart
               </button>
@@ -407,10 +403,9 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
               onClick={handleAddToCart}
               className={`w-full py-[14px] rounded-xl text-[15px] font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm ${
                 selectedVariants.length > 0
-                  ? 'text-white cursor-pointer'
+                  ? 'text-white cursor-pointer bg-[var(--blue)] active:opacity-95'
                   : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
               }`}
-              style={selectedVariants.length > 0 ? { background: ADD_TO_CART_BG } : undefined}
             >
               {selectedVariants.length > 0 ? 'Add to cart' : 'Select a size'}
             </button>
