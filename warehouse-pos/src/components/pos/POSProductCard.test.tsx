@@ -1,10 +1,16 @@
 /**
  * POSProductCard: image display and placeholder; no crash when images missing.
  */
+import type { ReactElement } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { SettingsProvider } from '../../contexts/SettingsContext';
 import POSProductCard from './POSProductCard';
 import type { POSProduct } from './SizePickerSheet';
+
+function renderWithSettings(ui: ReactElement) {
+  return render(<SettingsProvider>{ui}</SettingsProvider>);
+}
 
 const baseProduct: POSProduct = {
   id: 'p1',
@@ -18,7 +24,7 @@ const baseProduct: POSProduct = {
 describe('POSProductCard', () => {
   it('renders product name and price', () => {
     const onSelect = vi.fn();
-    render(<POSProductCard product={baseProduct} onSelect={onSelect} />);
+    renderWithSettings(<POSProductCard product={baseProduct} onSelect={onSelect} />);
     expect(screen.getByText('Test Product')).toBeTruthy();
     expect(screen.getByText(/GH₵100\.00/)).toBeTruthy();
   });
@@ -29,7 +35,7 @@ describe('POSProductCard', () => {
       images: ['data:image/png;base64,iVBORw0KGgo='],
     };
     const onSelect = vi.fn();
-    const { container } = render(<POSProductCard product={product} onSelect={onSelect} />);
+    const { container } = renderWithSettings(<POSProductCard product={product} onSelect={onSelect} />);
     const img = container.querySelector('img');
     expect(img).toBeTruthy();
     expect(img?.getAttribute('alt')).toBe('Test Product');
@@ -38,7 +44,7 @@ describe('POSProductCard', () => {
   it('shows placeholder when product has no images', () => {
     const product: POSProduct = { ...baseProduct, images: [] };
     const onSelect = vi.fn();
-    const { container } = render(<POSProductCard product={product} onSelect={onSelect} />);
+    const { container } = renderWithSettings(<POSProductCard product={product} onSelect={onSelect} />);
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('svg')).toBeTruthy();
   });
@@ -46,14 +52,14 @@ describe('POSProductCard', () => {
   it('shows placeholder when product.images is undefined', () => {
     const product: POSProduct = { ...baseProduct };
     const onSelect = vi.fn();
-    const { container } = render(<POSProductCard product={product} onSelect={onSelect} />);
+    const { container } = renderWithSettings(<POSProductCard product={product} onSelect={onSelect} />);
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('svg')).toBeTruthy();
   });
 
   it('calls onSelect when clicked', () => {
     const onSelect = vi.fn();
-    const { container } = render(<POSProductCard product={baseProduct} onSelect={onSelect} />);
+    const { container } = renderWithSettings(<POSProductCard product={baseProduct} onSelect={onSelect} />);
     const button = container.querySelector('button');
     expect(button).toBeTruthy();
     fireEvent.click(button!);
@@ -64,7 +70,7 @@ describe('POSProductCard', () => {
   it('disables button when product is out of stock', () => {
     const product: POSProduct = { ...baseProduct, quantity: 0 };
     const onSelect = vi.fn();
-    const { container } = render(<POSProductCard product={product} onSelect={onSelect} />);
+    const { container } = renderWithSettings(<POSProductCard product={product} onSelect={onSelect} />);
     const button = container.querySelector('button');
     expect(button).toBeTruthy();
     expect((button as HTMLButtonElement).disabled).toBe(true);

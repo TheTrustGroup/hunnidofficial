@@ -9,7 +9,9 @@
 // ============================================================
 
 import { memo } from 'react';
+import { useSettings } from '../../contexts/SettingsContext';
 import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
+import { posProductTotalQuantity, stockLevelForQty, type StockLevel } from '../../lib/posStockLevel';
 import { type POSProduct } from './SizePickerSheet';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -21,22 +23,6 @@ interface POSProductCardProps {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-type StockStatus = 'in' | 'low' | 'out';
-
-function getTotalQuantity(product: POSProduct): number {
-  if (product.sizeKind === 'sized' && (product.quantityBySize?.length ?? 0) > 0) {
-    return (product.quantityBySize ?? []).reduce((s, r) => s + (r.quantity ?? 0), 0);
-  }
-  return product.quantity ?? 0;
-}
-
-function getStockStatus(product: POSProduct): StockStatus {
-  const qty = getTotalQuantity(product);
-  if (qty === 0) return 'out';
-  if (qty <= 3) return 'low';
-  return 'in';
-}
-
 function formatPrice(n: number): string {
   return `GH₵${Number(n).toLocaleString('en-GH', {
     minimumFractionDigits: 2,
@@ -46,7 +32,7 @@ function formatPrice(n: number): string {
 
 // ── Stock Badge ────────────────────────────────────────────────────────────
 
-function StockBadge({ status, qty }: { status: StockStatus; qty: number }) {
+function StockBadge({ status, qty }: { status: StockLevel; qty: number }) {
   if (status === 'in') return null;
   const label = status === 'low' ? `${qty} left` : 'Out';
   return (
@@ -78,8 +64,9 @@ function ImagePlaceholder() {
 // ── Main Component ─────────────────────────────────────────────────────────
 
 function POSProductCard({ product, onSelect }: POSProductCardProps) {
-  const totalQty = getTotalQuantity(product);
-  const status = getStockStatus(product);
+  const { systemSettings } = useSettings();
+  const totalQty = posProductTotalQuantity(product);
+  const status = stockLevelForQty(totalQty, systemSettings.lowStockThreshold);
   const isOut = status === 'out';
   const firstImage = (product.images ?? [])[0];
   const safeSrc = firstImage ? getSafeProductImageUrlSized(firstImage, 'thumb') : '';
