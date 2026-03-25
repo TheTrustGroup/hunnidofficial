@@ -38,17 +38,6 @@ const SHEET_MAX_H = 'var(--cart-sheet-max-h)';
 /** Client reference: light blue CTA (distinct from primary link blue). */
 const ADD_TO_CART_BG = '#A5C9F3';
 
-/** Red dot only — client asked for no amber/green traffic light on this sheet. */
-function OutOfStockDot() {
-  return (
-    <span
-      className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-600 shrink-0 ring-2 ring-white shadow-sm"
-      title="Out of stock"
-      aria-hidden
-    />
-  );
-}
-
 interface SizeGridCardProps {
   variant: { sizeCode: string; sizeLabel?: string; quantity: number };
   selected: boolean;
@@ -61,6 +50,12 @@ function SizeGridCard({ variant, selected, disabled, onSelect }: SizeGridCardPro
   const stock = variant.quantity;
   const out = stock <= 0;
 
+  const bgClass = out
+    ? 'bg-slate-100'
+    : selected && !disabled
+      ? 'bg-[var(--blue-soft)]'
+      : 'bg-white';
+
   return (
     <button
       type="button"
@@ -68,13 +63,10 @@ function SizeGridCard({ variant, selected, disabled, onSelect }: SizeGridCardPro
       onClick={onSelect}
       aria-label={`${sizeLabel}, stock ${stock}, ${out ? 'out of stock' : 'in stock'}`}
       className={`
-        relative rounded-lg border px-2 py-3 text-center transition-colors min-h-[72px] flex flex-col items-center justify-center
-        ${disabled ? 'opacity-45 cursor-not-allowed bg-slate-50' : 'cursor-pointer active:scale-[0.98]'}
-        ${
-          selected && !disabled
-            ? 'border-[1.5px] bg-[var(--blue-soft)]'
-            : 'border bg-white'
-        }
+        rounded-lg border px-2 py-3 text-center transition-colors min-h-[72px] flex flex-col items-center justify-center
+        ${bgClass}
+        ${out ? 'cursor-not-allowed' : 'cursor-pointer active:scale-[0.98]'}
+        ${selected && !disabled ? 'border-[1.5px]' : 'border'}
       `}
       style={
         selected && !disabled
@@ -82,9 +74,16 @@ function SizeGridCard({ variant, selected, disabled, onSelect }: SizeGridCardPro
           : { borderColor: 'var(--border)' }
       }
     >
-      {out && <OutOfStockDot />}
-      <span className="text-[15px] font-semibold text-[var(--text)] leading-tight">{sizeLabel}</span>
-      <span className="text-[12px] text-[var(--text-3)] mt-1">Stock: {stock}</span>
+      <span
+        className={`text-[15px] font-semibold leading-tight ${out ? 'text-slate-400' : 'text-[var(--text)]'}`}
+      >
+        {sizeLabel}
+      </span>
+      {out ? (
+        <span className="text-[12px] font-semibold text-red-600 mt-1">Out of stock</span>
+      ) : (
+        <span className="text-[12px] text-[var(--text-3)] mt-1">Stock: {stock}</span>
+      )}
     </button>
   );
 }
@@ -292,16 +291,11 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
               />
               <div className="flex items-center justify-between text-[13px] pt-1">
                 <span className="text-[var(--text-3)]">Total stock</span>
-                <span className="inline-flex items-center gap-2 font-semibold text-[var(--text)] tabular-nums">
-                  {oneOut && (
-                    <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0 bg-red-600"
-                      title="Out of stock"
-                      aria-hidden
-                    />
-                  )}
-                  {product.quantity}
-                </span>
+                {oneOut ? (
+                  <span className="font-semibold text-red-600">Out of stock</span>
+                ) : (
+                  <span className="font-semibold text-[var(--text)] tabular-nums">{product.quantity}</span>
+                )}
               </div>
             </div>
             <div
