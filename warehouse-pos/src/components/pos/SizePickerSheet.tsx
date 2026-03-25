@@ -1,11 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
-import { useSettings } from '../../contexts/SettingsContext';
-import {
-  type StockLevel,
-  stockLevelForQty,
-  stockLevelLabel,
-} from '../../lib/posStockLevel';
 
 /**
  * POS product shape. Inventory Product (from useInventory) passed into POS views
@@ -44,37 +38,14 @@ const SHEET_MAX_H = 'var(--cart-sheet-max-h)';
 /** Client reference: light blue CTA (distinct from primary link blue). */
 const ADD_TO_CART_BG = '#A5C9F3';
 
-function StockDot({ level }: { level: StockLevel }) {
-  const bg =
-    level === 'out' ? 'bg-red-600' : level === 'low' ? 'bg-amber-500' : 'bg-emerald-600';
+/** Red dot only — client asked for no amber/green traffic light on this sheet. */
+function OutOfStockDot() {
   return (
     <span
-      className={`absolute top-2 right-2 h-2.5 w-2.5 rounded-full ${bg} shrink-0 ring-2 ring-white shadow-sm`}
-      title={stockLevelLabel(level)}
+      className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-red-600 shrink-0 ring-2 ring-white shadow-sm"
+      title="Out of stock"
       aria-hidden
     />
-  );
-}
-
-function StockLegend({ threshold }: { threshold: number }) {
-  return (
-    <div
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-3)]"
-      aria-label="Stock indicators: red out of stock, amber low, green OK"
-    >
-      <span className="inline-flex items-center gap-1">
-        <span className="h-2 w-2 rounded-full bg-red-600 shrink-0" aria-hidden />
-        Out
-      </span>
-      <span className="inline-flex items-center gap-1">
-        <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" aria-hidden />
-        Low{threshold > 0 ? ` (≤${threshold})` : ''}
-      </span>
-      <span className="inline-flex items-center gap-1">
-        <span className="h-2 w-2 rounded-full bg-emerald-600 shrink-0" aria-hidden />
-        OK
-      </span>
-    </div>
   );
 }
 
@@ -82,20 +53,20 @@ interface SizeGridCardProps {
   variant: { sizeCode: string; sizeLabel?: string; quantity: number };
   selected: boolean;
   disabled: boolean;
-  stockLevel: StockLevel;
   onSelect: () => void;
 }
 
-function SizeGridCard({ variant, selected, disabled, stockLevel, onSelect }: SizeGridCardProps) {
+function SizeGridCard({ variant, selected, disabled, onSelect }: SizeGridCardProps) {
   const sizeLabel = variant.sizeLabel ?? variant.sizeCode;
   const stock = variant.quantity;
+  const out = stock <= 0;
 
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onSelect}
-      aria-label={`${sizeLabel}, stock ${stock}, ${stockLevelLabel(stockLevel)}`}
+      aria-label={`${sizeLabel}, stock ${stock}, ${out ? 'out of stock' : 'in stock'}`}
       className={`
         relative rounded-lg border px-2 py-3 text-center transition-colors min-h-[72px] flex flex-col items-center justify-center
         ${disabled ? 'opacity-45 cursor-not-allowed bg-slate-50' : 'cursor-pointer active:scale-[0.98]'}
@@ -111,7 +82,7 @@ function SizeGridCard({ variant, selected, disabled, stockLevel, onSelect }: Siz
           : { borderColor: 'var(--border)' }
       }
     >
-      <StockDot level={stockLevel} />
+      {out && <OutOfStockDot />}
       <span className="text-[15px] font-semibold text-[var(--text)] leading-tight">{sizeLabel}</span>
       <span className="text-[12px] text-[var(--text-3)] mt-1">Stock: {stock}</span>
     </button>
@@ -172,8 +143,6 @@ interface SizePickerSheetProps {
 export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }: SizePickerSheetProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [qtyPerTap, setQtyPerTap] = useState(1);
-  const { systemSettings } = useSettings();
-  const lowStockThreshold = Math.max(0, systemSettings.lowStockThreshold);
 
   // Reset selection when opening for a different product so previous product's sizes are not still highlighted.
   useEffect(() => {
@@ -288,7 +257,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
   // One-size / NA: qty stepper + single CTA (same visual system as sized sheet)
   if (!isSized) {
     const maxOne = Math.max(1, product.quantity);
-    const oneStockLevel = stockLevelForQty(product.quantity, lowStockThreshold);
+    const oneOut = product.quantity <= 0;
 
     return (
       <>
@@ -314,7 +283,6 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
             <div className="w-12 h-1.5 rounded-full bg-slate-300 mx-auto mt-3 mb-0.5 flex-shrink-0" aria-hidden />
             {sheetHeader}
             <div className="px-5 pt-4 pb-2 flex-1 min-h-0 flex flex-col gap-3">
-              <StockLegend threshold={lowStockThreshold} />
               <QtyPerTapRow
                 value={qtyPerTap}
                 min={1}
@@ -325,17 +293,13 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
               <div className="flex items-center justify-between text-[13px] pt-1">
                 <span className="text-[var(--text-3)]">Total stock</span>
                 <span className="inline-flex items-center gap-2 font-semibold text-[var(--text)] tabular-nums">
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full shrink-0 ${
-                      oneStockLevel === 'out'
-                        ? 'bg-red-600'
-                        : oneStockLevel === 'low'
-                          ? 'bg-amber-500'
-                          : 'bg-emerald-600'
-                    }`}
-                    title={stockLevelLabel(oneStockLevel)}
-                    aria-hidden
-                  />
+                  {oneOut && (
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0 bg-red-600"
+                      title="Out of stock"
+                      aria-hidden
+                    />
+                  )}
                   {product.quantity}
                 </span>
               </div>
@@ -409,7 +373,6 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
               onDecrement={() => bumpQtyPerTap(-1)}
               onIncrement={() => bumpQtyPerTap(1)}
             />
-            <StockLegend threshold={lowStockThreshold} />
           </div>
 
           <div
@@ -419,14 +382,12 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
             <div className="grid grid-cols-3 gap-2 pb-2">
               {variants.map((v) => {
                 const out = v.quantity <= 0;
-                const level = stockLevelForQty(v.quantity, lowStockThreshold);
                 return (
                   <SizeGridCard
                     key={v.sizeCode}
                     variant={v}
                     selected={selectedIds.has(v.sizeCode)}
                     disabled={out}
-                    stockLevel={level}
                     onSelect={() => {
                       if (!out) toggleVariant(v.sizeCode);
                     }}
