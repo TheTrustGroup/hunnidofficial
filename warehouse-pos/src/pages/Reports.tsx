@@ -179,8 +179,9 @@ export function Reports() {
       setDashboardStats(null);
       return;
     }
+    const warehouseIdForRequests = currentWarehouseId;
     const date = new Date().toISOString().split('T')[0];
-    fetch(`${API_BASE_URL}/api/dashboard?warehouse_id=${encodeURIComponent(currentWarehouseId)}&date=${date}`, {
+    fetch(`${API_BASE_URL}/api/dashboard?warehouse_id=${encodeURIComponent(warehouseIdForRequests)}&date=${date}`, {
       headers: getApiHeaders() as HeadersInit,
       credentials: 'include',
     })

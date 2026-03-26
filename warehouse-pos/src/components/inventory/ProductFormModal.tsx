@@ -9,6 +9,7 @@ import { useNetworkStatusContext } from '../../contexts/NetworkStatusContext';
 import { API_BASE_URL, getApiHeaders } from '../../lib/api';
 import { apiGet } from '../../lib/apiClient';
 import { compressImage, MAX_IMAGE_BASE64_LENGTH } from '../../lib/imageUtils';
+import { isPlaceholderOneSizeCode } from '../../lib/sizeCode';
 import { setProductImages } from '../../lib/productImagesStore';
 import { isStorageUrl, extractPathFromUrl, deleteProductImage } from '../../lib/imageUpload';
 import { Button } from '../ui/Button';
@@ -17,10 +18,9 @@ import { X, Upload, CloudOff } from 'lucide-react';
 
 const MAX_PRODUCT_IMAGES = 5;
 
-/** RPC fallback uses "One size"; backend may store "ONESIZE". Don't treat as real size row — avoid saving it as sole size. */
+/** RPC fallback uses "One size"/OS placeholders. Don't treat as real size rows in sized mode. */
 function isSyntheticOneSizeRow(sizeCode: string): boolean {
-  const n = String(sizeCode ?? '').trim().replace(/\s+/g, '').toUpperCase();
-  return n === 'OS' || n === 'ONESIZE' || n === 'ONE_SIZE' || n === 'O/S';
+  return isPlaceholderOneSizeCode(sizeCode);
 }
 
 export type SizeKind = 'na' | 'one_size' | 'sized';
