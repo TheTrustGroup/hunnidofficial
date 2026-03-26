@@ -87,6 +87,23 @@ function normalizeDbConstraintError(dbMessage: string, action: 'create' | 'updat
   return `Failed to ${action} product: ${dbMessage}`;
 }
 
+function isPlaceholderOneSizeCode(sizeCode: string): boolean {
+  const n = String(sizeCode ?? '').trim().replace(/\s+/g, '').toUpperCase();
+  return n === 'OS' || n === 'ONESIZE' || n === 'ONE_SIZE' || n === 'O/S';
+}
+
+function sanitizeSizeRows(rows: Array<{ sizeCode: string; quantity: number }>): Array<{ sizeCode: string; quantity: number }> {
+  return rows
+    .filter((r) => String(r.sizeCode ?? '').trim() !== '')
+    .filter((r) => !isPlaceholderOneSizeCode(String(r.sizeCode ?? '')));
+}
+
+function isInvalidWarehouseId(value: string): boolean {
+  const w = String(value ?? '').trim();
+  if (!w) return true;
+  return w === '00000000-0000-0000-0000-000000000000';
+}
+
 /**
  * Columns for warehouse_products when table has no warehouse_id (one row per product).
  * Quantity is resolved from warehouse_inventory / warehouse_inventory_by_size per warehouse.
@@ -320,7 +337,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
   const db = getDb();
 
   const warehouseId = String(body.warehouseId ?? body.warehouse_id ?? '').trim();
-  if (!warehouseId) {
+  if (isInvalidWarehouseId(warehouseId)) {
     throw new Error('warehouseId is required');
   }
 
@@ -340,7 +357,8 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
   const sellingPrice = Number(body.sellingPrice ?? body.selling_price ?? 0);
   const costPrice = Number(body.costPrice ?? body.cost_price ?? 0);
   const reorderLevel = Number(body.reorderLevel ?? body.reorder_level ?? 0);
-  const quantityBySize = Array.isArray(body.quantityBySize) ? body.quantityBySize as Array<{ sizeCode: string; quantity: number }> : [];
+  const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize as Array<{ sizeCode: string; quantity: number }> : [];
+  const quantityBySize = sanitizeSizeRows(quantityBySizeRaw);
   const quantity = Number(body.quantity ?? 0);
   const now = new Date().toISOString();
 
@@ -372,6 +390,10 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
   }
 
   const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
+  if (sizeKind === 'sized' && quantityBySize.length === 0) {
+    await db.from('warehouse_products').delete().eq('id', id);
+    throw new Error('Failed to create inventory by size: add at least one real size (not OS).');
+  }
   const totalQty = isSized
     ? quantityBySize.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
     : Number(quantity) || 0;
@@ -443,6 +465,9 @@ export async function updateWarehouseProduct(
   warehouseId: string,
   body: PutProductBody
 ): Promise<ListProduct | null> {
+  if (isInvalidWarehouseId(warehouseId)) {
+    throw new Error('warehouseId is required');
+  }
   const db = getDb();
 
   const existing = await getProductById(warehouseId, productId);
@@ -483,9 +508,9 @@ export async function updateWarehouseProduct(
   const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize : undefined;
   const quantityBySize =
     quantityBySizeRaw && quantityBySizeRaw.length > 0
-      ? (quantityBySizeRaw as Array<{ sizeCode: string; quantity: number }>)
+      ? sanitizeSizeRows(quantityBySizeRaw as Array<{ sizeCode: string; quantity: number }>)
       : (existing.quantityBySize?.length
-          ? (existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
+          ? sanitizeSizeRows(existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
           : []);
   const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
   const totalQty = isSized

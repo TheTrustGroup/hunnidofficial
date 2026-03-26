@@ -17,6 +17,7 @@ import { API_BASE_URL } from '../lib/api';
 import { apiGet, apiPost, apiPut, apiDelete } from '../lib/apiClient';
 import { getApiCircuitBreaker } from '../lib/circuit';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from './WarehouseContext';
+import { isValidWarehouseId } from '../lib/warehouseId';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 import { getCategoryDisplay, normalizeProductLocation } from '../lib/utils';
@@ -155,7 +156,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const { currentWarehouseId } = useWarehouse();
   const { showToast } = useToast();
   const { tryRefreshSession } = useAuth();
-  const effectiveWarehouseId = (currentWarehouseId?.trim?.() && currentWarehouseId) ? currentWarehouseId : DEFAULT_WAREHOUSE_ID;
+  const effectiveWarehouseId = isValidWarehouseId(currentWarehouseId) ? currentWarehouseId : DEFAULT_WAREHOUSE_ID;
 
   const [apiOnlyProducts, setApiOnlyProductsState] = useState<Product[]>([]);
   const [apiOnlyLoading, setApiOnlyLoadingState] = useState(true);

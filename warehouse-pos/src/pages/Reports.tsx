@@ -16,6 +16,7 @@ import { formatCurrency, getCategoryDisplay, formatDate } from '../lib/utils';
 import { getStoredData } from '../lib/storage';
 import { parseDate, validateDateRange } from '../lib/dateUtils';
 import { API_BASE_URL, getApiHeaders } from '../lib/api';
+import { isValidWarehouseId } from '../lib/warehouseId';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
 import { PERMISSIONS } from '../types/permissions';
@@ -104,6 +105,7 @@ export function Reports() {
 
     const fromIso = start.toISOString();
     const toIso = end.toISOString();
+    const warehouseIdForRequests = isValidWarehouseId(currentWarehouseId) ? currentWarehouseId : undefined;
 
     const fallbackLocal = () => {
       const stored = getStoredData<Transaction[]>('transactions', []);
@@ -124,7 +126,7 @@ export function Reports() {
         const { data } = await fetchSalesReportFromApi(API_BASE_URL, {
           from: fromIso,
           to: toIso,
-          warehouse_id: currentWarehouseId || undefined,
+          warehouse_id: warehouseIdForRequests,
           include_voided: true,
         });
         setSalesReportFromApi(mapReportApiToSalesReport(data));
@@ -136,7 +138,7 @@ export function Reports() {
           const { data } = await fetchSalesAsTransactions(API_BASE_URL, {
             from: fromIso,
             to: toIso,
-            warehouse_id: currentWarehouseId || undefined,
+            warehouse_id: warehouseIdForRequests,
             limit: 2000,
             include_voided: true,
           });
@@ -147,7 +149,7 @@ export function Reports() {
             const { data } = await fetchTransactionsFromApi(API_BASE_URL, {
               from: fromIso,
               to: toIso,
-              warehouse_id: currentWarehouseId || undefined,
+              warehouse_id: warehouseIdForRequests,
               limit: 2000,
             });
             setTransactions(data);
@@ -173,7 +175,7 @@ export function Reports() {
 
   /** Fetch dashboard totals when on Inventory report so Total Products etc. match Dashboard/App. */
   useEffect(() => {
-    if (reportType !== 'inventory' || !currentWarehouseId || !canFetchServerData) {
+    if (reportType !== 'inventory' || !isValidWarehouseId(currentWarehouseId) || !canFetchServerData) {
       setDashboardStats(null);
       return;
     }

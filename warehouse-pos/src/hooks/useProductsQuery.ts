@@ -10,6 +10,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { API_BASE_URL, getApiHeaders } from '../lib/api';
 import type { POSProduct } from '../components/pos/SizePickerSheet';
+import { isValidWarehouseId } from '../lib/warehouseId';
 
 const PAGE_SIZE = 100;
 const STALE_MS = 60_000;
@@ -45,7 +46,7 @@ export function useProductsQuery(warehouseId: string | undefined, enabled: boole
       const loaded = allPages.reduce((sum, p) => sum + (p.data?.length ?? 0), 0);
       return loaded < lastPage.total ? loaded : undefined;
     },
-    enabled: Boolean(warehouseId?.trim()) && enabled,
+    enabled: Boolean(enabled && isValidWarehouseId(warehouseId)),
     staleTime: STALE_MS,
     gcTime: GC_MS,
   });

@@ -19,6 +19,7 @@ import { createContext, useContext, useState, ReactNode, useEffect, useCallback 
 import { Warehouse } from '../types';
 import { API_BASE_URL } from '../lib/api';
 import { apiGet } from '../lib/apiClient';
+import { isValidWarehouseId } from '../lib/warehouseId';
 import { useOptionalAuth } from './AuthContext';
 
 /** Default warehouse id (Main Jeff). Fallback when API has no warehouses yet. */
@@ -67,7 +68,8 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   const auth = useOptionalAuth();
   const authLoading = auth?.isLoading ?? false;
   const isAuthenticated = auth?.isAuthenticated ?? false;
-  const boundWarehouseId = auth?.user?.warehouseId?.trim() || undefined;
+  const rawBoundWarehouseId = auth?.user?.warehouseId?.trim() || undefined;
+  const boundWarehouseId = isValidWarehouseId(rawBoundWarehouseId) ? rawBoundWarehouseId : undefined;
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [currentWarehouseId, setCurrentWarehouseIdState] = useState<string>(() => {
     if (typeof localStorage !== 'undefined') {

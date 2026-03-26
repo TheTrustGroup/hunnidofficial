@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } fr
 import { Product, type QuantityBySizeItem } from '../../types';
 import { generateSKU, getCategoryDisplay } from '../../lib/utils';
 import { safeValidateProductForm } from '../../lib/validationSchemas';
-import { useWarehouse, DEFAULT_WAREHOUSE_ID } from '../../contexts/WarehouseContext';
+import { useWarehouse } from '../../contexts/WarehouseContext';
 import { useInventory } from '../../contexts/InventoryContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useNetworkStatusContext } from '../../contexts/NetworkStatusContext';
@@ -20,7 +20,7 @@ const MAX_PRODUCT_IMAGES = 5;
 /** RPC fallback uses "One size"; backend may store "ONESIZE". Don't treat as real size row — avoid saving it as sole size. */
 function isSyntheticOneSizeRow(sizeCode: string): boolean {
   const n = String(sizeCode ?? '').trim().replace(/\s+/g, '').toUpperCase();
-  return n === 'ONESIZE' || n === 'ONE_SIZE';
+  return n === 'OS' || n === 'ONESIZE' || n === 'ONE_SIZE' || n === 'O/S';
 }
 
 export type SizeKind = 'na' | 'one_size' | 'sized';
@@ -444,7 +444,7 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
       return;
     }
     const effectiveWarehouseId = (formData.warehouseId?.trim() || currentWarehouseId?.trim() || '').trim() || undefined;
-    if (warehouses.length > 0 && !effectiveWarehouseId) {
+    if (!effectiveWarehouseId) {
       showToast('error', 'Please select a warehouse.');
       return;
     }
@@ -467,7 +467,7 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
         sizeKind: formData.sizeKind,
         quantityBySize: formData.sizeKind === 'sized' ? validSizeRows : formData.quantityBySize,
         images: payloadImages,
-        warehouseId: effectiveWarehouseId ?? DEFAULT_WAREHOUSE_ID,
+        warehouseId: effectiveWarehouseId,
       };
       // Persist images to client store before async submit so list shows them even if API/state path fails or is delayed
       if (product?.id && payloadImages.length > 0) {
