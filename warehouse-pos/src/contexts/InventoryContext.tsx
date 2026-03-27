@@ -34,6 +34,7 @@ import {
   INVENTORY_PAGE_SIZE,
   LAST_UPDATED_PRESERVE_MS,
 } from '../constants/inventory';
+import { isPlaceholderOneSizeCode } from '../lib/sizeCode';
 
 /** Per-warehouse cache key so we can show the right list immediately on login/refresh. */
 function productsCacheKey(warehouseId: string): string {
@@ -780,7 +781,16 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       updatedAt: toIso(product.updatedAt),
       ...(product.version !== undefined && { version: product.version }),
       sizeKind: product.sizeKind ?? 'na',
-      ...(Array.isArray(product.quantityBySize) && product.quantityBySize.length > 0 && { quantityBySize: product.quantityBySize }),
+      ...(() => {
+        if (!Array.isArray(product.quantityBySize)) return {};
+        const cleaned = product.quantityBySize
+          .map((r) => ({
+            sizeCode: String(r?.sizeCode ?? '').trim().toUpperCase(),
+            quantity: Math.max(0, Number(r?.quantity ?? 0) || 0),
+          }))
+          .filter((r) => r.sizeCode !== '' && !isPlaceholderOneSizeCode(r.sizeCode));
+        return cleaned.length > 0 ? { quantityBySize: cleaned } : {};
+      })(),
       ...((product as Product & { warehouseId?: string }).warehouseId != null && { warehouseId: (product as Product & { warehouseId?: string }).warehouseId }),
     };
   };
