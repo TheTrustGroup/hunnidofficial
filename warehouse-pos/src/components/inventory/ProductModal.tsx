@@ -19,6 +19,7 @@ import SizesSection, {
 } from './SizesSection';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { getProductImageUrl } from '../../lib/productImageUrl';
+import { isPlaceholderOneSizeCode } from '../../lib/sizeCode';
 
 // ── Image compression helper (canvas resize → compressed data-URL) ───────────
 // Resizes to max 800px, compresses to target quality; optionally enforces max byte size.
@@ -180,6 +181,12 @@ export function buildInitialForm(product?: Product | null): FormState {
     supplier: { name: '', contact: '', email: '' },
     images: [],
   };
+}
+
+function sanitizeSizedRows(rows: Array<{ sizeCode: string; quantity: number }>): Array<{ sizeCode: string; quantity: number }> {
+  return (Array.isArray(rows) ? rows : [])
+    .map((r) => ({ sizeCode: String(r?.sizeCode ?? '').trim().toUpperCase(), quantity: Math.max(0, Number(r?.quantity ?? 0) || 0) }))
+    .filter((r) => r.sizeCode !== '' && !isPlaceholderOneSizeCode(r.sizeCode));
 }
 
 // ── Icons ──────────────────────────────────────────────────────────────────
@@ -600,6 +607,9 @@ export default function ProductModal({
       e.sellingPrice = 'Enter a valid selling price.';
     const sizeError = getValidationError(form.sizes);
     if (sizeError) e.sizes = sizeError;
+    if (form.sizes.sizeKind === 'sized' && sanitizeSizedRows(form.sizes.quantityBySize).length === 0) {
+      e.sizes = 'Use real sizes only (not OS / One size) for Multiple sizes.';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -614,6 +624,8 @@ export default function ProductModal({
 
     setIsSubmitting(true);
     try {
+      const sizedRows = sanitizeSizedRows(form.sizes.quantityBySize);
+      const isSized = form.sizes.sizeKind === 'sized';
       const payload: Omit<Product, 'id'> & { id?: string } = {
         ...(product?.id ? { id: product.id } : {}),
         name: form.name.trim(),
@@ -626,8 +638,10 @@ export default function ProductModal({
         costPrice: Number(form.costPrice) || 0,
         reorderLevel: Number(form.reorderLevel) || 0,
         sizeKind: form.sizes.sizeKind,
-        quantity: form.sizes.quantity,
-        quantityBySize: form.sizes.quantityBySize,
+        quantity: isSized
+          ? sizedRows.reduce((sum, row) => sum + row.quantity, 0)
+          : form.sizes.quantity,
+        quantityBySize: isSized ? sizedRows : [],
         location: form.location,
         supplier: form.supplier,
         images: form.images,
