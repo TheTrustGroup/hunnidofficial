@@ -398,33 +398,38 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
     ? quantityBySize.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
     : Number(quantity) || 0;
 
+  /** Per-size rows first: trigger enforce_size_rules runs on warehouse_inventory_by_size only; errors must not be prefixed as warehouse_inventory. */
+  const sizeRows =
+    isSized && quantityBySize.length > 0
+      ? quantityBySize
+          .filter((r) => String(r.sizeCode ?? '').trim())
+          .map((r) => ({
+            product_id: id,
+            warehouse_id: warehouseId,
+            size_code: String(r.sizeCode).trim().toUpperCase(),
+            quantity: Number(r.quantity) || 0,
+          }))
+      : [];
+
+  if (isSized && sizeRows.length > 0) {
+    const { error: insertSizeError } = await db.from('warehouse_inventory_by_size').insert(sizeRows);
+    if (insertSizeError) {
+      await db.from('warehouse_products').delete().eq('id', id);
+      throw new Error(`Failed to create inventory by size: ${insertSizeError.message}`);
+    }
+  }
+
   const { error: insertInvError } = await db.from('warehouse_inventory').insert({
     product_id: id,
     warehouse_id: warehouseId,
     quantity: totalQty,
   });
   if (insertInvError) {
+    if (sizeRows.length > 0) {
+      await db.from('warehouse_inventory_by_size').delete().eq('product_id', id).eq('warehouse_id', warehouseId);
+    }
     await db.from('warehouse_products').delete().eq('id', id);
     throw new Error(`Failed to create warehouse inventory: ${insertInvError.message}`);
-  }
-
-  if (isSized && quantityBySize.length > 0) {
-    const sizeRows = quantityBySize
-      .filter((r) => String(r.sizeCode ?? '').trim())
-      .map((r) => ({
-        product_id: id,
-        warehouse_id: warehouseId,
-        size_code: String(r.sizeCode).trim().toUpperCase(),
-        quantity: Number(r.quantity) || 0,
-      }));
-    if (sizeRows.length > 0) {
-      const { error: insertSizeError } = await db.from('warehouse_inventory_by_size').insert(sizeRows);
-      if (insertSizeError) {
-        await db.from('warehouse_inventory').delete().eq('product_id', id).eq('warehouse_id', warehouseId);
-        await db.from('warehouse_products').delete().eq('id', id);
-        throw new Error(`Failed to create inventory by size: ${insertSizeError.message}`);
-      }
-    }
   }
 
   const quantityBySizeOut = isSized
