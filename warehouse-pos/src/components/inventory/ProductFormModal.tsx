@@ -9,7 +9,7 @@ import { useNetworkStatusContext } from '../../contexts/NetworkStatusContext';
 import { API_BASE_URL, getApiHeaders } from '../../lib/api';
 import { apiGet } from '../../lib/apiClient';
 import { compressImage, MAX_IMAGE_BASE64_LENGTH } from '../../lib/imageUtils';
-import { isPlaceholderOneSizeCode } from '../../lib/sizeCode';
+import { isPlaceholderOneSizeCode, sanitizeQuantityBySizeForApi } from '../../lib/sizeCode';
 import { setProductImages } from '../../lib/productImagesStore';
 import { isStorageUrl, extractPathFromUrl, deleteProductImage } from '../../lib/imageUpload';
 import { Button } from '../ui/Button';
@@ -411,9 +411,8 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product, readOnlyM
     e.preventDefault();
     if (isSubmitting) return;
     if (import.meta.env?.DEV) console.time('ProductForm Submit (total)');
-    const validSizeRows = (formData.quantityBySize ?? [])
-      .filter((r) => (r.sizeCode ?? '').trim() !== '')
-      .filter((r) => !isSyntheticOneSizeRow(r.sizeCode ?? ''));
+    const validSizeRows =
+      formData.sizeKind === 'sized' ? sanitizeQuantityBySizeForApi(formData.quantityBySize) : [];
     if (formData.sizeKind === 'sized' && validSizeRows.length === 0) {
       showToast('error', 'Add at least one size row to save.');
       return;

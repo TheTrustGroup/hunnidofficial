@@ -2,6 +2,7 @@
  * Warehouse products list and create. List response includes images for POS/Inventory.
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { sanitizeQuantityBySizeForApi } from '../../../src/lib/sizeCode';
 
 export interface ListOptions {
   limit?: number;
@@ -85,17 +86,6 @@ function normalizeDbConstraintError(dbMessage: string, action: 'create' | 'updat
     return `Product ${action}: ${field} is required.`;
   }
   return `Failed to ${action} product: ${dbMessage}`;
-}
-
-function isPlaceholderOneSizeCode(sizeCode: string): boolean {
-  const n = String(sizeCode ?? '').trim().replace(/\s+/g, '').toUpperCase();
-  return n === 'OS' || n === 'ONESIZE' || n === 'ONE_SIZE' || n === 'O/S';
-}
-
-function sanitizeSizeRows(rows: Array<{ sizeCode: string; quantity: number }>): Array<{ sizeCode: string; quantity: number }> {
-  return rows
-    .filter((r) => String(r.sizeCode ?? '').trim() !== '')
-    .filter((r) => !isPlaceholderOneSizeCode(String(r.sizeCode ?? '')));
 }
 
 function isInvalidWarehouseId(value: string): boolean {
@@ -358,7 +348,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
   const costPrice = Number(body.costPrice ?? body.cost_price ?? 0);
   const reorderLevel = Number(body.reorderLevel ?? body.reorder_level ?? 0);
   const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize as Array<{ sizeCode: string; quantity: number }> : [];
-  const quantityBySize = sanitizeSizeRows(quantityBySizeRaw);
+  const quantityBySize = sanitizeQuantityBySizeForApi(quantityBySizeRaw);
   const quantity = Number(body.quantity ?? 0);
   const now = new Date().toISOString();
 
@@ -513,9 +503,9 @@ export async function updateWarehouseProduct(
   const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize : undefined;
   const quantityBySize =
     quantityBySizeRaw && quantityBySizeRaw.length > 0
-      ? sanitizeSizeRows(quantityBySizeRaw as Array<{ sizeCode: string; quantity: number }>)
+      ? sanitizeQuantityBySizeForApi(quantityBySizeRaw as Array<{ sizeCode: string; quantity: number }>)
       : (existing.quantityBySize?.length
-          ? sanitizeSizeRows(existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
+          ? sanitizeQuantityBySizeForApi(existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
           : []);
   const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
   const totalQty = isSized
