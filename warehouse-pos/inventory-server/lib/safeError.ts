@@ -29,16 +29,16 @@ export function toSafeError(err: unknown): string {
   }
   // Product inventory / size rules (Postgres trigger enforce_size_rules, FK to size_codes)
   if (/size_code must not be os\b/.test(msg)) {
-    return 'Multiple sizes cannot use One size (OS). Remove any OS row or switch to One size mode, then save.';
+    return 'Multiple sizes cannot include One size (OS). Remove any OS row, or switch the product to One size, then save.';
   }
   if (/does not exist in public\.size_codes/.test(msg) || /size_code .* does not exist in public\.size_codes/.test(msg)) {
     return 'One or more sizes are not in your catalog. Pick codes from the list or ask an admin to add them.';
   }
   if (/failed to create inventory by size:/i.test(msg) || /failed to update inventory by size:/i.test(msg)) {
-    return 'Could not save stock by size. Use catalog sizes (not One size/OS), EU codes like EU36.5 without extra spaces, and at least one positive quantity.';
+    return 'We could not save stock by size. Use sizes from your catalog (not One size), and enter at least one quantity greater than zero.';
   }
   if (/failed to create warehouse inventory:/i.test(msg) || /failed to update warehouse inventory:/i.test(msg)) {
-    return 'Could not save warehouse stock. Try again or refresh the page.';
+    return 'We could not update stock totals for this product. Please try again. If it keeps happening, refresh the page.';
   }
   return 'Something went wrong. Please try again.';
 }

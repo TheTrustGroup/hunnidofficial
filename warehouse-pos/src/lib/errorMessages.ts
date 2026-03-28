@@ -41,7 +41,7 @@ export function getUserFriendlyMessage(error: unknown): string {
     return 'This was changed elsewhere. Please refresh and try again.';
   }
   if (str.includes('422') || str.includes('validation')) {
-    return 'Invalid data. Please check your input and try again.';
+    return 'We could not save this. Check required fields and sizes, then try again.';
   }
   if (str.includes('429') || str.includes('too many requests')) {
     return 'Too many requests. Please wait a moment and try again.';
@@ -83,7 +83,7 @@ export function getUserFriendlyMessage(error: unknown): string {
     return 'For multiple sizes, enter a quantity of at least 1 for one or more sizes before saving.';
   }
   if (/size_code must not be os\b/i.test(msg)) {
-    return 'Multiple sizes cannot include One size (OS). Scroll the list, remove any OS or stray row with stock, and try again.';
+    return 'Multiple sizes cannot include One size (OS). Scroll the full list, remove any OS row or switch to One size mode, then save.';
   }
   if (/does not exist in public\.size_codes/i.test(msg)) {
     return 'One or more sizes are not in your catalog. Pick sizes from the list or ask an admin to add them.';
@@ -92,7 +92,12 @@ export function getUserFriendlyMessage(error: unknown): string {
     /failed to (create|update) (warehouse )?inventory|failed to (create|update) inventory by size/i.test(msg) &&
     (/size_code|size_kind|product [0-9a-f-]{36}/i.test(msg) || str.includes('sized'))
   ) {
-    return 'Stock by size could not be saved. Use real sizes from your list (not One size/OS), then try again.';
+    return 'We could not save stock for this product. Use sizes from your catalog (not One size), then try again.';
+  }
+  if (/could not update stock totals|could not save stock by size/i.test(str)) {
+    return msg.length <= 200 && !/postgres|supabase|violates/i.test(str)
+      ? msg
+      : 'We could not update stock. Please try again or refresh the page.';
   }
 
   // Product / inventory
