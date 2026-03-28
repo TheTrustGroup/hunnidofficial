@@ -209,8 +209,8 @@ export default function SizesSection({
   // Focus the last added row's size input (or select in dropdown mode)
   const lastRowRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
   const prevRowCount = useRef(value.quantityBySize.length);
-  /** When true, size rows use a dropdown of size codes instead of free text. */
-  const [sizeInputMode, setSizeInputMode] = useState<'manual' | 'dropdown'>('manual');
+  /** Catalog-first: dropdown matches DB size_codes; manual is advanced only. */
+  const [sizeInputMode, setSizeInputMode] = useState<'manual' | 'dropdown'>('dropdown');
 
   useEffect(() => {
     if (
@@ -248,6 +248,7 @@ export default function SizesSection({
           ? realRows
           : [{ sizeCode: '', quantity: value.quantity || 0 }],
     });
+    setSizeInputMode('dropdown');
   }
 
   function handleQtyChange(qty: number) {
@@ -322,6 +323,8 @@ export default function SizesSection({
       ? sanitizeQuantityBySizeForApi(value.quantityBySize).reduce((s, r) => s + r.quantity, 0)
       : totalQty(value.quantityBySize);
   const datalistId = 'sizes-section-datalist';
+  /** No catalog → must type; otherwise follow sizeInputMode. */
+  const useDropdownForRows = sizeCodes.length > 0 && sizeInputMode === 'dropdown';
 
   // ── Type selector buttons ────────────────────────────────────────────────
 
@@ -398,65 +401,80 @@ export default function SizesSection({
             ))}
           </datalist>
 
-          {/* Use all EU shoe sizes (EU22.5–EU47): one row per size, enter quantity only. Main Jeff = sneakers/shoes. */}
+          {/* Primary fast path: EU grid — client-requested qty-only workflow */}
           {sizeCodes.some(s => isEuShoeSize(s.size_code)) && (
             <div className="mb-3">
               <button
                 type="button"
-                onClick={handleUseAllSizes}
+                onClick={() => {
+                  handleUseAllSizes();
+                  setSizeInputMode('dropdown');
+                }}
                 disabled={disabled}
                 className="
-                  w-full min-h-[44px] rounded-xl border-[1.5px] border-slate-200
-                  bg-slate-50 text-[13px] font-semibold text-slate-700
+                  w-full min-h-[48px] rounded-xl border-[1.5px] border-primary-400
+                  bg-primary-50 text-[14px] font-semibold text-slate-900
                   flex items-center justify-center gap-2
-                  hover:bg-slate-100 hover:border-slate-300
+                  hover:bg-primary-100 hover:border-primary-500
                   disabled:opacity-50 disabled:cursor-not-allowed
                   transition-all duration-150 touch-manipulation
                 "
               >
                 <IconLayers />
-                Use all EU sizes (22.5–47) — enter quantity only
+                Load EU sizes (22.5–47) — enter quantities only
               </button>
+              <p className="text-[11px] text-slate-500 mt-2 leading-relaxed px-0.5">
+                Fastest for shoes: loads every EU size in a list; set quantities and leave unused sizes at 0.
+              </p>
             </div>
           )}
 
-          {/* Size input mode toggle: type vs dropdown — mobile-friendly min touch targets */}
-          {sizeCodes.length > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
-              <span className="text-[12px] font-medium text-slate-500">Size input:</span>
-              <div className="flex rounded-lg border-[1.5px] border-slate-200 p-0.5 bg-slate-50 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => setSizeInputMode('manual')}
-                  disabled={disabled}
-                  className={`
-                    flex-1 sm:flex-none min-h-[44px] px-3 py-2.5 sm:py-1.5 rounded-md text-[12px] font-semibold transition-all touch-manipulation
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    ${sizeInputMode === 'manual'
-                      ? 'bg-white border border-slate-200 shadow-sm text-slate-900'
-                      : 'text-slate-500 hover:text-slate-700'
-                    }
-                  `}
-                >
-                  Type size
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSizeInputMode('dropdown')}
-                  disabled={disabled}
-                  className={`
-                    flex-1 sm:flex-none min-h-[44px] px-3 py-2.5 sm:py-1.5 rounded-md text-[12px] font-semibold transition-all touch-manipulation
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    ${sizeInputMode === 'dropdown'
-                      ? 'bg-white border border-slate-200 shadow-sm text-slate-900'
-                      : 'text-slate-500 hover:text-slate-700'
-                    }
-                  `}
-                >
-                  Pick from list
-                </button>
-              </div>
+          {sizeCodes.length > 0 && sizeInputMode === 'manual' && (
+            <div className="mb-3 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setSizeInputMode('dropdown')}
+                disabled={disabled}
+                className="
+                  self-start text-[12px] font-semibold text-primary-600 hover:text-primary-700
+                  underline-offset-2 hover:underline disabled:opacity-40
+                "
+              >
+                ← Back to size list
+              </button>
+              <p className="text-[11px] text-slate-500">
+                Typing must match your catalog exactly or save may fail.
+              </p>
             </div>
+          )}
+
+          {sizeCodes.length > 0 && sizeInputMode === 'dropdown' && (
+            <details className="mb-3 group border-t-[1.5px] border-slate-100 pt-2.5">
+              <summary
+                className="
+                  cursor-pointer list-none text-[12px] font-semibold text-slate-500
+                  flex items-center gap-1.5 select-none
+                  [&::-webkit-details-marker]:hidden
+                "
+              >
+                <span className="text-slate-400 group-open:rotate-90 transition-transform inline-block">›</span>
+                Advanced — type a size manually
+              </summary>
+              <p className="text-[11px] text-slate-500 mt-2 mb-2 leading-relaxed">
+                Only if a code is missing from the list. Prefer the button above or &quot;Add size&quot; with the dropdown.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSizeInputMode('manual')}
+                disabled={disabled}
+                className="
+                  text-[12px] font-semibold text-slate-700 px-3 py-2 rounded-lg border-[1.5px] border-slate-200
+                  bg-white hover:bg-slate-50 disabled:opacity-40
+                "
+              >
+                Switch to manual typing
+              </button>
+            </details>
           )}
 
           {/* Table header — responsive: stacked on mobile, grid on sm+ */}
@@ -503,7 +521,7 @@ export default function SizesSection({
                   `}
                 >
                   {/* Size code: dropdown or text input — 16px font on mobile to avoid iOS zoom */}
-                  {sizeInputMode === 'dropdown' && sizeCodes.length > 0 ? (
+                  {useDropdownForRows ? (
                     <select
                       ref={isLast ? (lastRowRef as RefObject<HTMLSelectElement>) : undefined}
                       value={row.sizeCode}
