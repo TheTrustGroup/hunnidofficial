@@ -29,6 +29,13 @@ describe('sanitizeQuantityBySizeForApi', () => {
     ).toEqual([{ sizeCode: 'EU40', quantity: 2 }]);
   });
 
+  it('treats OS with zero-width characters as placeholder', () => {
+    expect(isPlaceholderOneSizeCode('O\u200bS')).toBe(true);
+    expect(sanitizeQuantityBySizeForApi([{ sizeCode: 'O\u200bS', quantity: 1 }, { sizeCode: 'EU40', quantity: 2 }])).toEqual([
+      { sizeCode: 'EU40', quantity: 2 },
+    ]);
+  });
+
   it('returns [] for non-array input', () => {
     expect(sanitizeQuantityBySizeForApi(undefined)).toEqual([]);
   });

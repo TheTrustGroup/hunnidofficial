@@ -22,7 +22,7 @@ import { Button } from '../components/ui/Button';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
 import { isAnyApiCircuitDegraded, resetAllApiCircuitBreakers } from '../lib/circuit';
-import { getUserFriendlyMessage } from '../lib/errorMessages';
+import { getUserFriendlyMessage, isRetryableError } from '../lib/errorMessages';
 import { onUnauthorized } from '../lib/onUnauthorized';
 import { useWarehouse } from '../contexts/WarehouseContext';
 import { useInventory } from '../contexts/InventoryContext';
@@ -543,8 +543,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
         );
       } catch (e: unknown) {
         const msg = getUserFriendlyMessage(e);
-        if (!(isAnyApiCircuitDegraded() && /server|unavailable|writes disabled|connection is restored/i.test(msg)))
-          showToast(msg + ' Check your connection or try again.', 'error');
+        if (!(isAnyApiCircuitDegraded() && /server|unavailable|writes disabled|connection is restored/i.test(msg))) {
+          const suffix = isRetryableError(e) ? ' Check your connection or try again.' : '';
+          showToast(msg + suffix, 'error');
+        }
         throw e;
       }
     } else {
@@ -574,8 +576,10 @@ export default function InventoryPage(_props: InventoryPageProps) {
         );
       } catch (e: unknown) {
         const msg = getUserFriendlyMessage(e);
-        if (!(isAnyApiCircuitDegraded() && /server|unavailable|writes disabled|connection is restored/i.test(msg)))
-          showToast(msg + ' Check your connection or try again.', 'error');
+        if (!(isAnyApiCircuitDegraded() && /server|unavailable|writes disabled|connection is restored/i.test(msg))) {
+          const suffix = isRetryableError(e) ? ' Check your connection or try again.' : '';
+          showToast(msg + suffix, 'error');
+        }
         throw e;
       }
     }
