@@ -7,7 +7,11 @@
 // ============================================================
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { isPlaceholderOneSizeCode, sanitizeQuantityBySizeForApi } from '../../lib/sizeCode';
+import {
+  isPlaceholderOneSizeCode,
+  normalizeInventorySizeCode,
+  sanitizeQuantityBySizeForApi,
+} from '../../lib/sizeCode';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -263,7 +267,7 @@ export default function SizesSection({
 
   function handleSizeCode(idx: number, code: string) {
     const next = value.quantityBySize.map((r, i) =>
-      i === idx ? { ...r, sizeCode: code.toUpperCase().trim() } : r
+      i === idx ? { ...r, sizeCode: normalizeInventorySizeCode(code.trim()) } : r
     );
     onChange({ ...value, quantityBySize: next });
   }
@@ -500,14 +504,16 @@ export default function SizesSection({
               const isLast = idx === value.quantityBySize.length - 1;
               const usedInOtherRows = value.quantityBySize
                 .filter((_, i) => i !== idx)
-                .map(r => (r.sizeCode ?? '').trim())
+                .map((r) => normalizeInventorySizeCode(String(r.sizeCode ?? '').trim()))
                 .filter(Boolean);
-              const currentCode = (row.sizeCode ?? '').trim();
-              const dropdownOptions = sizeCodes.filter(
-                s => !usedInOtherRows.includes(s.size_code) || s.size_code === currentCode
-              );
+              const currentCode = normalizeInventorySizeCode(String(row.sizeCode ?? '').trim());
+              const dropdownOptions = sizeCodes.filter((s) => {
+                const sc = normalizeInventorySizeCode(s.size_code);
+                return !usedInOtherRows.includes(sc) || sc === currentCode;
+              });
               // Include current row's code if it's not in sizeCodes (e.g. legacy or custom) so it still displays
-              const hasCurrentInList = currentCode && dropdownOptions.some(s => s.size_code === currentCode);
+              const hasCurrentInList =
+                currentCode && dropdownOptions.some((s) => normalizeInventorySizeCode(s.size_code) === currentCode);
               const optionsToShow = hasCurrentInList
                 ? dropdownOptions
                 : currentCode
@@ -549,11 +555,14 @@ export default function SizesSection({
                       aria-label="Select size"
                     >
                       <option value="">Select size…</option>
-                      {optionsToShow.map(s => (
-                        <option key={s.size_code} value={s.size_code}>
-                          {s.size_label ?? s.size_code}
-                        </option>
-                      ))}
+                      {optionsToShow.map((s) => {
+                        const optVal = normalizeInventorySizeCode(s.size_code);
+                        return (
+                          <option key={optVal} value={optVal}>
+                            {s.size_label ?? s.size_code}
+                          </option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <input

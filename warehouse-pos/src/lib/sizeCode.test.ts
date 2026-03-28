@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isPlaceholderOneSizeCode, sanitizeQuantityBySizeForApi } from './sizeCode';
+import {
+  isPlaceholderOneSizeCode,
+  normalizeQuantityBySizeForPersist,
+  sanitizeQuantityBySizeForApi,
+} from './sizeCode';
 
 describe('isPlaceholderOneSizeCode', () => {
   it('matches all supported one-size placeholders', () => {
@@ -38,5 +42,29 @@ describe('sanitizeQuantityBySizeForApi', () => {
 
   it('returns [] for non-array input', () => {
     expect(sanitizeQuantityBySizeForApi(undefined)).toEqual([]);
+  });
+});
+
+describe('normalizeQuantityBySizeForPersist', () => {
+  it('merges duplicate EU spellings into one catalog key', () => {
+    expect(
+      normalizeQuantityBySizeForPersist([
+        { sizeCode: 'EU 36.5', quantity: 1 },
+        { sizeCode: 'EU36.5', quantity: 2 },
+      ])
+    ).toEqual([{ sizeCode: 'EU36.5', quantity: 3 }]);
+  });
+
+  it('drops placeholders and optional zero-qty for create', () => {
+    expect(
+      normalizeQuantityBySizeForPersist(
+        [
+          { sizeCode: 'OS', quantity: 1 },
+          { sizeCode: 'EU40', quantity: 0 },
+          { sizeCode: 'EU41', quantity: 2 },
+        ],
+        { requirePositiveQuantity: true }
+      )
+    ).toEqual([{ sizeCode: 'EU41', quantity: 2 }]);
   });
 });

@@ -52,3 +52,31 @@ export function sanitizeQuantityBySizeForApi(
     }))
     .filter((r) => r.sizeCode !== '' && !isPlaceholderOneSizeCode(r.sizeCode));
 }
+
+export interface NormalizeQuantityBySizeForPersistOptions {
+  /** Omit rows with quantity &lt;= 0 (typical for POST create). */
+  requirePositiveQuantity?: boolean;
+}
+
+/**
+ * Single pipeline before writing `warehouse_inventory_by_size` or RPC `p_quantity_by_size`:
+ * sanitize (EU compact + drop OS/One-size placeholders) → merge duplicate catalog keys → optional positive qty only.
+ * DB `size_code` values must match this output (e.g. EU36.5), never "EU 36.5" or OS for sized products.
+ */
+export function normalizeQuantityBySizeForPersist(
+  rows: Array<{ sizeCode?: string; size_code?: string; quantity?: number }> | null | undefined,
+  options: NormalizeQuantityBySizeForPersistOptions = {}
+): QuantityBySizeRow[] {
+  const base = sanitizeQuantityBySizeForApi(rows);
+  const merged = new Map<string, number>();
+  for (const r of base) {
+    const k = normalizeInventorySizeCode(r.sizeCode);
+    if (!k || isPlaceholderOneSizeCode(k)) continue;
+    merged.set(k, (merged.get(k) ?? 0) + Math.max(0, Number(r.quantity) || 0));
+  }
+  let out = [...merged.entries()].map(([sizeCode, quantity]) => ({ sizeCode, quantity }));
+  if (options.requirePositiveQuantity) {
+    out = out.filter((r) => r.quantity > 0);
+  }
+  return out;
+}

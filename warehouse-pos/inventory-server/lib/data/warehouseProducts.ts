@@ -2,7 +2,7 @@
  * Warehouse products list and create. List response includes images for POS/Inventory.
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { sanitizeQuantityBySizeForApi } from '../../../src/lib/sizeCode';
+import { normalizeQuantityBySizeForPersist } from '../../../src/lib/sizeCode';
 
 export interface ListOptions {
   limit?: number;
@@ -100,20 +100,6 @@ function isInvalidWarehouseId(value: string): boolean {
  */
 const WAREHOUSE_PRODUCTS_SELECT =
   'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
-
-/** One-size placeholders; must not be written to warehouse_inventory_by_size when product is sized. */
-const PLACEHOLDER_SIZE_CODES = new Set(['OS', 'ONESIZE', 'ONE_SIZE', 'O/S', 'NA']);
-
-/** Sum quantities when the same size_code appears twice (duplicate rows / retries). */
-function mergeQuantityBySizeRows(rows: Array<{ sizeCode: string; quantity: number }>): Array<{ sizeCode: string; quantity: number }> {
-  const m = new Map<string, number>();
-  for (const r of rows) {
-    const k = String(r.sizeCode ?? '').trim().toUpperCase();
-    if (!k) continue;
-    m.set(k, (m.get(k) ?? 0) + Math.max(0, Number(r.quantity) || 0));
-  }
-  return [...m.entries()].map(([sizeCode, quantity]) => ({ sizeCode, quantity }));
-}
 
 /** List products for a warehouse. Works when warehouse_products has no warehouse_id (one row per product).
  * When warehouseId is set, only returns products that have inventory at that warehouse (so Hunnid Main never shows Main Jeff products and vice versa). */
@@ -495,7 +481,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
         ? body.quantity_by_size
         : []
   ) as Array<{ sizeCode?: string; size_code?: string; quantity?: number }>;
-  const quantityBySize = mergeQuantityBySizeRows(sanitizeQuantityBySizeForApi(quantityBySizeRaw));
+  const quantityBySize = normalizeQuantityBySizeForPersist(quantityBySizeRaw);
   const quantity = Number(body.quantity ?? 0);
   const now = new Date().toISOString();
 
@@ -522,9 +508,9 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
   };
 
   const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
-  const sizedPayload = quantityBySize
-    .filter((r) => (Number(r.quantity) || 0) > 0)
-    .map((r) => ({ sizeCode: String(r.sizeCode).trim(), quantity: Number(r.quantity) || 0 }));
+  const sizedPayload = normalizeQuantityBySizeForPersist(quantityBySizeRaw, { requirePositiveQuantity: true }).map(
+    (r) => ({ sizeCode: r.sizeCode, quantity: r.quantity })
+  );
 
   if (sizeKind === 'sized' && quantityBySize.length === 0) {
     throw new Error('Failed to create inventory by size: add at least one real size (not OS).');
@@ -560,20 +546,15 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
     throw new Error(normalizeDbConstraintError(insertProductError.message, 'create'));
   }
 
-  /** Per-size rows first: trigger enforce_size_rules runs on warehouse_inventory_by_size only; errors must not be prefixed as warehouse_inventory. */
+  /** Per-size rows first: trigger enforce_size_rules runs on warehouse_inventory_by_size only. */
   const sizeRowsAll =
     isSized && quantityBySize.length > 0
-      ? quantityBySize
-          .filter((r) => {
-            const code = String(r.sizeCode ?? '').trim().toUpperCase().replace(/\s+/g, '');
-            return code !== '' && !PLACEHOLDER_SIZE_CODES.has(code);
-          })
-          .map((r) => ({
-            product_id: id,
-            warehouse_id: warehouseId,
-            size_code: String(r.sizeCode).trim().toUpperCase(),
-            quantity: Number(r.quantity) || 0,
-          }))
+      ? quantityBySize.map((r) => ({
+          product_id: id,
+          warehouse_id: warehouseId,
+          size_code: r.sizeCode,
+          quantity: Number(r.quantity) || 0,
+        }))
       : [];
 
   /** Do not insert 0-qty rows: avoids useless DB rows and failures when a UI-only code is not in size_codes. */
@@ -686,11 +667,11 @@ export async function updateWarehouseProduct(
   const sizeKind = String(body.sizeKind ?? existing.sizeKind ?? 'na').toLowerCase();
   // Preserve existing sizes when body.quantityBySize is undefined or explicitly empty (avoid accidental wipe)
   const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize : undefined;
-  const quantityBySize = mergeQuantityBySizeRows(
+  const quantityBySize = normalizeQuantityBySizeForPersist(
     quantityBySizeRaw && quantityBySizeRaw.length > 0
-      ? sanitizeQuantityBySizeForApi(quantityBySizeRaw as Array<{ sizeCode: string; quantity: number }>)
+      ? quantityBySizeRaw
       : existing.quantityBySize?.length
-        ? sanitizeQuantityBySizeForApi(existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
+        ? (existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
         : []
   );
   const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
@@ -700,17 +681,12 @@ export async function updateWarehouseProduct(
 
   // Update size rows without delete-all first: upsert then remove orphans so we never wipe data on insert failure.
   if (isSized && quantityBySize.length > 0) {
-    const sizeRows = quantityBySize
-      .filter((r) => {
-        const code = String(r.sizeCode ?? '').trim().toUpperCase().replace(/\s+/g, '');
-        return code !== '' && !PLACEHOLDER_SIZE_CODES.has(code);
-      })
-      .map((r) => ({
-        product_id: productId,
-        warehouse_id: warehouseId,
-        size_code: String(r.sizeCode).trim().toUpperCase(),
-        quantity: Number(r.quantity) || 0,
-      }));
+    const sizeRows = quantityBySize.map((r) => ({
+      product_id: productId,
+      warehouse_id: warehouseId,
+      size_code: r.sizeCode,
+      quantity: Number(r.quantity) || 0,
+    }));
     if (sizeRows.length > 0) {
       const { error: upsertSizeError } = await db
         .from('warehouse_inventory_by_size')
