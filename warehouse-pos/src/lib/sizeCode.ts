@@ -27,12 +27,16 @@ export interface QuantityBySizeRow {
  * Single source of truth for client payloads and server sanitizeSizeRows().
  */
 export function sanitizeQuantityBySizeForApi(
-  rows: Array<{ sizeCode?: string; quantity?: number }> | null | undefined
+  rows: Array<{ sizeCode?: string; size_code?: string; quantity?: number }> | null | undefined
 ): QuantityBySizeRow[] {
   if (!Array.isArray(rows)) return [];
   return rows
     .map((r) => ({
-      sizeCode: stripInvisibleSizeInput(String(r?.sizeCode ?? '')).trim().replace(/\s+/g, ' ').trim().toUpperCase(),
+      sizeCode: stripInvisibleSizeInput(String(r?.sizeCode ?? r?.size_code ?? ''))
+        .trim()
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toUpperCase(),
       quantity: Math.max(0, Number(r?.quantity ?? 0) || 0),
     }))
     .filter((r) => r.sizeCode !== '' && !isPlaceholderOneSizeCode(r.sizeCode));

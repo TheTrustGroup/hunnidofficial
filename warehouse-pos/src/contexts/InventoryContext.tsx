@@ -895,6 +895,17 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       setApiOnlyProductsState((prev) => [tempProduct, ...prev]);
       const payload: Record<string, unknown> = productToPayload({ ...tempProduct, _pending: undefined } as Product);
       if (productData.warehouseId?.trim()) payload.warehouseId = productData.warehouseId.trim();
+      // Match updateProduct: sized creates must always send explicit quantityBySize from the form (sanitized),
+      // not only whatever productToPayload derived from the merged temp product — avoids rare POST bodies
+      // missing per-size rows while sizeKind stays 'sized' (server then rejects or mis-writes inventory).
+      if (productData.sizeKind === 'sized') {
+        const rows = sanitizeQuantityBySizeForApi(
+          Array.isArray(productData.quantityBySize) ? productData.quantityBySize : []
+        );
+        payload.sizeKind = 'sized';
+        payload.quantityBySize = rows;
+        payload.quantity = rows.reduce((s, r) => s + r.quantity, 0);
+      }
       if (import.meta.env?.DEV) {
         console.timeEnd('Data Preparation');
         console.time('API Request');
@@ -1009,7 +1020,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       const isSized = updates.sizeKind === 'sized' || updated.sizeKind === 'sized';
       const payload = { ...productToPayload(updated), warehouseId: (updates.warehouseId ?? effectiveWarehouseId) || DEFAULT_WAREHOUSE_ID } as Record<string, unknown>;
       if (isSized) {
-        payload.quantityBySize = Array.isArray(updates.quantityBySize) ? updates.quantityBySize : [];
+        payload.quantityBySize = sanitizeQuantityBySizeForApi(
+          Array.isArray(updates.quantityBySize) ? updates.quantityBySize : []
+        );
       }
       const putProduct = async (): Promise<Record<string, unknown> | null> => {
         try {

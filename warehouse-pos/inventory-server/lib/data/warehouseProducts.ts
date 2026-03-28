@@ -346,11 +346,19 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
   /** DB may have NOT NULL on description; coerce to empty string. */
   const description = (body.description != null ? String(body.description).trim() : '') || '';
   const category = String(body.category ?? 'Uncategorized').trim();
-  const sizeKind = String(body.sizeKind ?? body.size_kind ?? 'na').trim().toLowerCase();
+  const sizeKindRaw = String(body.sizeKind ?? body.size_kind ?? 'na').trim().toLowerCase();
+  const sizeKind =
+    sizeKindRaw === 'multiple' || sizeKindRaw === 'multi' ? 'sized' : sizeKindRaw;
   const sellingPrice = Number(body.sellingPrice ?? body.selling_price ?? 0);
   const costPrice = Number(body.costPrice ?? body.cost_price ?? 0);
   const reorderLevel = Number(body.reorderLevel ?? body.reorder_level ?? 0);
-  const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize as Array<{ sizeCode: string; quantity: number }> : [];
+  const quantityBySizeRaw = (
+    Array.isArray(body.quantityBySize)
+      ? body.quantityBySize
+      : Array.isArray(body.quantity_by_size)
+        ? body.quantity_by_size
+        : []
+  ) as Array<{ sizeCode?: string; size_code?: string; quantity?: number }>;
   const quantityBySize = sanitizeQuantityBySizeForApi(quantityBySizeRaw);
   const quantity = Number(body.quantity ?? 0);
   const now = new Date().toISOString();
