@@ -33,6 +33,8 @@ When you add a new business rule or DB constraint, **update both** (and this tab
 
 ## Preventing trust-breaking regressions
 
+See **`docs/REGRESSION_GUARDRAILS.md`** for CI locks and the post-fix checklist.
+
 1. **Triggers that touch inventory** — Document in `SUPABASE_BRIEFING.md`. Any new trigger on `warehouse_inventory` or `warehouse_inventory_by_size` must be checked against `warehouse_products.size_kind` when `OS` is involved.
 2. **Migrations** — Ship fixes that touch inventory in the same release as the API that depends on them; note coupling in the migration comment.
 3. **API contract** — Product create/update routes should always return `{ message: toSafeError(err) }` (or equivalent) on 4xx/5xx, never raw `err.message` from the DB driver.
