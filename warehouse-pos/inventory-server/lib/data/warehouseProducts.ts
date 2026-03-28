@@ -332,10 +332,135 @@ export async function getProductById(
   };
 }
 
+/** API JSON shape for POST /products create response (matches prior createWarehouseProduct return). */
+function listProductToCreateResponse(p: ListProduct): Record<string, unknown> {
+  return {
+    id: p.id,
+    warehouseId: p.warehouseId,
+    sku: p.sku,
+    barcode: p.barcode,
+    name: p.name,
+    description: p.description,
+    category: p.category,
+    color: p.color,
+    sizeKind: p.sizeKind,
+    sellingPrice: p.sellingPrice,
+    costPrice: p.costPrice,
+    reorderLevel: p.reorderLevel,
+    quantity: p.quantity,
+    quantityBySize: p.quantityBySize,
+    location: p.location,
+    supplier: p.supplier,
+    tags: p.tags,
+    images: p.images,
+    version: p.version,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  };
+}
+
+function shouldFallbackCreateProductRpc(err: { message?: string; code?: string; details?: string }): boolean {
+  const c = String(err.code ?? '');
+  const m = String(err.message ?? err.details ?? '').toLowerCase();
+  if (c === 'PGRST202' || c === '42883') return true;
+  if (m.includes('could not find the function')) return true;
+  if (m.includes('does not exist') && m.includes('function')) return true;
+  if (m.includes('schema cache')) return true;
+  return false;
+}
+
+/**
+ * One DB transaction: product + warehouse_inventory + warehouse_inventory_by_size (when sized).
+ * Falls back to null when RPC is missing so callers can use the legacy multi-request path.
+ */
+async function tryCreateWarehouseProductAtomicRpc(
+  db: SupabaseClient,
+  params: {
+    id: string;
+    warehouseId: string;
+    productRow: Record<string, unknown>;
+    now: string;
+    isSized: boolean;
+    totalQty: number;
+    sizedPayload: Array<{ sizeCode: string; quantity: number }>;
+    sellingPrice: number;
+    costPrice: number;
+    reorderLevel: number;
+    colorVal: string | null;
+    body: Record<string, unknown>;
+  }
+): Promise<Record<string, unknown> | null> {
+  const {
+    id,
+    warehouseId,
+    productRow,
+    now,
+    isSized,
+    totalQty,
+    sizedPayload,
+    sellingPrice,
+    costPrice,
+    reorderLevel,
+    colorVal,
+    body,
+  } = params;
+  const sk = String(productRow.size_kind ?? 'na');
+  const createdBy = String(body.createdBy ?? body.created_by ?? '');
+  const pRow = {
+    id,
+    sku: productRow.sku,
+    barcode: productRow.barcode,
+    name: productRow.name,
+    description: productRow.description,
+    category: productRow.category,
+    color: colorVal,
+    size_kind: sk,
+    sizeKind: sk,
+    selling_price: sellingPrice,
+    sellingPrice,
+    cost_price: costPrice,
+    costPrice,
+    reorder_level: reorderLevel,
+    reorderLevel,
+    location: body.location ?? null,
+    supplier: body.supplier ?? null,
+    tags: productRow.tags ?? [],
+    images: productRow.images ?? [],
+    version: 1,
+    created_at: now,
+    createdAt: now,
+    updated_at: now,
+    updatedAt: now,
+    created_by: createdBy,
+    createdBy,
+  };
+
+  const { error } = await db.rpc('create_warehouse_product_atomic', {
+    p_id: id,
+    p_warehouse_id: warehouseId,
+    p_row: pRow,
+    p_quantity: isSized ? 0 : totalQty,
+    p_quantity_by_size: isSized ? sizedPayload : [],
+  });
+
+  if (error) {
+    if (shouldFallbackCreateProductRpc(error)) return null;
+    throw new Error(`Failed to create product: ${error.message}`);
+  }
+
+  const fresh = await getProductById(warehouseId, id);
+  if (!fresh) {
+    throw new Error('Product was created but could not be loaded. Please refresh the inventory list.');
+  }
+  return listProductToCreateResponse(fresh);
+}
+
 /**
  * Create product: insert into warehouse_products, then warehouse_inventory (and warehouse_inventory_by_size when sized).
  * Body may use camelCase (from frontend); we normalize to DB snake_case.
  * Returns the created product in ListProduct shape for client UI.
+ *
+ * Preferred path: `create_warehouse_product_atomic` RPC (single transaction). Legacy: three REST inserts if RPC unavailable.
  */
 export async function createWarehouseProduct(body: Record<string, unknown>): Promise<Record<string, unknown>> {
   const db = getDb();
@@ -396,19 +521,44 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
     updated_at: now,
   };
 
+  const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
+  const sizedPayload = quantityBySize
+    .filter((r) => (Number(r.quantity) || 0) > 0)
+    .map((r) => ({ sizeCode: String(r.sizeCode).trim(), quantity: Number(r.quantity) || 0 }));
+
+  if (sizeKind === 'sized' && quantityBySize.length === 0) {
+    throw new Error('Failed to create inventory by size: add at least one real size (not OS).');
+  }
+  if (sizeKind === 'sized' && sizedPayload.length === 0) {
+    throw new Error(
+      'Failed to create inventory by size: enter a quantity greater than 0 for at least one size.'
+    );
+  }
+
+  const totalQty = isSized
+    ? quantityBySize.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
+    : Number(quantity) || 0;
+
+  const viaRpc = await tryCreateWarehouseProductAtomicRpc(db, {
+    id,
+    warehouseId,
+    productRow,
+    now,
+    isSized,
+    totalQty,
+    sizedPayload,
+    sellingPrice,
+    costPrice,
+    reorderLevel,
+    colorVal,
+    body,
+  });
+  if (viaRpc !== null) return viaRpc;
+
   const { error: insertProductError } = await db.from('warehouse_products').insert(productRow);
   if (insertProductError) {
     throw new Error(normalizeDbConstraintError(insertProductError.message, 'create'));
   }
-
-  const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
-  if (sizeKind === 'sized' && quantityBySize.length === 0) {
-    await db.from('warehouse_products').delete().eq('id', id);
-    throw new Error('Failed to create inventory by size: add at least one real size (not OS).');
-  }
-  const totalQty = isSized
-    ? quantityBySize.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
-    : Number(quantity) || 0;
 
   /** Per-size rows first: trigger enforce_size_rules runs on warehouse_inventory_by_size only; errors must not be prefixed as warehouse_inventory. */
   const sizeRowsAll =
