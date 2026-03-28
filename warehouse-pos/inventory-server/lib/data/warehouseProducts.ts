@@ -104,6 +104,17 @@ const WAREHOUSE_PRODUCTS_SELECT =
 /** One-size placeholders; must not be written to warehouse_inventory_by_size when product is sized. */
 const PLACEHOLDER_SIZE_CODES = new Set(['OS', 'ONESIZE', 'ONE_SIZE', 'O/S', 'NA']);
 
+/** Sum quantities when the same size_code appears twice (duplicate rows / retries). */
+function mergeQuantityBySizeRows(rows: Array<{ sizeCode: string; quantity: number }>): Array<{ sizeCode: string; quantity: number }> {
+  const m = new Map<string, number>();
+  for (const r of rows) {
+    const k = String(r.sizeCode ?? '').trim().toUpperCase();
+    if (!k) continue;
+    m.set(k, (m.get(k) ?? 0) + Math.max(0, Number(r.quantity) || 0));
+  }
+  return [...m.entries()].map(([sizeCode, quantity]) => ({ sizeCode, quantity }));
+}
+
 /** List products for a warehouse. Works when warehouse_products has no warehouse_id (one row per product).
  * When warehouseId is set, only returns products that have inventory at that warehouse (so Hunnid Main never shows Main Jeff products and vice versa). */
 export async function getWarehouseProducts(
@@ -359,7 +370,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
         ? body.quantity_by_size
         : []
   ) as Array<{ sizeCode?: string; size_code?: string; quantity?: number }>;
-  const quantityBySize = sanitizeQuantityBySizeForApi(quantityBySizeRaw);
+  const quantityBySize = mergeQuantityBySizeRows(sanitizeQuantityBySizeForApi(quantityBySizeRaw));
   const quantity = Number(body.quantity ?? 0);
   const now = new Date().toISOString();
 
@@ -525,12 +536,13 @@ export async function updateWarehouseProduct(
   const sizeKind = String(body.sizeKind ?? existing.sizeKind ?? 'na').toLowerCase();
   // Preserve existing sizes when body.quantityBySize is undefined or explicitly empty (avoid accidental wipe)
   const quantityBySizeRaw = Array.isArray(body.quantityBySize) ? body.quantityBySize : undefined;
-  const quantityBySize =
+  const quantityBySize = mergeQuantityBySizeRows(
     quantityBySizeRaw && quantityBySizeRaw.length > 0
       ? sanitizeQuantityBySizeForApi(quantityBySizeRaw as Array<{ sizeCode: string; quantity: number }>)
-      : (existing.quantityBySize?.length
-          ? sanitizeQuantityBySizeForApi(existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
-          : []);
+      : existing.quantityBySize?.length
+        ? sanitizeQuantityBySizeForApi(existing.quantityBySize as Array<{ sizeCode: string; quantity: number }>)
+        : []
+  );
   const isSized = sizeKind === 'sized' && quantityBySize.length > 0;
   const totalQty = isSized
     ? quantityBySize.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
