@@ -178,7 +178,9 @@ export async function apiRequest<T = unknown>(options: ApiRequestOptions): Promi
       clearTimeout(timeoutId);
       const isTimeout = e instanceof Error && e.name === 'AbortError';
       const timeoutMessage =
-        'Request timed out. Check that the backend is reachable and VITE_API_BASE_URL is set correctly (then redeploy the frontend).';
+        typeof import.meta !== 'undefined' && import.meta.env?.DEV
+          ? 'Request timed out. Check that the backend is reachable and VITE_API_BASE_URL is set correctly (then redeploy the frontend).'
+          : 'Request timed out. Check your connection and try again.';
       if (isTimeout) {
         lastError = new Error(timeoutMessage);
       } else {

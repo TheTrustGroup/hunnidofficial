@@ -7,6 +7,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { isPlaceholderOneSizeCode, sanitizeQuantityBySizeForApi } from '../../lib/sizeCode';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,13 @@ function getValidationError(value: SizesSectionValue): string | null {
     r => String(r?.sizeCode ?? '').trim() === '' && Number(r?.quantity ?? 0) > 0
   );
   if (missingCode.length > 0) return 'Enter a size code for every row with a quantity.';
+  const placeholderWithQty = rows.filter((r) => {
+    const c = String(r?.sizeCode ?? '').trim();
+    return c !== '' && isPlaceholderOneSizeCode(c) && Number(r?.quantity ?? 0) > 0;
+  });
+  if (placeholderWithQty.length > 0) {
+    return 'Remove One size (OS) rows when using Multiple sizes, or switch to One size.';
+  }
   return null;
 }
 
@@ -308,7 +316,11 @@ export default function SizesSection({
   // ── Derived ─────────────────────────────────────────────────────────────
 
   const validationError = showValidation ? getValidationError(value) : null;
-  const total = totalQty(value.quantityBySize);
+  /** Match API payload: only count rows that would be sent (real sizes, not OS/empty). */
+  const total =
+    value.sizeKind === 'sized'
+      ? sanitizeQuantityBySizeForApi(value.quantityBySize).reduce((s, r) => s + r.quantity, 0)
+      : totalQty(value.quantityBySize);
   const datalistId = 'sizes-section-datalist';
 
   // ── Type selector buttons ────────────────────────────────────────────────

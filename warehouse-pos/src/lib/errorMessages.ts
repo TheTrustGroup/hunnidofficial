@@ -17,7 +17,7 @@ export function getUserFriendlyMessage(error: unknown): string {
   if (str.includes('failed to fetch') || str.includes('network error') || str.includes('load failed')) {
     return 'Connection problem. Check your network and try again.';
   }
-  if (str.includes('timeout') || str.includes('timed out')) {
+  if (str.includes('timeout') || str.includes('timed out') || str.includes('vite_api_base_url')) {
     return 'Request took too long. Check your connection and try again.';
   }
   if (str.includes('server is temporarily unavailable') || str.includes('circuit')) {
@@ -78,6 +78,20 @@ export function getUserFriendlyMessage(error: unknown): string {
     return 'Login failed. Check your details and try again.';
   }
 
+  // Postgres / API inventory (never show raw trigger text to end users)
+  if (/size_code must not be os\b/i.test(msg)) {
+    return 'Multiple sizes cannot include One size (OS). Scroll the list, remove any OS or stray row with stock, and try again.';
+  }
+  if (/does not exist in public\.size_codes/i.test(msg)) {
+    return 'One or more sizes are not in your catalog. Pick sizes from the list or ask an admin to add them.';
+  }
+  if (
+    /failed to (create|update) (warehouse )?inventory|failed to (create|update) inventory by size/i.test(msg) &&
+    (/size_code|size_kind|product [0-9a-f-]{36}/i.test(msg) || str.includes('sized'))
+  ) {
+    return 'Stock by size could not be saved. Use real sizes from your list (not One size/OS), then try again.';
+  }
+
   // Product / inventory
   if (str.includes('saved locally') || str.includes('add_product_saved_locally')) {
     return 'Product was saved on this device. Sync when online to save to server.';
@@ -87,6 +101,13 @@ export function getUserFriendlyMessage(error: unknown): string {
   }
   if (str.includes('sync') && str.includes('fail')) {
     return 'Sync failed. You can try again when the connection is stable.';
+  }
+
+  // Never pass through obvious server/DB internals
+  if (
+    /size_code|warehouse_inventory|violates (foreign key|check)|null value in column|postgres|supabase/i.test(msg)
+  ) {
+    return 'Something went wrong saving data. Try again or refresh the page.';
   }
 
   // Generic but safe: use message if it looks user-facing (short, no stack), else fallback

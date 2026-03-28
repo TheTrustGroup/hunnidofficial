@@ -15,6 +15,7 @@ import { Product } from '../types';
 import { getStoredData, setStoredData, isStorageAvailable } from '../lib/storage';
 import { API_BASE_URL } from '../lib/api';
 import { apiGet, apiPost, apiPut, apiDelete } from '../lib/apiClient';
+import { getUserFriendlyMessage } from '../lib/errorMessages';
 import { getApiCircuitBreaker } from '../lib/circuit';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from './WarehouseContext';
 import { isValidWarehouseId } from '../lib/warehouseId';
@@ -649,7 +650,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       let message: string;
       if (status === 404) {
         message =
-          'Products API not found (404). Ensure the backend is deployed and VITE_API_BASE_URL points to it (e.g. in Vercel env).';
+          import.meta.env.PROD
+            ? 'Products could not be loaded from the server. Try Retry, or sign out and back in.'
+            : 'Products API not found (404). Ensure the backend is deployed and VITE_API_BASE_URL points to it (e.g. in Vercel env).';
       } else if (status === 403) {
         message = 'Access denied (403). Check your login and permissions.';
       } else if (status === 401) {
@@ -659,7 +662,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       } else if (isNetwork) {
         message = 'Cannot reach the server. Check your connection and that the backend URL is correct.';
       } else {
-        message = errMsg || 'Failed to load products. Please check your connection.';
+        message = getUserFriendlyMessage(err) || 'Failed to load products. Please check your connection.';
       }
       if (!silent) setError(message);
       // On failure, only show this warehouse's cache so we never display another warehouse's stats.
