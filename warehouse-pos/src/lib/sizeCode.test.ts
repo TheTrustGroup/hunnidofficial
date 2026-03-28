@@ -7,6 +7,7 @@ describe('isPlaceholderOneSizeCode', () => {
     expect(isPlaceholderOneSizeCode('onesize')).toBe(true);
     expect(isPlaceholderOneSizeCode('ONE_SIZE')).toBe(true);
     expect(isPlaceholderOneSizeCode('O/S')).toBe(true);
+    expect(isPlaceholderOneSizeCode('NA')).toBe(true);
   });
 
   it('does not match real sized codes', () => {
@@ -21,6 +22,7 @@ describe('sanitizeQuantityBySizeForApi', () => {
     expect(
       sanitizeQuantityBySizeForApi([
         { sizeCode: 'OS', quantity: 5 },
+        { sizeCode: 'NA', quantity: 3 },
         { sizeCode: 'eu40', quantity: 2 },
         { sizeCode: '', quantity: 1 },
       ])

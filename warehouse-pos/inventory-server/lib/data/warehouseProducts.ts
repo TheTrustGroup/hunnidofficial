@@ -101,6 +101,9 @@ function isInvalidWarehouseId(value: string): boolean {
 const WAREHOUSE_PRODUCTS_SELECT =
   'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
 
+/** One-size placeholders; must not be written to warehouse_inventory_by_size when product is sized. */
+const PLACEHOLDER_SIZE_CODES = new Set(['OS', 'ONESIZE', 'ONE_SIZE', 'O/S', 'NA']);
+
 /** List products for a warehouse. Works when warehouse_products has no warehouse_id (one row per product).
  * When warehouseId is set, only returns products that have inventory at that warehouse (so Hunnid Main never shows Main Jeff products and vice versa). */
 export async function getWarehouseProducts(
@@ -392,7 +395,10 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
   const sizeRows =
     isSized && quantityBySize.length > 0
       ? quantityBySize
-          .filter((r) => String(r.sizeCode ?? '').trim())
+          .filter((r) => {
+            const code = String(r.sizeCode ?? '').trim().toUpperCase().replace(/\s+/g, '');
+            return code !== '' && !PLACEHOLDER_SIZE_CODES.has(code);
+          })
           .map((r) => ({
             product_id: id,
             warehouse_id: warehouseId,
@@ -515,7 +521,10 @@ export async function updateWarehouseProduct(
   // Update size rows without delete-all first: upsert then remove orphans so we never wipe data on insert failure.
   if (isSized && quantityBySize.length > 0) {
     const sizeRows = quantityBySize
-      .filter((r) => String(r.sizeCode ?? '').trim())
+      .filter((r) => {
+        const code = String(r.sizeCode ?? '').trim().toUpperCase().replace(/\s+/g, '');
+        return code !== '' && !PLACEHOLDER_SIZE_CODES.has(code);
+      })
       .map((r) => ({
         product_id: productId,
         warehouse_id: warehouseId,

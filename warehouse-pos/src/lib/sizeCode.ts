@@ -4,7 +4,7 @@
  */
 export function isPlaceholderOneSizeCode(sizeCode: string | null | undefined): boolean {
   const n = String(sizeCode ?? '').trim().replace(/\s+/g, '').toUpperCase();
-  return n === 'OS' || n === 'ONESIZE' || n === 'ONE_SIZE' || n === 'O/S';
+  return n === 'OS' || n === 'ONESIZE' || n === 'ONE_SIZE' || n === 'O/S' || n === 'NA';
 }
 
 export interface QuantityBySizeRow {
