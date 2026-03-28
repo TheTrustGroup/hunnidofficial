@@ -902,9 +902,12 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         const rows = sanitizeQuantityBySizeForApi(
           Array.isArray(productData.quantityBySize) ? productData.quantityBySize : []
         );
+        // Create only persists rows with qty > 0 anyway; omitting zeros matches that and avoids huge POST bodies
+        // (e.g. "Load EU sizes") that can confuse proxies or edge cases. Edits still send zeros via updateProduct.
+        const rowsForCreate = rows.filter((r) => r.quantity > 0);
         payload.sizeKind = 'sized';
-        payload.quantityBySize = rows;
-        payload.quantity = rows.reduce((s, r) => s + r.quantity, 0);
+        payload.quantityBySize = rowsForCreate;
+        payload.quantity = rowsForCreate.reduce((s, r) => s + r.quantity, 0);
       }
       if (import.meta.env?.DEV) {
         console.timeEnd('Data Preparation');

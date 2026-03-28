@@ -620,6 +620,9 @@ export default function ProductModal({
     try {
       const sizedRows = sanitizeQuantityBySizeForApi(form.sizes.quantityBySize);
       const isSized = form.sizes.sizeKind === 'sized';
+      // New product: only send sizes with stock (same as DB insert). Edit: keep zero-qty rows so cleared sizes sync.
+      const sizedRowsForSubmit =
+        isSized && !isEdit ? sizedRows.filter((row) => row.quantity > 0) : sizedRows;
       const payload: Omit<Product, 'id'> & { id?: string } = {
         ...(product?.id ? { id: product.id } : {}),
         name: form.name.trim(),
@@ -633,9 +636,9 @@ export default function ProductModal({
         reorderLevel: Number(form.reorderLevel) || 0,
         sizeKind: form.sizes.sizeKind,
         quantity: isSized
-          ? sizedRows.reduce((sum, row) => sum + row.quantity, 0)
+          ? sizedRowsForSubmit.reduce((sum, row) => sum + row.quantity, 0)
           : form.sizes.quantity,
-        quantityBySize: isSized ? sizedRows : [],
+        quantityBySize: isSized ? sizedRowsForSubmit : [],
         location: form.location,
         supplier: form.supplier,
         images: form.images,
