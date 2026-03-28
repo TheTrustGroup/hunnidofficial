@@ -392,7 +392,7 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
     : Number(quantity) || 0;
 
   /** Per-size rows first: trigger enforce_size_rules runs on warehouse_inventory_by_size only; errors must not be prefixed as warehouse_inventory. */
-  const sizeRows =
+  const sizeRowsAll =
     isSized && quantityBySize.length > 0
       ? quantityBySize
           .filter((r) => {
@@ -406,6 +406,16 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
             quantity: Number(r.quantity) || 0,
           }))
       : [];
+
+  /** Do not insert 0-qty rows: avoids useless DB rows and failures when a UI-only code is not in size_codes. */
+  const sizeRows = sizeRowsAll.filter((r) => r.quantity > 0);
+
+  if (isSized && sizeRowsAll.length > 0 && sizeRows.length === 0) {
+    await db.from('warehouse_products').delete().eq('id', id);
+    throw new Error(
+      'Failed to create inventory by size: enter a quantity greater than 0 for at least one size.'
+    );
+  }
 
   if (isSized && sizeRows.length > 0) {
     const { error: insertSizeError } = await db.from('warehouse_inventory_by_size').insert(sizeRows);

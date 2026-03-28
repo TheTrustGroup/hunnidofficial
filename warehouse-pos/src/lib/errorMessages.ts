@@ -79,6 +79,9 @@ export function getUserFriendlyMessage(error: unknown): string {
   }
 
   // Postgres / API inventory (never show raw trigger text to end users)
+  if (/greater than 0 for at least one size|quantity greater than 0 for at least one size/i.test(msg)) {
+    return 'For multiple sizes, enter a quantity of at least 1 for one or more sizes before saving.';
+  }
   if (/size_code must not be os\b/i.test(msg)) {
     return 'Multiple sizes cannot include One size (OS). Scroll the list, remove any OS or stray row with stock, and try again.';
   }

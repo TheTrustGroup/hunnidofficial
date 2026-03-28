@@ -79,6 +79,12 @@ function getValidationError(value: SizesSectionValue): string | null {
   if (placeholderWithQty.length > 0) {
     return 'Remove One size (OS) rows when using Multiple sizes, or switch to One size.';
   }
+  const apiReady = sanitizeQuantityBySizeForApi(
+    rows.map((r) => ({ sizeCode: r.sizeCode, quantity: r.quantity }))
+  );
+  if (apiReady.length > 0 && apiReady.reduce((s, r) => s + r.quantity, 0) === 0) {
+    return 'Enter a quantity greater than 0 for at least one size.';
+  }
   return null;
 }
 
