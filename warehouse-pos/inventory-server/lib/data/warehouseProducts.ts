@@ -575,11 +575,17 @@ export async function createWarehouseProduct(body: Record<string, unknown>): Pro
     }
   }
 
-  const { error: insertInvError } = await db.from('warehouse_inventory').insert({
-    product_id: id,
-    warehouse_id: warehouseId,
-    quantity: totalQty,
-  });
+  // Upsert: drift-prevention trigger sync_warehouse_inventory_from_by_size may already
+  // have written this row after warehouse_inventory_by_size inserts; plain insert 409s.
+  const { error: insertInvError } = await db.from('warehouse_inventory').upsert(
+    {
+      product_id: id,
+      warehouse_id: warehouseId,
+      quantity: totalQty,
+      updated_at: now,
+    },
+    { onConflict: 'warehouse_id,product_id' }
+  );
   if (insertInvError) {
     if (sizeRows.length > 0) {
       await db.from('warehouse_inventory_by_size').delete().eq('product_id', id).eq('warehouse_id', warehouseId);
