@@ -22,7 +22,7 @@ export interface ListOptions {
   color?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
-  /** When true (view=list), skip per-size fetch to stay under API timeout; UI uses cache for images. */
+  /** When true (view=list), list still includes sizes + one display image per row (slim SQL). */
   listView?: boolean;
 }
 
@@ -132,6 +132,40 @@ async function loadSizeMap(
   return sizeMap;
 }
 
+/** Attach one display image per product when list select/RPC omitted images (fallback paths). */
+async function attachListDisplayImages(
+  db: SupabaseClient,
+  products: ListProduct[]
+): Promise<ListProduct[]> {
+  const missingIds = products.filter((p) => !(p.images?.length > 0)).map((p) => p.id);
+  if (!missingIds.length) return products;
+  try {
+    const { data, error } = await db.rpc('get_product_display_images', {
+      p_product_ids: missingIds,
+    });
+    if (error) {
+      console.warn('[getWarehouseProducts] get_product_display_images:', error.message);
+      return products;
+    }
+    const byId = new Map<string, string[]>();
+    for (const row of (data ?? []) as Array<{ product_id: string; images: unknown }>) {
+      const pid = String(row.product_id ?? '');
+      const imgs = Array.isArray(row.images)
+        ? (row.images as unknown[]).filter((x): x is string => typeof x === 'string' && x.length > 0)
+        : [];
+      if (pid && imgs.length) byId.set(pid, imgs);
+    }
+    if (!byId.size) return products;
+    return products.map((p) => {
+      const imgs = byId.get(p.id);
+      return imgs?.length ? { ...p, images: imgs } : p;
+    });
+  } catch (e) {
+    console.warn('[getWarehouseProducts] attachListDisplayImages failed:', e);
+    return products;
+  }
+}
+
 function rowToListProduct(
   row: Record<string, unknown>,
   warehouseId: string,
@@ -198,12 +232,12 @@ async function getWarehouseProductsViaRpc(
   const total = Number(payload?.total ?? rows.length) || 0;
   const pageIds = rows.map((r) => String(r.id ?? '')).filter(Boolean);
   let sizeMap: Record<string, Array<{ sizeCode: string; sizeLabel?: string; quantity: number }>> = {};
-  if (!options.listView && pageIds.length > 0) {
+  if (pageIds.length > 0) {
     try {
       sizeMap = await Promise.race([
         loadSizeMap(db, warehouseId, pageIds),
         new Promise<typeof sizeMap>((_, reject) =>
-          setTimeout(() => reject(new Error('SIZE_MAP_TIMEOUT')), 8_000)
+          setTimeout(() => reject(new Error('SIZE_MAP_TIMEOUT')), 12_000)
         ),
       ]);
     } catch (e) {
@@ -217,7 +251,8 @@ async function getWarehouseProductsViaRpc(
       return rowToListProduct(productRow, warehouseId, invQty, sizeMap, options);
     })
     .filter((p): p is ListProduct => p !== null);
-  return { data: list, total };
+  const listWithImages = await attachListDisplayImages(db, list);
+  return { data: listWithImages, total };
 }
 
 /**
@@ -302,7 +337,8 @@ async function getWarehouseProductsPageFallback(
     })
     .filter((p): p is ListProduct => p !== null);
 
-  return { data, total: count ?? data.length };
+  const withImages = await attachListDisplayImages(db, data);
+  return { data: withImages, total: count ?? withImages.length };
 }
 
 /** Product ids at warehouse (inventory + size rows). */
@@ -409,7 +445,8 @@ async function getWarehouseProductsByProductIds(
     .map((row) => rowToListProduct(row, warehouseId, invMap[String(row.id ?? '')] ?? 0, sizeMap, options))
     .filter((p): p is ListProduct => p !== null);
 
-  return { data, total: allRows.length };
+  const withImages = await attachListDisplayImages(db, data);
+  return { data: withImages, total: allRows.length };
 }
 
 /** Legacy slow path if view is missing (pre-migration). */
