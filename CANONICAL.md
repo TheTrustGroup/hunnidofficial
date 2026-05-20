@@ -18,6 +18,12 @@ Duplicate trees were moved to `_archive/` so work only happens under `warehouse-
 
 Git history for those paths is preserved via `git mv`.
 
+## Vercel (API project)
+
+The repo root has a **symlink** `inventory-server` → `warehouse-pos/inventory-server` so Vercel projects that still use Root Directory `inventory-server` build successfully after consolidation.
+
+Preferred dashboard setting: Root Directory = `warehouse-pos/inventory-server` (symlink then optional).
+
 ## User browser data (not lost)
 
 On next app load, `runClientDataMigration()` in `warehouse-pos/src/lib/clientDataMigration.ts`:
