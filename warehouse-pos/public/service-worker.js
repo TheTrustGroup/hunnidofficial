@@ -11,7 +11,7 @@ workbox.setConfig({ modulePathPrefix: 'https://storage.googleapis.com/workbox-cd
 
 // Bump CACHE_VERSION on each production deploy to invalidate old caches. Old caches are
 // deleted in the 'activate' handler (eviction strategy).
-const CACHE_VERSION = 6;
+const CACHE_VERSION = 7;
 const CACHE_STATIC = `extremedept-static-v${CACHE_VERSION}`;
 
 // --- HTML / document: never cache (ensure same build across Safari, Brave, Chrome) ---

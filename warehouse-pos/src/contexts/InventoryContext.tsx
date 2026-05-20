@@ -34,6 +34,7 @@ import {
   SIZE_UPDATE_COOLDOWN_MS,
   INVENTORY_POLL_MS,
   INVENTORY_PAGE_SIZE,
+  INVENTORY_API_TIMEOUT_MS,
   LAST_UPDATED_PRESERVE_MS,
 } from '../constants/inventory';
 import { sanitizeQuantityBySizeForApi } from '../lib/sizeCode';
@@ -384,7 +385,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       try {
         const offset = productsRef.current.length;
         const limit = options?.requestLimit ?? INVENTORY_PAGE_SIZE;
-        const getOpts = { signal, timeoutMs, maxRetries: 0 };
+        const getOpts = { signal, timeoutMs: timeoutMs ?? INVENTORY_API_TIMEOUT_MS, maxRetries: 0 };
         let raw: { data?: Product[]; total?: number } | Product[] | null = null;
         try {
           raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(
@@ -482,7 +483,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       try {
         const path = productsPath('/api/products', { limit: INVENTORY_PAGE_SIZE, offset: 0, view: 'list' });
         // Fail fast on server/network errors so we show cached products instead of spinning (maxRetries: 0).
-        const getOpts = { signal: effectiveSignal, timeoutMs, maxRetries: 0 };
+        const getOpts = { signal: effectiveSignal, timeoutMs: timeoutMs ?? INVENTORY_API_TIMEOUT_MS, maxRetries: 0 };
         let raw: { data?: Product[]; total?: number } | Product[] | null = null;
         try {
           raw = await apiGet<{ data?: Product[]; total?: number } | Product[]>(API_BASE_URL, path, getOpts);

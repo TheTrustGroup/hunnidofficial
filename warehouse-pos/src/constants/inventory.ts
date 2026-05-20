@@ -9,6 +9,9 @@ export const INVENTORY_POLL_MS = 30_000;
 /** Default page size for product list requests. */
 export const INVENTORY_PAGE_SIZE = 50;
 
+/** Product list API timeout — fail fast to cached data instead of waiting for gateway 504. */
+export const INVENTORY_API_TIMEOUT_MS = 22_000;
+
 /** Per-warehouse in-memory cache TTL; after this we refetch from API. */
 export const PRODUCTS_CACHE_TTL_MS = 60_000;
 

@@ -22,16 +22,20 @@ import {
 import type { PutProductBody } from '@/lib/data/warehouseProducts';
 import { corsHeaders } from '@/lib/cors';
 import { toSafeError } from '@/lib/safeError';
+import { getRequestId, jsonError } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
+
+const PRODUCTS_GET_TIMEOUT_MS = 25_000;
+
+function isStatementTimeoutError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /statement timeout|canceling statement|query timeout|abort/i.test(msg);
+}
 
 /** CORS preflight for cross-origin PUT/PATCH/DELETE from the warehouse frontend. */
 export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
   return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
-}
-
-function getRequestId(request: NextRequest): string {
-  return request.headers.get('x-request-id')?.trim() || request.headers.get('x-correlation-id')?.trim() || crypto.randomUUID();
 }
 
 /** Attach CORS to a response so cross-origin fetch with credentials succeeds. */
@@ -62,18 +66,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (id) {
     return withCors(await handleGetProductById(id, effectiveWarehouseId), request);
   }
+  const requestId = getRequestId(request);
+  const h = corsHeaders(request);
+
   try {
-    const limit = searchParams.get('limit');
-    const offset = searchParams.get('offset');
+    const limitRaw = searchParams.get('limit');
+    const offsetRaw = searchParams.get('offset');
+    const limit = Math.min(Math.max(limitRaw != null ? parseInt(limitRaw, 10) : 50, 1), 250);
+    const offset = Math.max(offsetRaw != null ? parseInt(offsetRaw, 10) : 0, 0);
     const q = searchParams.get('q') ?? undefined;
     const category = searchParams.get('category') ?? undefined;
     const sizeCode = searchParams.get('size_code') ?? undefined;
     const color = searchParams.get('color') ?? undefined;
     const lowStock = searchParams.get('low_stock') === '1' || searchParams.get('low_stock') === 'true';
     const outOfStock = searchParams.get('out_of_stock') === '1' || searchParams.get('out_of_stock') === 'true';
-    const result = await getWarehouseProducts(effectiveWarehouseId, {
-      limit: limit != null ? parseInt(limit, 10) : undefined,
-      offset: offset != null ? parseInt(offset, 10) : undefined,
+
+    const work = getWarehouseProducts(effectiveWarehouseId, {
+      limit,
+      offset,
       q,
       category,
       sizeCode,
@@ -81,16 +91,41 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       lowStock,
       outOfStock,
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('PRODUCTS_GET_TIMEOUT')), PRODUCTS_GET_TIMEOUT_MS);
+    });
+
+    let result: Awaited<typeof work>;
+    result = await Promise.race([work, timeoutPromise]);
+
     const res = NextResponse.json({ data: result.data, total: result.total });
     res.headers.set('Cache-Control', 'private, max-age=60');
     return withCors(res, request);
   } catch (e) {
-    console.error('[API ERROR]', e);
+    console.error('[GET /api/products]', e);
+    if (e instanceof Error && e.message === 'PRODUCTS_GET_TIMEOUT') {
+      return withCors(
+        jsonError(503, 'Products request timed out. Please try again.', {
+          code: 'REQUEST_TIMEOUT',
+          requestId,
+          headers: { ...h, 'Retry-After': '15' },
+        }),
+        request
+      );
+    }
+    if (isStatementTimeoutError(e)) {
+      return withCors(
+        jsonError(503, 'Products list is taking too long. Please try again.', {
+          code: 'QUERY_TIMEOUT',
+          requestId,
+          headers: { ...h, 'Retry-After': '15' },
+        }),
+        request
+      );
+    }
     return withCors(
-      NextResponse.json(
-        { error: toSafeError(e) },
-        { status: 500 }
-      ),
+      NextResponse.json({ error: toSafeError(e) }, { status: 500 }),
       request
     );
   }

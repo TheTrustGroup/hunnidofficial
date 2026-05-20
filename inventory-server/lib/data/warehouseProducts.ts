@@ -101,18 +101,167 @@ function isInvalidWarehouseId(value: string): boolean {
 const WAREHOUSE_PRODUCTS_SELECT =
   'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
 
-/** List products for a warehouse. Works when warehouse_products has no warehouse_id (one row per product).
- * When warehouseId is set, only returns products that have inventory at that warehouse (so Hunnid Main never shows Main Jeff products and vice versa). */
-export async function getWarehouseProducts(
-  warehouseId: string | undefined,
-  options: ListOptions = {}
-): Promise<ListResult> {
-  const db = getDb();
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 2000);
-  const offset = Math.max(options.offset ?? 0, 0);
-  const effectiveWarehouseId = warehouseId ?? '';
+type ViewInventoryRow = {
+  id: string;
+  warehouse_id: string;
+  sku: string;
+  barcode: string | null;
+  name: string;
+  description: string | null;
+  category: string;
+  color: string | null;
+  sizeKind: string;
+  sellingPrice: number;
+  costPrice: number;
+  reorderLevel: number;
+  location: unknown;
+  supplier: unknown;
+  tags: unknown;
+  images: unknown;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  quantity: number;
+  quantityBySize: unknown;
+};
 
-  // Restrict to products that exist at this warehouse (warehouse_inventory or warehouse_inventory_by_size).
+function parseQuantityBySize(raw: unknown): Array<{ sizeCode: string; sizeLabel?: string; quantity: number }> {
+  if (!Array.isArray(raw)) return [];
+  const out: Array<{ sizeCode: string; sizeLabel?: string; quantity: number }> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const code = String(o.sizeCode ?? o.size_code ?? '').trim();
+    if (!code) continue;
+    out.push({
+      sizeCode: code,
+      sizeLabel: String(o.sizeLabel ?? o.size_label ?? code).trim() || code,
+      quantity: Number(o.quantity ?? 0),
+    });
+  }
+  return out.sort((a, b) => a.sizeCode.localeCompare(b.sizeCode));
+}
+
+function mapViewRowToListProduct(row: ViewInventoryRow, options: ListOptions): ListProduct | null {
+  const sizes = parseQuantityBySize(row.quantityBySize);
+  const isSized = row.sizeKind === 'sized' && sizes.length > 0;
+  const quantity = isSized ? sizes.reduce((s, r) => s + r.quantity, 0) : Number(row.quantity ?? 0);
+  const reorder = Number(row.reorderLevel ?? 0) || 3;
+
+  if (options.lowStock && quantity > reorder) return null;
+  if (options.outOfStock && quantity > 0) return null;
+
+  return {
+    id: String(row.id),
+    warehouseId: String(row.warehouse_id),
+    sku: String(row.sku ?? ''),
+    barcode: row.barcode ?? null,
+    name: String(row.name ?? ''),
+    description: row.description ?? null,
+    category: String(row.category ?? ''),
+    color: row.color != null ? String(row.color).trim() || null : null,
+    sizeKind: String(row.sizeKind ?? 'na'),
+    sellingPrice: Number(row.sellingPrice ?? 0),
+    costPrice: Number(row.costPrice ?? 0),
+    reorderLevel: Number(row.reorderLevel ?? 0),
+    quantity,
+    quantityBySize: sizes,
+    location: row.location ?? null,
+    supplier: row.supplier ?? null,
+    tags: Array.isArray(row.tags) ? (row.tags as unknown[]) : [],
+    images: Array.isArray(row.images) ? (row.images as string[]) : [],
+    version: Number(row.version ?? 0),
+    createdAt: String(row.createdAt ?? ''),
+    updatedAt: String(row.updatedAt ?? ''),
+  };
+}
+
+/** Fast path: paginated list from v_products_inventory (one query + optional size filter). */
+async function getWarehouseProductsViaView(
+  db: SupabaseClient,
+  effectiveWarehouseId: string,
+  options: ListOptions,
+  limit: number,
+  offset: number
+): Promise<ListResult> {
+  if (!effectiveWarehouseId) {
+    return { data: [], total: 0 };
+  }
+
+  if (options.sizeCode?.trim()) {
+    const { data: sizeRows } = await db
+      .from('warehouse_inventory_by_size')
+      .select('product_id')
+      .eq('warehouse_id', effectiveWarehouseId)
+      .eq('size_code', options.sizeCode.trim());
+    const ids = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
+    if (ids.length === 0) return { data: [], total: 0 };
+
+    let query = db
+      .from('v_products_inventory')
+      .select('*', { count: 'exact' })
+      .eq('warehouse_id', effectiveWarehouseId)
+      .in('id', ids)
+      .order('name', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (options.q?.trim()) {
+      const raw = options.q.trim();
+      const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+      query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
+    }
+    if (options.category?.trim()) query = query.eq('category', options.category.trim());
+    if (options.color?.trim()) {
+      const colorVal = options.color.trim();
+      if (colorVal.toLowerCase() === 'uncategorized') query = query.is('color', null);
+      else query = query.ilike('color', colorVal);
+    }
+
+    const { data: rows, error, count } = await query;
+    if (error) throw new Error(`Failed to list products: ${error.message}`);
+    const data = ((rows ?? []) as ViewInventoryRow[])
+      .map((row) => mapViewRowToListProduct(row, options))
+      .filter((p): p is ListProduct => p !== null);
+    return { data, total: count ?? data.length };
+  }
+
+  let query = db
+    .from('v_products_inventory')
+    .select('*', { count: 'exact' })
+    .eq('warehouse_id', effectiveWarehouseId)
+    .order('name', { ascending: true })
+    .range(offset, offset + limit - 1);
+
+  if (options.q?.trim()) {
+    const raw = options.q.trim();
+    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
+  }
+  if (options.category?.trim()) query = query.eq('category', options.category.trim());
+  if (options.color?.trim()) {
+    const colorVal = options.color.trim();
+    if (colorVal.toLowerCase() === 'uncategorized') query = query.is('color', null);
+    else query = query.ilike('color', colorVal);
+  }
+
+  const { data: rows, error, count } = await query;
+  if (error) throw new Error(`Failed to list products: ${error.message}`);
+
+  const data = ((rows ?? []) as ViewInventoryRow[])
+    .map((row) => mapViewRowToListProduct(row, options))
+    .filter((p): p is ListProduct => p !== null);
+
+  return { data, total: count ?? data.length };
+}
+
+/** Legacy slow path if view is missing (pre-migration). */
+async function getWarehouseProductsLegacy(
+  db: SupabaseClient,
+  effectiveWarehouseId: string,
+  options: ListOptions,
+  limit: number,
+  offset: number
+): Promise<ListResult> {
   let warehouseProductIds: string[] | null = null;
   if (effectiveWarehouseId) {
     const { data: invRows } = await db
@@ -126,9 +275,7 @@ export async function getWarehouseProducts(
     const fromInv = new Set((invRows ?? []).map((r: { product_id: string }) => r.product_id));
     const fromSize = new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id));
     warehouseProductIds = [...new Set([...fromInv, ...fromSize])];
-    if (warehouseProductIds.length === 0) {
-      return { data: [], total: 0 };
-    }
+    if (warehouseProductIds.length === 0) return { data: [], total: 0 };
   }
 
   let query = db
@@ -137,53 +284,36 @@ export async function getWarehouseProducts(
     .order('name')
     .range(offset, offset + limit - 1);
 
-  if (warehouseProductIds !== null) {
-    query = query.in('id', warehouseProductIds);
-  }
+  if (warehouseProductIds !== null) query = query.in('id', warehouseProductIds);
 
   if (options.q?.trim()) {
     const raw = options.q.trim();
     const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
     query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
   }
-  if (options.category?.trim()) {
-    query = query.eq('category', options.category.trim());
-  }
+  if (options.category?.trim()) query = query.eq('category', options.category.trim());
   if (options.color?.trim()) {
     const colorVal = options.color.trim();
-    if (colorVal.toLowerCase() === 'uncategorized') {
-      // Show products with no color set (existing products before color was added).
-      query = query.is('color', null);
-    } else {
-      // Case-insensitive: ilike with no wildcards matches exact string, any case (e.g. Black matches black).
-      query = query.ilike('color', colorVal);
-    }
+    if (colorVal.toLowerCase() === 'uncategorized') query = query.is('color', null);
+    else query = query.ilike('color', colorVal);
   }
 
-  // When filtering by size, restrict to product IDs that have this size in this warehouse.
-  let sizeFilterProductIds: string[] | null = null;
   if (options.sizeCode?.trim() && effectiveWarehouseId) {
     const { data: sizeRows } = await db
       .from('warehouse_inventory_by_size')
       .select('product_id')
       .eq('warehouse_id', effectiveWarehouseId)
       .eq('size_code', options.sizeCode.trim());
-    sizeFilterProductIds = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
-    if (sizeFilterProductIds.length === 0) {
-      return { data: [], total: 0 };
-    }
+    const sizeFilterProductIds = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
+    if (sizeFilterProductIds.length === 0) return { data: [], total: 0 };
     query = query.in('id', sizeFilterProductIds);
   }
 
   const { data: rows, error, count } = await query;
-
-  if (error) {
-    throw new Error(`Failed to list products: ${error.message}`);
-  }
+  if (error) throw new Error(`Failed to list products: ${error.message}`);
 
   const list = (rows ?? []) as Record<string, unknown>[];
   const productIds = list.map((r) => r.id as string);
-
   const invMap: Record<string, number> = {};
   const sizeMap: Record<string, Array<{ sizeCode: string; sizeLabel?: string; quantity: number }>> = {};
 
@@ -202,57 +332,73 @@ export async function getWarehouseProducts(
       .select('product_id, size_code, quantity')
       .eq('warehouse_id', effectiveWarehouseId)
       .in('product_id', productIds);
-    const sizeList = (sizeRows ?? []) as Array<{ product_id: string; size_code: string; quantity: number }>;
-    for (const r of sizeList) {
+    for (const r of (sizeRows ?? []) as Array<{ product_id: string; size_code: string; quantity: number }>) {
       if (!sizeMap[r.product_id]) sizeMap[r.product_id] = [];
       const code = String(r.size_code ?? '').trim();
       if (!code) continue;
-      sizeMap[r.product_id].push({
-        sizeCode: code,
-        sizeLabel: code,
-        quantity: Number(r.quantity ?? 0),
-      });
+      sizeMap[r.product_id].push({ sizeCode: code, sizeLabel: code, quantity: Number(r.quantity ?? 0) });
     }
   }
 
-  const data = list.map((row) => {
-    const sizes = (sizeMap[row.id as string] ?? []).sort((a, b) =>
-      a.sizeCode.localeCompare(b.sizeCode)
-    );
-    const isSized = (row.size_kind as string) === 'sized' && sizes.length > 0;
-    const quantity = isSized
-      ? sizes.reduce((s, r) => s + r.quantity, 0)
-      : invMap[row.id as string] ?? 0;
-
-    if (options.lowStock && quantity > (Number(row.reorder_level ?? 0) || 3)) return null;
-    if (options.outOfStock && quantity > 0) return null;
-
-    return {
-      id: String(row.id ?? ''),
-      warehouseId: effectiveWarehouseId,
-      sku: String(row.sku ?? ''),
-      barcode: row.barcode ?? null,
-      name: String(row.name ?? ''),
-      description: row.description ?? null,
-      category: String(row.category ?? ''),
-      color: row.color != null ? String(row.color).trim() || null : null,
-      sizeKind: String(row.size_kind ?? 'na'),
-      sellingPrice: Number(row.selling_price ?? 0),
-      costPrice: Number(row.cost_price ?? 0),
-      reorderLevel: Number(row.reorder_level ?? 0),
-      quantity,
-      quantityBySize: sizes,
-      location: row.location ?? null,
-      supplier: row.supplier ?? null,
-      tags: Array.isArray(row.tags) ? row.tags : [],
-      images: Array.isArray(row.images) ? (row.images as string[]) : [],
-      version: Number(row.version ?? 0),
-      createdAt: String(row.created_at ?? ''),
-      updatedAt: String(row.updated_at ?? ''),
-    };
-  }).filter((p) => p !== null) as ListProduct[];
+  const data = list
+    .map((row) => {
+      const sizes = (sizeMap[row.id as string] ?? []).sort((a, b) => a.sizeCode.localeCompare(b.sizeCode));
+      const isSized = (row.size_kind as string) === 'sized' && sizes.length > 0;
+      const quantity = isSized ? sizes.reduce((s, r) => s + r.quantity, 0) : invMap[row.id as string] ?? 0;
+      if (options.lowStock && quantity > (Number(row.reorder_level ?? 0) || 3)) return null;
+      if (options.outOfStock && quantity > 0) return null;
+      return {
+        id: String(row.id ?? ''),
+        warehouseId: effectiveWarehouseId,
+        sku: String(row.sku ?? ''),
+        barcode: row.barcode ?? null,
+        name: String(row.name ?? ''),
+        description: row.description ?? null,
+        category: String(row.category ?? ''),
+        color: row.color != null ? String(row.color).trim() || null : null,
+        sizeKind: String(row.size_kind ?? 'na'),
+        sellingPrice: Number(row.selling_price ?? 0),
+        costPrice: Number(row.cost_price ?? 0),
+        reorderLevel: Number(row.reorder_level ?? 0),
+        quantity,
+        quantityBySize: sizes,
+        location: row.location ?? null,
+        supplier: row.supplier ?? null,
+        tags: Array.isArray(row.tags) ? row.tags : [],
+        images: Array.isArray(row.images) ? (row.images as string[]) : [],
+        version: Number(row.version ?? 0),
+        createdAt: String(row.created_at ?? ''),
+        updatedAt: String(row.updated_at ?? ''),
+      };
+    })
+    .filter((p) => p !== null) as ListProduct[];
 
   return { data, total: count ?? data.length };
+}
+
+/** List products for a warehouse. Paginated via v_products_inventory (fast); legacy fallback if view missing. */
+export async function getWarehouseProducts(
+  warehouseId: string | undefined,
+  options: ListOptions = {}
+): Promise<ListResult> {
+  const db = getDb();
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 250);
+  const offset = Math.max(options.offset ?? 0, 0);
+  const effectiveWarehouseId = warehouseId ?? '';
+
+  try {
+    return await getWarehouseProductsViaView(db, effectiveWarehouseId, options, limit, offset);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (
+      /v_products_inventory|relation.*does not exist|schema cache|column.*does not exist|Could not find/i.test(
+        msg
+      )
+    ) {
+      return getWarehouseProductsLegacy(db, effectiveWarehouseId, options, limit, offset);
+    }
+    throw e;
+  }
 }
 
 /** Get one product by id and warehouse (for GET ?id=). Works when warehouse_products has no warehouse_id. */

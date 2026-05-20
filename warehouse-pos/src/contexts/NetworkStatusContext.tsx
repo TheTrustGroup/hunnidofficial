@@ -30,7 +30,7 @@ interface NetworkStatusContextValue {
   syncProgress: number | null;
 }
 
-const NetworkStatusContext = createContext<NetworkStatusContextValue | undefined>(undefined);
+export const NetworkStatusContext = createContext<NetworkStatusContextValue | undefined>(undefined);
 
 export function useNetworkStatusContext(): NetworkStatusContextValue {
   const ctx = useContext(NetworkStatusContext);
