@@ -349,7 +349,7 @@ function SaleRow({
 
 const WAREHOUSES = [
   { id: '00000000-0000-0000-0000-000000000001', name: 'Main Jeff' },
-  { id: '00000000-0000-0000-0000-000000000002', name: 'Hunnid Main'  },
+  { id: '99aa0b7b-a93d-4b5d-8b10-2854ed2da59f', name: 'Hunnid Main' },
 ];
 
 /** Empty string = fetch sales from all warehouses (no warehouse_id filter). */

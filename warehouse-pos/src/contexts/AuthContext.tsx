@@ -71,9 +71,11 @@ const KNOWN_POS_EMAILS = new Set([
   'hcashier@hunnidofficial.com',
 ]);
 
+import { HUNNID_MAIN_WAREHOUSE_ID, LEGACY_MAIN_JEFF_ID } from '../lib/warehouseIdRemap';
+
 /** Default warehouse UUIDs (must match server posPasswords.ts). Used when API does not return warehouseId for POS. */
-const MAIN_STORE_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
-const MAIN_TOWN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000002';
+const MAIN_STORE_WAREHOUSE_ID = LEGACY_MAIN_JEFF_ID;
+const MAIN_TOWN_WAREHOUSE_ID = HUNNID_MAIN_WAREHOUSE_ID;
 
 function getDefaultWarehouseIdForPosEmail(email: string): string | undefined {
   const e = email.trim().toLowerCase();

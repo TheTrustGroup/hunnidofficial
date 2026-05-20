@@ -20,6 +20,7 @@ import { Warehouse } from '../types';
 import { API_BASE_URL } from '../lib/api';
 import { apiGet } from '../lib/apiClient';
 import { isValidWarehouseId } from '../lib/warehouseId';
+import { HUNNID_MAIN_WAREHOUSE_ID, LEGACY_HUNNID_MAIN_ID, remapLegacyWarehouseId } from '../lib/warehouseIdRemap';
 import { useOptionalAuth } from './AuthContext';
 
 /** Default warehouse id (Main Jeff). Fallback when API has no warehouses yet. */
@@ -30,7 +31,8 @@ const STORAGE_KEY = 'warehouse_current_id';
 /** Fallback names when /api/warehouses does not return the warehouse (e.g. bound POS). Match server/DB. Single source for dropdown and dashboard "sales by location". */
 export const KNOWN_WAREHOUSE_NAMES: Record<string, string> = {
   '00000000-0000-0000-0000-000000000001': 'Main Jeff',
-  '00000000-0000-0000-0000-000000000002': 'Hunnid Main',
+  [LEGACY_HUNNID_MAIN_ID]: 'Hunnid Main',
+  [HUNNID_MAIN_WAREHOUSE_ID]: 'Hunnid Main',
 };
 
 /** DC was consolidated; never show in UI (backend also excludes it). */
@@ -69,12 +71,13 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   const authLoading = auth?.isLoading ?? false;
   const isAuthenticated = auth?.isAuthenticated ?? false;
   const rawBoundWarehouseId = auth?.user?.warehouseId?.trim() || undefined;
-  const boundWarehouseId = isValidWarehouseId(rawBoundWarehouseId) ? rawBoundWarehouseId : undefined;
+  const remappedBound = rawBoundWarehouseId ? remapLegacyWarehouseId(rawBoundWarehouseId) : undefined;
+  const boundWarehouseId = isValidWarehouseId(remappedBound) ? remappedBound : undefined;
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [currentWarehouseId, setCurrentWarehouseIdState] = useState<string>(() => {
     if (typeof localStorage !== 'undefined') {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) return stored;
+      if (stored) return remapLegacyWarehouseId(stored);
     }
     return DEFAULT_WAREHOUSE_ID;
   });
@@ -91,10 +94,11 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
       setWarehouses(deduped);
       if (deduped.length > 0) {
         setCurrentWarehouseIdState((prev) => {
+          const prevResolved = remapLegacyWarehouseId(prev);
           const bound = boundWarehouseId && deduped.some((w) => w.id === boundWarehouseId) ? boundWarehouseId : null;
           if (bound) return bound;
-          const exists = deduped.some((w) => w.id === prev);
-          if (exists) return prev;
+          const exists = deduped.some((w) => w.id === prevResolved);
+          if (exists) return prevResolved;
           // Always set a valid selection so the warehouse filter/dropdown works (single or multiple warehouses).
           return deduped[0].id;
         });
@@ -133,7 +137,12 @@ export function WarehouseProvider({ children }: { children: ReactNode }) {
   }, [boundWarehouseId]);
 
   useEffect(() => {
-    if (typeof localStorage !== 'undefined' && currentWarehouseId && !boundWarehouseId) {
+    if (typeof localStorage === 'undefined') return;
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored && stored !== remapLegacyWarehouseId(stored)) {
+      localStorage.setItem(STORAGE_KEY, remapLegacyWarehouseId(stored));
+    }
+    if (currentWarehouseId && !boundWarehouseId) {
       localStorage.setItem(STORAGE_KEY, currentWarehouseId);
     }
   }, [currentWarehouseId, boundWarehouseId]);

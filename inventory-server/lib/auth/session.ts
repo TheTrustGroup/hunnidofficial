@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT, jwtVerify } from 'jose';
 import { getSupabase } from '@/lib/supabase';
 import { getScopeForUser } from '@/lib/data/userScopes';
+import { resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
 
 export interface Session {
   email: string;
@@ -211,9 +212,12 @@ export async function getEffectiveWarehouseId(
   bodyWarehouseId: string | undefined,
   _opts?: GetEffectiveWarehouseIdOpts
 ): Promise<string | null> {
+  const db = getSupabase();
   const scope = await getScopeForUser(auth.email);
-  const allowed = scope.allowedWarehouseIds;
-  const trimmed = bodyWarehouseId?.trim();
+  const allowedRaw = scope.allowedWarehouseIds;
+  const allowed = await Promise.all(allowedRaw.map((id) => resolveWarehouseId(db, id)));
+  const trimmedRaw = bodyWarehouseId?.trim() || auth.warehouse_id?.trim();
+  const trimmed = trimmedRaw ? await resolveWarehouseId(db, trimmedRaw) : undefined;
   const isAdminOrSuperAdmin = /^(admin|super_admin)$/i.test(auth.role ?? '');
   if (allowed.length === 0) {
     if (isAdminOrSuperAdmin && trimmed) return trimmed;

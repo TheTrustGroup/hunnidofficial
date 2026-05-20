@@ -3,6 +3,7 @@
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { normalizeQuantityBySizeForPersist } from '../../../warehouse-pos/src/lib/sizeCode';
+import { resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
 
 export interface ListOptions {
   limit?: number;
@@ -101,8 +102,6 @@ function isInvalidWarehouseId(value: string): boolean {
 const WAREHOUSE_PRODUCTS_SELECT =
   'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
 
-const WP = 'warehouse_products';
-
 async function loadSizeMap(
   db: SupabaseClient,
   warehouseId: string,
@@ -166,8 +165,7 @@ function rowToListProduct(
 }
 
 /**
- * Fast path: paginate warehouse_inventory + join warehouse_products (no view, no load-all-IDs).
- * Sizes fetched only for the current page (typically 50 rows).
+ * Fast path: products with inventory at this warehouse (paginated). No view, no load-all-IDs.
  */
 async function getWarehouseProductsViaJoin(
   db: SupabaseClient,
@@ -176,67 +174,57 @@ async function getWarehouseProductsViaJoin(
   limit: number,
   offset: number
 ): Promise<ListResult> {
-  if (!effectiveWarehouseId) return { data: [], total: 0 };
+  const warehouseId = await resolveWarehouseId(db, effectiveWarehouseId);
+  if (!warehouseId) return { data: [], total: 0 };
 
-  const embed = `quantity, product_id, ${WP}!inner(${WAREHOUSE_PRODUCTS_SELECT})`;
+  const select = `${WAREHOUSE_PRODUCTS_SELECT}, warehouse_inventory!inner(quantity, warehouse_id)`;
 
   let query = db
-    .from('warehouse_inventory')
-    .select(embed, { count: 'exact' })
-    .eq('warehouse_id', effectiveWarehouseId);
+    .from('warehouse_products')
+    .select(select, { count: 'exact' })
+    .eq('warehouse_inventory.warehouse_id', warehouseId);
 
   if (options.q?.trim()) {
     const raw = options.q.trim();
     const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`, { foreignTable: WP as 'warehouse_products' });
+    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
   }
   if (options.category?.trim()) {
-    query = query.eq(`${WP}.category`, options.category.trim());
+    query = query.eq('category', options.category.trim());
   }
   if (options.color?.trim()) {
     const colorVal = options.color.trim();
-    if (colorVal.toLowerCase() === 'uncategorized') {
-      query = query.is(`${WP}.color`, null);
-    } else {
-      query = query.ilike(`${WP}.color`, colorVal);
-    }
+    if (colorVal.toLowerCase() === 'uncategorized') query = query.is('color', null);
+    else query = query.ilike('color', colorVal);
   }
   if (options.sizeCode?.trim()) {
     const { data: sizeRows } = await db
       .from('warehouse_inventory_by_size')
       .select('product_id')
-      .eq('warehouse_id', effectiveWarehouseId)
+      .eq('warehouse_id', warehouseId)
       .eq('size_code', options.sizeCode.trim());
     const ids = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
     if (ids.length === 0) return { data: [], total: 0 };
-    query = query.in('product_id', ids);
+    query = query.in('id', ids);
   }
 
-  query = query
-    .order(`${WP}.name`, { ascending: true })
-    .range(offset, offset + limit - 1);
+  query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
 
   const { data: rows, error, count } = await query;
   if (error) throw new Error(`Failed to list products: ${error.message}`);
 
-  const joinRows = (rows ?? []) as Array<{
-    quantity?: number;
-    product_id?: string;
-    warehouse_products?: Record<string, unknown> | Record<string, unknown>[];
-  }>;
-  const productIds = joinRows
-    .map((r) => {
-      const wp = Array.isArray(r.warehouse_products) ? r.warehouse_products[0] : r.warehouse_products;
-      return String(r.product_id ?? wp?.id ?? '');
-    })
-    .filter(Boolean);
-  const sizeMap = await loadSizeMap(db, effectiveWarehouseId, productIds);
+  type JoinRow = Record<string, unknown> & {
+    warehouse_inventory?: { quantity?: number; warehouse_id?: string } | Array<{ quantity?: number; warehouse_id?: string }>;
+  };
+  const joinRows = (rows ?? []) as JoinRow[];
+  const productIds = joinRows.map((r) => String(r.id ?? '')).filter(Boolean);
+  const sizeMap = await loadSizeMap(db, warehouseId, productIds);
 
   const data = joinRows
     .map((r) => {
-      const wp = Array.isArray(r.warehouse_products) ? r.warehouse_products[0] : r.warehouse_products;
-      if (!wp || typeof wp !== 'object') return null;
-      return rowToListProduct(wp, effectiveWarehouseId, Number(r.quantity ?? 0), sizeMap, options);
+      const inv = Array.isArray(r.warehouse_inventory) ? r.warehouse_inventory[0] : r.warehouse_inventory;
+      const invQty = Number(inv?.quantity ?? 0);
+      return rowToListProduct(r, warehouseId, invQty, sizeMap, options);
     })
     .filter((p): p is ListProduct => p !== null);
 
@@ -373,7 +361,8 @@ export async function getWarehouseProducts(
   const db = getDb();
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 250);
   const offset = Math.max(options.offset ?? 0, 0);
-  const effectiveWarehouseId = warehouseId ?? '';
+  const rawWarehouseId = warehouseId ?? '';
+  const effectiveWarehouseId = await resolveWarehouseId(db, rawWarehouseId);
 
   try {
     return await getWarehouseProductsViaJoin(db, effectiveWarehouseId, options, limit, offset);

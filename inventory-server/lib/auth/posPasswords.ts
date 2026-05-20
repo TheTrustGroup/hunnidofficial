@@ -14,9 +14,11 @@ export const POS_PASSWORD_ENV_KEYS = {
   [POS_MAIN_TOWN_EMAIL]: 'POS_PASSWORD_MAIN_TOWN',
 } as const;
 
-/** Default warehouse UUIDs (match frontend DEFAULT_WAREHOUSE_ID and Main Town fallback). Override with env if your DB uses different IDs. */
-const DEFAULT_MAIN_STORE_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
-const DEFAULT_MAIN_TOWN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000002';
+import { HUNNID_MAIN_WAREHOUSE_ID, LEGACY_MAIN_JEFF_ID } from '@/lib/data/resolveWarehouseId';
+
+/** Default warehouse UUIDs. Main Jeff still uses legacy id in DB; Hunnid Main uses real production id. */
+const DEFAULT_MAIN_STORE_WAREHOUSE_ID = LEGACY_MAIN_JEFF_ID;
+const DEFAULT_MAIN_TOWN_WAREHOUSE_ID = HUNNID_MAIN_WAREHOUSE_ID;
 
 /**
  * Returns the warehouse_id to bind for this POS email so the frontend can skip the warehouse selector.
