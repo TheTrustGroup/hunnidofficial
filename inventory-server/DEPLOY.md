@@ -39,7 +39,7 @@ cat .vercel/project.json
 ## Clean build and deploy
 
 ```bash
-cd "World-Class Warehouse Inventory & Smart POS System/warehouse-pos/inventory-server"
+cd inventory-server
 rm -rf .next
 npm run build
 vercel --prod
