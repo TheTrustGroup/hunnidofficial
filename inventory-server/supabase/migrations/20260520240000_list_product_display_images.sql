@@ -14,7 +14,7 @@ AS $$
         FROM jsonb_array_elements_text(coalesce(p_images, '[]'::jsonb)) WITH ORDINALITY AS t(value, ord)
         WHERE value LIKE 'http://%'
            OR value LIKE 'https://%'
-           OR (value LIKE 'data:image/%' AND length(value) <= 120000)
+           OR (value LIKE 'data:image/%' AND length(value) <= 320000)
         ORDER BY
           CASE
             WHEN value LIKE 'http://%' OR value LIKE 'https://%' THEN 0
@@ -29,7 +29,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.list_product_display_images(jsonb) IS
-  'First list thumbnail: prefer Storage/http URL; else one data:image under 120KB.';
+  'First list thumbnail: prefer Storage/http URL; else one data:image under 320KB.';
 
 CREATE OR REPLACE FUNCTION public.list_warehouse_products_page(
   p_warehouse_id uuid,
