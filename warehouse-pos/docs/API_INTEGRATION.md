@@ -2,6 +2,8 @@
 
 This document describes the HTTP API that the Warehouse POS frontend expects from the backend. Use it to implement or integrate with the inventory, auth, and orders APIs.
 
+**POS sales:** use `POST /api/sales` only. `POST /api/transactions` is deprecated (410 by default). See `inventory-server/docs/SALES_API.md`.
+
 ---
 
 ## Table of Contents

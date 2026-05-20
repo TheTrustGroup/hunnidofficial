@@ -44,6 +44,15 @@ if (typeof window !== 'undefined') {
   if (typeof __APP_BUILD_VERSION__ !== 'undefined') {
     console.info('[App] Build version:', __APP_BUILD_VERSION__);
   }
+  if (import.meta.env.PROD) {
+    import('./serviceWorkerRegistration.js').then(({ register }) => {
+      register({
+        onUpdate: () => {
+          window.dispatchEvent(new CustomEvent('sw-update-available'));
+        },
+      });
+    });
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

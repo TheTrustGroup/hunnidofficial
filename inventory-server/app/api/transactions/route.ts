@@ -3,6 +3,7 @@ import { processSale, listTransactions, getTransactionByIdempotencyKey } from '@
 import { requirePosRole, getEffectiveWarehouseId, requireAuth } from '@/lib/auth/session';
 import { resolveUserScope, isStoreAllowed, isWarehouseAllowed, isPosAllowed, logScopeDeny } from '@/lib/auth/scope';
 import { getRejectionByKey, recordRejection } from '@/lib/data/syncRejections';
+import { isLegacyTransactionPostAllowed } from '@/lib/legacyTransactions';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,8 +62,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-/** POST /api/transactions — persist sale. Cashier+ only. Idempotent when Idempotency-Key or body.idempotencyKey provided. */
+/** POST /api/transactions — deprecated. Use POST /api/sales (record_sale). Gated by ALLOW_LEGACY_TRANSACTION_POST. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  if (!isLegacyTransactionPostAllowed()) {
+    return NextResponse.json(
+      {
+        error: 'POST /api/transactions is deprecated. Use POST /api/sales for POS and offline sale replay.',
+        code: 'USE_SALES_API',
+      },
+      { status: 410 }
+    );
+  }
   const auth = await requirePosRole(request);
   if (auth instanceof NextResponse) return auth as NextResponse;
   let idempotencyKey: string | null = null;

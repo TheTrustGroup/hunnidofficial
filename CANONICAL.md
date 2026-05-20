@@ -34,6 +34,17 @@ On next app load, `runClientDataMigration()` in `warehouse-pos/src/lib/clientDat
 
 POS sales that fail due to network/503 are queued in IndexedDB (`warehouse-pos` DB, `pos_event_queue` store) and replayed with `Idempotency-Key` when online.
 
+## Sales (single write path)
+
+- **POS + offline replay:** `POST /api/sales` → `record_sale` (see `inventory-server/docs/SALES_API.md`).
+- **Legacy:** `POST /api/transactions` is disabled by default (410). Enable only for migration tooling: `ALLOW_LEGACY_TRANSACTION_POST=true` on the API project.
+
+## PWA
+
+- `warehouse-pos/public/manifest.json` — `display: standalone`, installable from home screen.
+- `warehouse-pos/public/service-worker.js` — static assets only; bump `CACHE_VERSION` on each production deploy.
+- Register SW in production via `src/serviceWorkerRegistration.js` (wired from `main.tsx`).
+
 ## Run commands
 
 Always from `warehouse-pos/`:

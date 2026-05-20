@@ -10,7 +10,6 @@ import { TopProductsTable } from '../components/reports/TopProductsTable';
 import { InventoryMetrics } from '../components/reports/InventoryMetrics';
 import { generateSalesReport, generateInventoryReport, exportToCSV, getProductQty, getProductValuePrice, SalesReport, InventoryReport } from '../services/reportService';
 import { fetchSalesAsTransactions, fetchSalesReportFromApi, type SalesReportFromApi } from '../services/salesApi';
-import { fetchTransactionsFromApi } from '../services/transactionsApi';
 import { Transaction } from '../types';
 import { formatCurrency, getCategoryDisplay, formatDate } from '../lib/utils';
 import { getStoredData } from '../lib/storage';
@@ -145,19 +144,8 @@ export function Reports() {
           setTransactions(data);
           setTransactionsSource('server');
         } catch {
-          try {
-            const { data } = await fetchTransactionsFromApi(API_BASE_URL, {
-              from: fromIso,
-              to: toIso,
-              warehouse_id: warehouseIdForRequests,
-              limit: 2000,
-            });
-            setTransactions(data);
-            setTransactionsSource('server');
-          } catch {
-            setTransactionsError('Failed to load sales from server. Showing local data if available.');
-            fallbackLocal();
-          }
+          setTransactionsError('Failed to load sales from server. Showing local data if available.');
+          fallbackLocal();
         }
       } finally {
         setTransactionsLoading(false);
