@@ -9,6 +9,8 @@ import { requireAuth } from '@/lib/auth/session';
 import { getDashboardStats } from '@/lib/data/dashboardStats';
 
 export const dynamic = 'force-dynamic';
+/** Dashboard may load up to 250 products for category summary; allow cold start. */
+export const maxDuration = 30;
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   Object.entries(corsHeaders(req)).forEach(([k, v]) => res.headers.set(k, v));

@@ -4,11 +4,12 @@
  */
 
 import { getWarehouseProducts, type ProductRecord } from '@/lib/data/warehouseProducts';
+import { resolveWarehouseId, HUNNID_MAIN_WAREHOUSE_ID, LEGACY_HUNNID_MAIN_ID } from '@/lib/data/resolveWarehouseId';
 import { getSupabase } from '@/lib/supabase';
 
 const LOW_STOCK_ALERTS_LIMIT = 10;
-/** Max products to fetch for low-stock list and category summary only. Totals come from RPC. */
-const PRODUCTS_LIMIT_FOR_LIST = 2000;
+/** Products to fetch for low-stock list + category chips (totals come from RPC). */
+const PRODUCTS_LIMIT_FOR_DASHBOARD = 250;
 
 function getProductQty(p: ProductRecord): number {
   if (p.sizeKind === 'sized' && p.quantityBySize?.length > 0) {
@@ -86,7 +87,8 @@ export interface DashboardStatsResult {
 /** Warehouse IDs used for "today by warehouse" summary (Main Jeff, Hunnid Main). */
 const DEFAULT_WAREHOUSE_IDS = [
   '00000000-0000-0000-0000-000000000001',
-  '00000000-0000-0000-0000-000000000002',
+  LEGACY_HUNNID_MAIN_ID,
+  HUNNID_MAIN_WAREHOUSE_ID,
 ];
 
 /**
@@ -131,14 +133,23 @@ export async function getDashboardStats(
   warehouseId: string,
   options: { date?: string } = {}
 ): Promise<DashboardStatsResult> {
+  const db = getSupabase();
+  const resolvedWarehouseId = await resolveWarehouseId(db, warehouseId);
   const date = options.date ?? new Date().toISOString().split('T')[0];
-  const [dbStats, productsResult, todaySales] = await Promise.all([
-    getWarehouseStatsFromDb(warehouseId),
-    getWarehouseProducts(warehouseId, { limit: PRODUCTS_LIMIT_FOR_LIST }),
-    getTodaySalesTotal(warehouseId, date),
+  const [dbStats, todaySales] = await Promise.all([
+    getWarehouseStatsFromDb(resolvedWarehouseId),
+    getTodaySalesTotal(resolvedWarehouseId, date),
   ]);
 
-  const products = productsResult.data;
+  let products: ProductRecord[] = [];
+  try {
+    const productsResult = await getWarehouseProducts(resolvedWarehouseId, {
+      limit: PRODUCTS_LIMIT_FOR_DASHBOARD,
+    });
+    products = productsResult.data;
+  } catch (e) {
+    console.warn('[dashboardStats] product list for dashboard extras failed:', e);
+  }
   const categorySummary: DashboardCategorySummary = {};
   const lowStockCandidates: ProductRecord[] = [];
 

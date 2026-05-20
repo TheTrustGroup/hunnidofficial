@@ -164,7 +164,98 @@ function rowToListProduct(
   };
 }
 
-/** Product ids stocked at this warehouse (inventory + by-size rows). */
+const WP_EMBED = 'warehouse_products';
+
+type InvJoinRow = {
+  quantity?: number;
+  product_id?: string;
+  warehouse_products?: Record<string, unknown> | Record<string, unknown>[];
+};
+
+function productFromInvJoinRow(row: InvJoinRow): Record<string, unknown> | null {
+  const wp = Array.isArray(row.warehouse_products) ? row.warehouse_products[0] : row.warehouse_products;
+  return wp && typeof wp === 'object' ? (wp as Record<string, unknown>) : null;
+}
+
+/**
+ * Fast path: paginate warehouse_inventory (indexed by warehouse_id) and embed product row.
+ * Avoids huge .in(id, …) filters that return 500 from PostgREST on ~177+ UUIDs.
+ */
+async function getWarehouseProductsFast(
+  db: SupabaseClient,
+  warehouseId: string,
+  options: ListOptions,
+  limit: number,
+  offset: number
+): Promise<ListResult> {
+  if (!warehouseId) return { data: [], total: 0 };
+
+  if (options.sizeCode?.trim()) {
+    const { data: sizeRows } = await db
+      .from('warehouse_inventory_by_size')
+      .select('product_id')
+      .eq('warehouse_id', warehouseId)
+      .eq('size_code', options.sizeCode.trim());
+    const allowed = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
+    if (allowed.length === 0) return { data: [], total: 0 };
+    return getWarehouseProductsByProductIds(db, warehouseId, allowed, options, limit, offset);
+  }
+
+  const embed = `quantity, product_id, ${WP_EMBED}!inner(${WAREHOUSE_PRODUCTS_SELECT})`;
+  let query = db
+    .from('warehouse_inventory')
+    .select(embed, { count: 'exact' })
+    .eq('warehouse_id', warehouseId);
+
+  const wpCol = (col: string) => `${WP_EMBED}.${col}`;
+  if (options.q?.trim()) {
+    const raw = options.q.trim();
+    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    query = query.or(
+      `${wpCol('name')}.ilike.%${q}%,${wpCol('sku')}.ilike.%${q}%,${wpCol('barcode')}.ilike.%${q}%`
+    );
+  }
+  if (options.category?.trim()) {
+    query = query.eq(wpCol('category'), options.category.trim());
+  }
+  if (options.color?.trim()) {
+    const colorVal = options.color.trim();
+    if (colorVal.toLowerCase() === 'uncategorized') query = query.is(wpCol('color'), null);
+    else query = query.ilike(wpCol('color'), colorVal);
+  }
+
+  query = query.order(wpCol('name'), { ascending: true }).range(offset, offset + limit - 1);
+
+  const { data: rows, error, count } = await query;
+  if (error) {
+    console.warn('[getWarehouseProductsFast] inventory embed failed:', error.message);
+    return getWarehouseProductsByProductIds(
+      db,
+      warehouseId,
+      await loadWarehouseProductIds(db, warehouseId),
+      options,
+      limit,
+      offset
+    );
+  }
+
+  const joinRows = (rows ?? []) as InvJoinRow[];
+  const pageIds = joinRows.map((r) => String(r.product_id ?? productFromInvJoinRow(r)?.id ?? '')).filter(Boolean);
+  const sizeMap = await loadSizeMap(db, warehouseId, pageIds);
+
+  const data = joinRows
+    .map((r) => {
+      const wp = productFromInvJoinRow(r);
+      if (!wp) return null;
+      const invQty = Number(r.quantity ?? 0);
+      return rowToListProduct(wp, warehouseId, invQty, sizeMap, options);
+    })
+    .filter((p): p is ListProduct => p !== null);
+
+  return { data, total: count ?? data.length };
+}
+
+/** Product ids at warehouse (inventory + size rows). */
 async function loadWarehouseProductIds(db: SupabaseClient, warehouseId: string): Promise<string[]> {
   const [{ data: invRows }, { data: sizeRows }] = await Promise.all([
     db.from('warehouse_inventory').select('product_id').eq('warehouse_id', warehouseId),
@@ -176,65 +267,51 @@ async function loadWarehouseProductIds(db: SupabaseClient, warehouseId: string):
   return [...ids];
 }
 
-/**
- * Fast path: resolve ids at warehouse, paginate warehouse_products, load qty/sizes for page only.
- * Avoids PostgREST !inner embed filters (they can hang until gateway timeout).
- */
-async function getWarehouseProductsFast(
+const IN_CHUNK = 80;
+
+/** Fallback when embed fails: chunk .in(id) to stay under PostgREST URL limits. */
+async function getWarehouseProductsByProductIds(
   db: SupabaseClient,
   warehouseId: string,
+  productIds: string[],
   options: ListOptions,
   limit: number,
   offset: number
 ): Promise<ListResult> {
-  if (!warehouseId) return { data: [], total: 0 };
-
-  let productIds = await loadWarehouseProductIds(db, warehouseId);
   if (productIds.length === 0) return { data: [], total: 0 };
 
-  if (options.sizeCode?.trim()) {
-    const { data: sizeRows } = await db
-      .from('warehouse_inventory_by_size')
-      .select('product_id')
-      .eq('warehouse_id', warehouseId)
-      .eq('size_code', options.sizeCode.trim());
-    const allowed = new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id));
-    productIds = productIds.filter((id) => allowed.has(id));
-    if (productIds.length === 0) return { data: [], total: 0 };
+  const allRows: Record<string, unknown>[] = [];
+  for (let i = 0; i < productIds.length; i += IN_CHUNK) {
+    const chunk = productIds.slice(i, i + IN_CHUNK);
+    let q = db.from('warehouse_products').select(WAREHOUSE_PRODUCTS_SELECT).in('id', chunk);
+    if (options.q?.trim()) {
+      const raw = options.q.trim();
+      const term = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+      q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,barcode.ilike.%${term}%`);
+    }
+    if (options.category?.trim()) q = q.eq('category', options.category.trim());
+    if (options.color?.trim()) {
+      const colorVal = options.color.trim();
+      if (colorVal.toLowerCase() === 'uncategorized') q = q.is('color', null);
+      else q = q.ilike('color', colorVal);
+    }
+    const { data: chunkRows, error } = await q;
+    if (error) throw new Error(`Failed to list products: ${error.message}`);
+    allRows.push(...((chunkRows ?? []) as Record<string, unknown>[]));
   }
 
-  let query = db
-    .from('warehouse_products')
-    .select(WAREHOUSE_PRODUCTS_SELECT, { count: 'exact' })
-    .in('id', productIds)
-    .order('name', { ascending: true })
-    .range(offset, offset + limit - 1);
-
-  if (options.q?.trim()) {
-    const raw = options.q.trim();
-    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
-  }
-  if (options.category?.trim()) query = query.eq('category', options.category.trim());
-  if (options.color?.trim()) {
-    const colorVal = options.color.trim();
-    if (colorVal.toLowerCase() === 'uncategorized') query = query.is('color', null);
-    else query = query.ilike('color', colorVal);
-  }
-
-  const { data: rows, error, count } = await query;
-  if (error) throw new Error(`Failed to list products: ${error.message}`);
-
-  const list = (rows ?? []) as Record<string, unknown>[];
-  const pageIds = list.map((r) => String(r.id ?? '')).filter(Boolean);
+  allRows.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')));
+  const page = allRows.slice(offset, offset + limit);
+  const pageIds = page.map((r) => String(r.id ?? '')).filter(Boolean);
 
   const invMap: Record<string, number> = {};
-  if (pageIds.length > 0) {
+  for (let i = 0; i < pageIds.length; i += IN_CHUNK) {
+    const chunk = pageIds.slice(i, i + IN_CHUNK);
     const { data: invRows } = await db
       .from('warehouse_inventory')
       .select('product_id, quantity')
       .eq('warehouse_id', warehouseId)
-      .in('product_id', pageIds);
+      .in('product_id', chunk);
     for (const inv of invRows ?? []) {
       const r = inv as { product_id: string; quantity?: number };
       invMap[r.product_id] = Number(r.quantity ?? 0);
@@ -242,11 +319,11 @@ async function getWarehouseProductsFast(
   }
   const sizeMap = await loadSizeMap(db, warehouseId, pageIds);
 
-  const data = list
+  const data = page
     .map((row) => rowToListProduct(row, warehouseId, invMap[String(row.id ?? '')] ?? 0, sizeMap, options))
     .filter((p): p is ListProduct => p !== null);
 
-  return { data, total: count ?? data.length };
+  return { data, total: allRows.length };
 }
 
 /** Legacy slow path if view is missing (pre-migration). */
