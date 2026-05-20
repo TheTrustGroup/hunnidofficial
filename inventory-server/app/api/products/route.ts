@@ -28,7 +28,7 @@ import { getRequestId, jsonError } from '@/lib/apiResponse';
 
 export const dynamic = 'force-dynamic';
 
-const PRODUCTS_GET_TIMEOUT_MS = 25_000;
+const PRODUCTS_GET_TIMEOUT_MS = 28_000;
 
 function isStatementTimeoutError(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e);
@@ -53,28 +53,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const requestedWarehouseId = searchParams.get('warehouse_id')?.trim() ?? undefined;
 
-  const db = getSupabase();
-  const scope = await getScopeForUser(auth.email);
   const isAdmin = /^(admin|super_admin|administrator)$/i.test(auth.role ?? '');
-  const resolvedRequested = requestedWarehouseId
-    ? await resolveWarehouseId(db, requestedWarehouseId)
-    : undefined;
-  const allowedResolved = await Promise.all(
-    scope.allowedWarehouseIds.map((id) => resolveWarehouseId(db, id))
-  );
-  if (
-    !isAdmin &&
-    allowedResolved.length > 0 &&
-    resolvedRequested &&
-    !allowedResolved.includes(resolvedRequested)
-  ) {
-    return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
+  if (!isAdmin) {
+    const db = getSupabase();
+    const scope = await getScopeForUser(auth.email);
+    const resolvedRequested = requestedWarehouseId
+      ? await resolveWarehouseId(db, requestedWarehouseId)
+      : undefined;
+    const allowedResolved = await Promise.all(
+      scope.allowedWarehouseIds.map((id) => resolveWarehouseId(db, id))
+    );
+    if (
+      allowedResolved.length > 0 &&
+      resolvedRequested &&
+      !allowedResolved.includes(resolvedRequested)
+    ) {
+      return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
+    }
   }
 
   const scopeWarehouseId = await getEffectiveWarehouseId(auth, requestedWarehouseId);
   if (scopeWarehouseId === null) {
     return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
   }
+  const db = getSupabase();
   const effectiveWarehouseId = await resolveWarehouseId(db, scopeWarehouseId);
   if (isInvalidWarehouseId(effectiveWarehouseId)) {
     return withCors(
@@ -101,6 +103,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const color = searchParams.get('color') ?? undefined;
     const lowStock = searchParams.get('low_stock') === '1' || searchParams.get('low_stock') === 'true';
     const outOfStock = searchParams.get('out_of_stock') === '1' || searchParams.get('out_of_stock') === 'true';
+    const listView = searchParams.get('view') === 'list';
 
     const work = getWarehouseProducts(effectiveWarehouseId, {
       limit,
@@ -111,6 +114,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       color,
       lowStock,
       outOfStock,
+      listView,
     });
 
     const timeoutPromise = new Promise<never>((_, reject) => {

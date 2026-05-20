@@ -3,7 +3,13 @@
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { normalizeQuantityBySizeForPersist } from '../../../warehouse-pos/src/lib/sizeCode';
-import { isInvalidWarehouseId, resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
+import {
+  HUNNID_MAIN_WAREHOUSE_ID,
+  isInvalidWarehouseId,
+  LEGACY_HUNNID_MAIN_ID,
+  LEGACY_MAIN_JEFF_ID,
+  resolveWarehouseId,
+} from '@/lib/data/resolveWarehouseId';
 
 export interface ListOptions {
   limit?: number;
@@ -16,6 +22,8 @@ export interface ListOptions {
   color?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
+  /** When true (view=list), skip per-size fetch to stay under API timeout; UI uses cache for images. */
+  listView?: boolean;
 }
 
 export interface ListResult {
@@ -186,10 +194,17 @@ async function getWarehouseProductsViaRpc(
   const total = Number(payload?.total ?? rows.length) || 0;
   const pageIds = rows.map((r) => String(r.id ?? '')).filter(Boolean);
   let sizeMap: Record<string, Array<{ sizeCode: string; sizeLabel?: string; quantity: number }>> = {};
-  try {
-    sizeMap = await loadSizeMap(db, warehouseId, pageIds);
-  } catch (e) {
-    console.warn('[getWarehouseProducts] size map skipped:', e);
+  if (!options.listView && pageIds.length > 0) {
+    try {
+      sizeMap = await Promise.race([
+        loadSizeMap(db, warehouseId, pageIds),
+        new Promise<typeof sizeMap>((_, reject) =>
+          setTimeout(() => reject(new Error('SIZE_MAP_TIMEOUT')), 8_000)
+        ),
+      ]);
+    } catch (e) {
+      console.warn('[getWarehouseProducts] size map skipped:', e);
+    }
   }
   const list = rows
     .map((row) => {
@@ -216,7 +231,8 @@ async function getWarehouseProductsFast(
   const rpcResult = await getWarehouseProductsViaRpc(db, warehouseId, options, limit, offset);
   if (rpcResult) return rpcResult;
 
-  return getWarehouseProductsPageFallback(db, warehouseId, options, limit, offset);
+  console.warn('[getWarehouseProducts] RPC unavailable; returning empty list');
+  return { data: [], total: 0 };
 }
 
 /** Fallback when RPC is not deployed: paginate via inventory join without loading full catalog. */
@@ -473,6 +489,14 @@ async function getWarehouseProductsLegacy(
   return { data, total: count ?? data.length };
 }
 
+function resolveWarehouseIdFast(warehouseId: string | undefined): string {
+  const raw = String(warehouseId ?? '').trim();
+  if (isInvalidWarehouseId(raw)) return '';
+  if (raw === LEGACY_MAIN_JEFF_ID) return LEGACY_MAIN_JEFF_ID;
+  if (raw === LEGACY_HUNNID_MAIN_ID || raw === HUNNID_MAIN_WAREHOUSE_ID) return HUNNID_MAIN_WAREHOUSE_ID;
+  return raw;
+}
+
 /** List products for a warehouse (paginated, warehouse-scoped). */
 export async function getWarehouseProducts(
   warehouseId: string | undefined,
@@ -481,7 +505,10 @@ export async function getWarehouseProducts(
   const db = getDb();
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 250);
   const offset = Math.max(options.offset ?? 0, 0);
-  const effectiveWarehouseId = await resolveWarehouseId(db, warehouseId ?? '');
+  let effectiveWarehouseId = resolveWarehouseIdFast(warehouseId);
+  if (!effectiveWarehouseId) {
+    effectiveWarehouseId = await resolveWarehouseId(db, warehouseId ?? '');
+  }
   if (isInvalidWarehouseId(effectiveWarehouseId)) {
     return { data: [], total: 0 };
   }

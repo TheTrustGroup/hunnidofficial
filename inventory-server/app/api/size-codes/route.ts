@@ -24,9 +24,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const db = getSupabase();
-    const { data, error } = await db
-      .from('size_codes')
-      .select('size_code, size_label, sort_order, size_order');
+    const { data, error } = await db.from('size_codes').select('size_code, size_label, size_order');
 
     if (error) {
       // Table may not exist or RLS; return empty array so UI still works
