@@ -7,10 +7,10 @@
 // Parent controls which card is in edit mode via activeEditId.
 // ============================================================
 
-import { useState, useRef, useCallback, memo } from 'react';
+import { useState, useRef, useCallback, memo, useEffect } from 'react';
 import type { Product } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
-import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
+import { ProductThumbnail } from './ProductThumbnail';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -288,8 +288,12 @@ function ProductCardInner({
 
   const status = getStockStatus(product);
   const firstImage = (product.images ?? [])[0];
-  const imageSrc = firstImage ? getSafeProductImageUrlSized(firstImage, 'thumb') : '';
-  const hasImage = Boolean(imageSrc && imageSrc !== EMPTY_IMAGE_DATA_URL);
+  const hasImage = Boolean(firstImage && typeof firstImage === 'string');
+  const [thumbFailed, setThumbFailed] = useState(false);
+  useEffect(() => {
+    setThumbFailed(false);
+  }, [product.id, firstImage]);
+  const showThumb = hasImage && !thumbFailed;
 
   return (
     <article
@@ -305,12 +309,12 @@ function ProductCardInner({
         className="relative w-full aspect-[4/3] overflow-hidden border-b bg-[var(--edk-surface-2)]"
         style={{ borderColor: 'var(--edk-border)' }}
       >
-        {hasImage ? (
-          <img
-            src={imageSrc}
+        {showThumb ? (
+          <ProductThumbnail
+            src={firstImage}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-[1.02]"
-            loading="lazy"
+            onFailed={() => setThumbFailed(true)}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-[var(--edk-ink-3)] bg-[var(--edk-surface-2)]">

@@ -25,6 +25,7 @@ import { useAuth } from './AuthContext';
 import { getCategoryDisplay, normalizeProductLocation } from '../lib/utils';
 import { parseProductsResponse } from '../lib/apiSchemas';
 import { getProductImages, setProductImages } from '../lib/productImagesStore';
+import { stripHeavyImagesForCache } from '../lib/productCacheImages';
 import {
   PRODUCTS_CACHE_TTL_MS,
   SILENT_REFRESH_THROTTLE_MS,
@@ -190,10 +191,12 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   /** Merge in client-saved images so they stay visible even when API/refresh omits them. */
   const productsWithLocalImages = useMemo(
     () =>
-      products.map((p) => ({
-        ...p,
-        images: getProductImages(p.id) ?? (Array.isArray(p.images) ? p.images : []),
-      })),
+      products.map((p) => {
+        const fromApi = Array.isArray(p.images) ? p.images : [];
+        const fromLocal = getProductImages(p.id);
+        const images = fromApi.length > 0 ? fromApi : (fromLocal ?? []);
+        return { ...p, images };
+      }),
     [products]
   );
   const isLoading = apiOnlyLoading;
@@ -237,7 +240,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     (next: Product[]) => {
       if (!isStorageAvailable() || !next?.length) return;
       try {
-        const ok = setStoredData(productsCacheKey(effectiveWarehouseId), next);
+        const ok = setStoredData(productsCacheKey(effectiveWarehouseId), stripHeavyImagesForCache(next));
         if (!ok) setStoragePersistFailed(true);
       } catch (e) {
         reportError(e instanceof Error ? e : new Error(String(e)), { context: 'persistProducts', listLength: next.length });
@@ -422,7 +425,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           }
           if (effectiveWarehouseIdRef.current === wid) {
             cacheRef.current[wid] = { data: next, ts: Date.now() };
-            if (isStorageAvailable()) setStoredData(productsCacheKey(wid), next);
+            if (isStorageAvailable()) setStoredData(productsCacheKey(wid), stripHeavyImagesForCache(next));
           }
           return next;
         });
@@ -655,7 +658,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         logInventoryRead({ listLength: listToSet.length, environment: import.meta.env.PROD ? 'production' : 'development' });
         // Persist per-warehouse list (including []) so Dashboard/Inventory never show another warehouse's cached data.
         if (isStorageAvailable()) {
-          setStoredData(productsCacheKey(wid), listToSet);
+          setStoredData(productsCacheKey(wid), stripHeavyImagesForCache(listToSet));
         }
       } catch (apiErr) {
         if (apiErr instanceof Error && apiErr.name === 'AbortError') return;
@@ -782,7 +785,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   // Persist inventory per warehouse so list shows immediately on next login/refresh.
   useEffect(() => {
     if (!isLoading && products.length > 0 && isStorageAvailable()) {
-      const ok = setStoredData(productsCacheKey(effectiveWarehouseId), products);
+      const ok = setStoredData(productsCacheKey(effectiveWarehouseId), stripHeavyImagesForCache(products));
       setStoragePersistFailed(!ok);
     }
   }, [products, isLoading, effectiveWarehouseId]);
@@ -1021,7 +1024,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       setLastSyncAt(new Date());
       if (isStorageAvailable()) {
         const nextList = [normalized, ...apiOnlyProducts.filter((p) => p.id !== tempId)];
-        setStoredData(productsCacheKey(effectiveWarehouseId), nextList);
+        setStoredData(productsCacheKey(effectiveWarehouseId), stripHeavyImagesForCache(nextList));
       }
       logInventoryCreate({ productId: resolvedId, sku: productData.sku ?? '', listLength: apiOnlyProducts.length + 1 });
       showToast('success', 'Product saved.');
@@ -1120,7 +1123,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       const at = Date.now();
       lastUpdatedProductRef.current = { product: finalProduct, at };
       if (isSized) lastSizeUpdateAtRef.current = at;
-      if (isStorageAvailable()) setStoredData(productsCacheKey(effectiveWarehouseId), newList);
+      if (isStorageAvailable()) setStoredData(productsCacheKey(effectiveWarehouseId), stripHeavyImagesForCache(newList));
       setLastSyncAt(new Date());
       logInventoryUpdate({ productId: id, sku: product.sku });
       showToast('success', 'Product updated.');
