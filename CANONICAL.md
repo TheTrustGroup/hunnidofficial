@@ -5,8 +5,8 @@
 | Path | Purpose |
 |------|---------|
 | `warehouse-pos/src/` | React frontend (Vite) |
-| `warehouse-pos/inventory-server/` | Next.js API + Supabase |
-| `warehouse-pos/inventory-server/supabase/migrations/` | Database migrations |
+| `inventory-server/` | Next.js API + Supabase (repo root — Vercel Root Directory) |
+| `inventory-server/supabase/migrations/` | Database migrations |
 
 ## Deprecated (archived)
 
@@ -20,9 +20,9 @@ Git history for those paths is preserved via `git mv`.
 
 ## Vercel (API project)
 
-The repo root has a **symlink** `inventory-server` → `warehouse-pos/inventory-server` so Vercel projects that still use Root Directory `inventory-server` build successfully after consolidation.
+**Root Directory:** `inventory-server` (real folder at repo root).
 
-Preferred dashboard setting: Root Directory = `warehouse-pos/inventory-server` (symlink then optional).
+**Frontend** project: Root Directory = `warehouse-pos` (or repo root with root `vercel.json` pointing at `warehouse-pos/dist`).
 
 ## User browser data (not lost)
 
@@ -40,7 +40,7 @@ Always from `warehouse-pos/`:
 
 ```bash
 cd warehouse-pos && npm install && npm run dev
-cd warehouse-pos/inventory-server && npm install && npm run dev
+cd inventory-server && npm install && npm run dev
 ```
 
 Or from repo root (delegates):

@@ -59,10 +59,10 @@ npm run dev
 
 ## Deploy (this repo)
 
-- **App lives in:** `warehouse-pos/` (frontend + `inventory-server`).
+- **App lives in:** `warehouse-pos/` (frontend) and `inventory-server/` (API at repo root).
 - **Clean build:** From repo root: `cd warehouse-pos && rm -rf node_modules dist && npm install && npm run build`.
 - **Deploy:** Push `main` to `origin`; Vercel builds and deploys from Git. (CI workflow was omitted from this branch so push works without GitHub `workflow` scope; add `.github/workflows/ci.yml` via the GitHub UI or a token with workflow scope if needed.)
 
 ## Deploy / 405 fix runbooks
 
-Archived runbooks for CORS and `/api/products` deployment are in **warehouse-pos/inventory-server/docs/archive/** (e.g. `DEPLOY_AND_VERIFY_405.md`, `DEPLOY_VERIFY_405_FIX.md`).
+Archived runbooks for CORS and `/api/products` deployment are in **inventory-server/docs/archive/** (e.g. `DEPLOY_AND_VERIFY_405.md`, `DEPLOY_VERIFY_405_FIX.md`).

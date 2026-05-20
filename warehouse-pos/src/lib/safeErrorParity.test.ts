@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toSafeError } from '../../inventory-server/lib/safeError';
+import { toSafeError } from '../../../inventory-server/lib/safeError';
 
 /**
  * API responses must stay sanitized; extend when new DB errors surface in production.

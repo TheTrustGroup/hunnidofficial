@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "npm run dev --prefix warehouse-pos",
     "build": "npm run build --prefix warehouse-pos",
-    "build:server": "npm run build --prefix warehouse-pos/inventory-server",
+    "build:server": "npm run build --prefix inventory-server",
     "build:all": "npm run build && npm run build:server",
     "build:bundler-only": "npm run build:bundler-only --prefix warehouse-pos",
     "lint": "npm run lint --prefix warehouse-pos",

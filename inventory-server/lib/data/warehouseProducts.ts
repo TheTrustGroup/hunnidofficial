@@ -2,7 +2,7 @@
  * Warehouse products list and create. List response includes images for POS/Inventory.
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { normalizeQuantityBySizeForPersist } from '../../../src/lib/sizeCode';
+import { normalizeQuantityBySizeForPersist } from '../../../warehouse-pos/src/lib/sizeCode';
 
 export interface ListOptions {
   limit?: number;
