@@ -31,11 +31,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { InfiniteData } from '@tanstack/react-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { getApiHeaders, API_BASE_URL } from '../lib/api';
 import { notifyInventoryUpdated } from '../lib/inventoryEvents';
-import { useProductsQuery, productsQueryKey } from '../hooks/useProductsQuery';
+import { useProductsQuery } from '../hooks/useProductsQuery';
+import {
+  applyStockDeductionToProductsCache,
+  invalidateProductsQuery,
+} from '../lib/productsQueryCache';
 import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from '../contexts/WarehouseContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -420,38 +423,17 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       }
     }
 
-    // Step 2: Deduct stock in React Query cache when sync succeeded (so UI matches server)
+    // Step 2: Deduct stock in shared React Query cache when sync succeeded
     if (syncOk && warehouse?.id) {
-      const key = productsQueryKey(warehouse.id);
-      queryClient.setQueryData<InfiniteData<{ data: POSProduct[]; total: number }>>(key, (old) => {
-        if (!old) return old;
-        const deduct = (p: POSProduct): POSProduct => {
-          const saleLines = payload.lines.filter((l) => l.productId === p.id);
-          if (saleLines.length === 0) return p;
-          if (p.sizeKind === 'sized') {
-            const updatedSizes = (p.quantityBySize ?? []).map((row) => {
-              const line = saleLines.find(
-                (l) =>
-                  l.sizeCode &&
-                  row.sizeCode &&
-                  l.sizeCode.toUpperCase() === row.sizeCode.toUpperCase()
-              );
-              return line ? { ...row, quantity: Math.max(0, row.quantity - line.qty) } : row;
-            });
-            return {
-              ...p,
-              quantityBySize: updatedSizes,
-              quantity: updatedSizes.reduce((s, r) => s + r.quantity, 0),
-            };
-          }
-          const totalSold = saleLines.reduce((s, l) => s + l.qty, 0);
-          return { ...p, quantity: Math.max(0, p.quantity - totalSold) };
-        };
-        return {
-          ...old,
-          pages: old.pages.map((page) => ({ ...page, data: page.data.map(deduct) })),
-        };
-      });
+      applyStockDeductionToProductsCache(
+        queryClient,
+        warehouse.id,
+        payload.lines.map((l) => ({
+          productId: l.productId,
+          sizeCode: l.sizeCode,
+          qty: l.qty,
+        }))
+      );
     }
 
     if (!syncOk) {
@@ -467,9 +449,11 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     const successPayload = payload;
     const successResult = { serverSaleId, serverReceiptId, completedAt };
     if (warehouse?.id) {
-      const key = productsQueryKey(warehouse.id);
-      await queryClient.invalidateQueries({ queryKey: key, exact: false });
-      await queryClient.refetchQueries({ queryKey: key, exact: false });
+      await invalidateProductsQuery(queryClient, warehouse.id);
+      await queryClient.refetchQueries({
+        queryKey: ['products', warehouse.id],
+        exact: false,
+      });
     }
     setTimeout(() => {
       if (!isMounted.current) return;

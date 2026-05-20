@@ -159,6 +159,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Try atomic RPC first. record_sale deducts stock. Pass p_lines as JSON string so DB receives valid array (record_sale text overload).
+    const clientEventUuid =
+      clientEventId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientEventId)
+        ? clientEventId
+        : null;
+
     const { data, error } = await db.rpc('record_sale', {
       p_warehouse_id: warehouseId,
       p_lines: JSON.stringify(normalizedLines),
@@ -170,6 +175,7 @@ export async function POST(req: NextRequest) {
       p_customer_name: customerName,
       p_sold_by: null,
       p_sold_by_email: auth?.email ?? null,
+      p_client_event_id: clientEventUuid,
     });
 
     if (error) {
@@ -229,12 +235,13 @@ export async function POST(req: NextRequest) {
 
     const result = typeof data === 'string' ? JSON.parse(data) : (data ?? {});
     const saleId = result.id ?? result.saleId ?? null;
+    const rpcIdempotent = Boolean(result.idempotent);
 
     // Patch delivery fields and/or mix breakdown onto the sale if needed
     if (saleId) {
       const patches: Record<string, unknown> = {};
-      if (clientEventId) {
-        patches.client_event_id = clientEventId;
+      if (clientEventUuid && !rpcIdempotent) {
+        patches.client_event_id = clientEventUuid;
       }
       if (effectiveDeliveryStatus !== 'delivered') {
         Object.assign(patches, {
@@ -263,8 +270,9 @@ export async function POST(req: NextRequest) {
         status: 'completed',
         deliveryStatus: effectiveDeliveryStatus,
         createdAt: result.createdAt ?? result.created_at ?? new Date().toISOString(),
+        ...(rpcIdempotent ? { idempotent: true } : {}),
       },
-      { status: 201, headers: h }
+      { status: rpcIdempotent ? 200 : 201, headers: h }
     );
   } catch (e: unknown) {
     console.error('[API ERROR]', e);

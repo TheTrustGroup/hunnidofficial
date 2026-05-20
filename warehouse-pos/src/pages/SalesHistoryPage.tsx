@@ -544,7 +544,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
       <header className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div>
-            <h1 className="text-[20px] font-bold text-slate-900">Sales History</h1>
+            <h1 className="page-title text-[20px] font-bold text-slate-900">Sales History</h1>
             {/* Warehouse selector */}
             <div className="relative mt-0.5">
               <button type="button" onClick={() => setWhDropdown(v => !v)}

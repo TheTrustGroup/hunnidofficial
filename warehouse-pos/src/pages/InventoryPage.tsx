@@ -655,7 +655,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
     <div className="min-h-screen bg-[var(--edk-bg)] pb-28" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-[12px] text-[var(--edk-ink-3)] mb-4 px-0">
+      <div className="hidden lg:flex items-center gap-1.5 text-[12px] text-[var(--edk-ink-3)] mb-4 px-0">
         <span>{warehouse?.name ?? 'Main Jeff'}</span>
         <span className="opacity-40" aria-hidden>›</span>
         <span className="text-[var(--edk-ink-2)] font-medium">Inventory</span>
@@ -664,7 +664,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
       {/* Page header: title + subtitle + Add product */}
       <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-[22px] font-extrabold tracking-wide text-[var(--edk-ink)] uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
+          <h1 className="page-title text-[22px] font-extrabold tracking-wide text-[var(--edk-ink)] uppercase" style={{ fontFamily: "'Barlow Condensed', sans-serif" }}>
             Inventory
           </h1>
           <p className="text-[12px] text-[var(--edk-ink-3)]" aria-live="polite">

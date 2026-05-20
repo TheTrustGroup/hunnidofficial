@@ -26,6 +26,23 @@ export interface NavItem {
   anyPermissions?: Permission[];
 }
 
+export type NavPermissionCheck = {
+  hasPermission: (p: Permission) => boolean;
+  hasAnyPermission: (ps: Permission[]) => boolean;
+  isWarehouseBoundToSession?: boolean;
+};
+
+/** Same rules as Sidebar: permission, anyPermissions, hide Inventory when session-bound to one warehouse. */
+export function isNavItemVisible(
+  item: NavItem,
+  { hasPermission, hasAnyPermission, isWarehouseBoundToSession }: NavPermissionCheck
+): boolean {
+  if (item.name === 'Inventory' && isWarehouseBoundToSession) return false;
+  if (item.permission != null) return hasPermission(item.permission);
+  if (item.anyPermissions != null) return hasAnyPermission(item.anyPermissions);
+  return false;
+}
+
 export const BASE_NAVIGATION: NavItem[] = [
   { name: 'Dashboard', to: '/', icon: LayoutDashboard, permission: PERMISSIONS.DASHBOARD.VIEW },
   { name: 'Inventory', to: '/inventory', icon: Package, permission: PERMISSIONS.INVENTORY.VIEW },
@@ -47,7 +64,7 @@ export const BASE_NAVIGATION: NavItem[] = [
   { name: 'Settings', to: '/settings', icon: Settings, permission: PERMISSIONS.SETTINGS.VIEW },
 ];
 
-/** Alias for components that expect baseNavigation (e.g. MoreMenuSheet). */
+/** Alias for components that expect baseNavigation. */
 export const baseNavigation = BASE_NAVIGATION;
 
 /** Bottom nav: exactly 5 tabs. "More" goes to /more; other items listed there. */
@@ -61,7 +78,7 @@ export const BOTTOM_NAV_TABS: NavItem[] = [
 
 /** Items shown on the More page (Sales, Deliveries, Reports, Users, Settings). */
 export const MORE_PAGE_NAV: NavItem[] = BASE_NAVIGATION.filter(
-  (item) => !['/', '/inventory', '/orders', '/pos'].includes(item.to)
+  (item) => !['/', '/inventory', '/orders', '/pos', '/more'].includes(item.to)
 );
 
 /** Re-export for components that need MapPin (warehouse switcher) */

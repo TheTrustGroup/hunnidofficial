@@ -400,7 +400,7 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
       <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-[20px] font-extrabold text-slate-900 tracking-tight">Deliveries</h1>
+            <h1 className="page-title text-[20px] font-extrabold text-slate-900 tracking-tight">Deliveries</h1>
             <p className="text-[12px] text-slate-400 mt-0.5">
               {viewMode === 'queue'
                 ? `${pendingCount + dispatchedCount} active${cancelledCount > 0 ? ` · ${cancelledCount} cancelled` : ''}${overdueCount > 0 ? ` · ${overdueCount} overdue` : ''}`

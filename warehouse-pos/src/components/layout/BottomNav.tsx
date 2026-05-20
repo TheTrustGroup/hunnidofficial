@@ -5,7 +5,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWarehouse } from '../../contexts/WarehouseContext';
-import { BOTTOM_NAV_TABS } from '../../config/navigation';
+import { BOTTOM_NAV_TABS, MORE_PAGE_NAV, isNavItemVisible } from '../../config/navigation';
 
 const MORE_PATHS = ['/more', '/sales', '/deliveries', '/reports', '/users', '/settings'];
 
@@ -29,14 +29,16 @@ const LABEL_SIZE_PX = 10;
 
 export function BottomNav() {
   const { pathname } = useLocation();
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasAnyPermission } = useAuth();
   const { isWarehouseBoundToSession } = useWarehouse();
 
+  const permCheck = { hasPermission, hasAnyPermission, isWarehouseBoundToSession };
+
   const filtered = BOTTOM_NAV_TABS.filter((tab) => {
-    if (tab.name === 'More') return true;
-    if (tab.name === 'Inventory' && isWarehouseBoundToSession) return false;
-    if (tab.permission != null) return hasPermission(tab.permission);
-    return true;
+    if (tab.to === '/more') {
+      return MORE_PAGE_NAV.some((item) => isNavItemVisible(item, permCheck));
+    }
+    return isNavItemVisible(tab, permCheck);
   });
   const visibleTabs = orderTabsWithPosCenter(filtered);
 

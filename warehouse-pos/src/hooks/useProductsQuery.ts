@@ -1,22 +1,19 @@
 /**
- * Shared products query for POS (and optionally Inventory).
- * Cache key: ['products', warehouseId]; staleTime 60s, gcTime 5min so navigation doesn't refetch when fresh.
- *
- * Inventory page currently uses its own fetch with server-side filters (q, category, size_code, color).
- * To share cache in a future iteration: use this hook when all filters are "all" and fall back to
- * the existing fetch when any filter is applied.
+ * Shared products query for POS and Inventory (via productsQueryCache sync).
+ * Cache key: queryKeys.products(warehouseId). InventoryContext writes; this hook reads.
  */
 
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { API_BASE_URL, getApiHeaders } from '../lib/api';
 import type { POSProduct } from '../components/pos/SizePickerSheet';
 import { isValidWarehouseId } from '../lib/warehouseId';
+import { productsQueryKey } from '../lib/productsQueryCache';
+
+export { productsQueryKey };
 
 const PAGE_SIZE = 100;
 const STALE_MS = 60_000;
 const GC_MS = 5 * 60 * 1000;
-
-export const productsQueryKey = (warehouseId: string) => ['products', warehouseId] as const;
 
 async function fetchProductsPage(
   warehouseId: string,

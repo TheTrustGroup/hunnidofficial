@@ -6,7 +6,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { ChevronRight, MapPin, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWarehouse } from '../contexts/WarehouseContext';
-import { MORE_PAGE_NAV } from '../config/navigation';
+import { MORE_PAGE_NAV, isNavItemVisible } from '../config/navigation';
 import { ROLES } from '../types/permissions';
 
 function getRoleDisplayName(roleId: string | undefined): string {
@@ -34,21 +34,16 @@ export function MorePage() {
   const showWarehouseSwitcher = !warehousesLoading && warehouses.length > 0;
   const canSwitchWarehouse = showWarehouseSwitcher && warehouses.length > 1 && !isWarehouseBoundToSession;
 
-  const items = MORE_PAGE_NAV.filter(
-    (item) =>
-      (item.permission != null && hasPermission(item.permission)) ||
-      (item.anyPermissions != null && hasAnyPermission(item.anyPermissions))
+  const items = MORE_PAGE_NAV.filter((item) =>
+    isNavItemVisible(item, { hasPermission, hasAnyPermission, isWarehouseBoundToSession })
   );
 
   return (
     <div className="animate-fade-in-up max-w-lg mx-auto">
       {/* Header: MORE — reference style, no close (full page) */}
       <header className="flex items-center justify-between mb-6">
-        <h1
-          className="font-bold tracking-tight text-[var(--edk-ink)]"
-          style={{ fontSize: 20 }}
-        >
-          MORE
+        <h1 className="page-title font-bold tracking-tight text-[var(--edk-ink)]" style={{ fontSize: 20 }}>
+          More
         </h1>
       </header>
 

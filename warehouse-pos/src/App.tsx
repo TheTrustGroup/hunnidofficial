@@ -62,7 +62,7 @@ const Users = () => {
   return (
     <div className="space-y-8">
       <div className="animate-fade-in-up">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight mb-1">Users</h1>
+        <h1 className="page-title text-[32px] font-bold text-slate-900 tracking-tight mb-1">Users</h1>
         <p className="text-slate-500 text-sm">Redirecting to User Management...</p>
       </div>
       <div className="solid-card text-center p-12">

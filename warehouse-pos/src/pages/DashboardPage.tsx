@@ -113,7 +113,7 @@ export default function DashboardPage() {
           <div>
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
               <h1
-                className="text-[18px] font-bold tracking-tight text-[var(--edk-ink)]"
+                className="page-title text-[18px] font-bold tracking-tight text-[var(--edk-ink)]"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif" }}
               >
                 Dashboard

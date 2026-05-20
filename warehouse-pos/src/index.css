@@ -159,6 +159,26 @@
 .loading-wave-dots-inverse span { background: rgba(255,255,255,0.95); }
 
 @layer base {
+  /* iOS Safari auto-zooms focused inputs below 16px — keep touch targets without manual pinch */
+  @media (max-width: 1023px) {
+    input,
+    select,
+    textarea,
+    .input-field {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Page h1: mobile layout Header already shows route title */
+  .page-title {
+    display: none;
+  }
+  @media (min-width: 1024px) {
+    .page-title {
+      display: block;
+    }
+  }
+
   /* Slightly smaller base for zoomed-out, high-class consistency across app */
   html {
     font-size: 15px;
@@ -423,7 +443,16 @@
   /* Modals/forms: reserve space above bottom nav on mobile so action bars are visible (use design token). */
   @media (max-width: 1023px) {
     .product-form-modal-overlay {
+      align-items: flex-start;
+      padding-top: max(0.5rem, var(--safe-top));
       padding-bottom: calc(var(--bottom-nav-h) + 16px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .product-form-modal-overlay .modal-content-fit {
+      max-height: calc(100dvh - var(--bottom-nav-h) - var(--safe-top) - 1rem);
+      margin-top: 0;
+      margin-bottom: auto;
     }
   }
 

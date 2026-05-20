@@ -5,7 +5,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWarehouse } from '../../contexts/WarehouseContext';
 import { ROLES } from '../../types/permissions';
-import { BASE_NAVIGATION } from '../../config/navigation';
+import { BASE_NAVIGATION, isNavItemVisible } from '../../config/navigation';
 
 function getRoleDisplayName(roleId: string | undefined): string {
   if (roleId == null || roleId === '') return '—';
@@ -43,12 +43,13 @@ export function Sidebar() {
 
   const canSeeSwitchRole = user?.role === 'admin' || user?.role === 'super_admin';
 
-  const navigation = BASE_NAVIGATION.filter(
-    (item) =>
-      (item.permission == null && 'to' in item) ||
-      ('permission' in item && item.permission && hasPermission(item.permission)) ||
-      ('anyPermissions' in item && item.anyPermissions && hasAnyPermission(item.anyPermissions))
-  ).filter((item) => !(item.name === 'Inventory' && isWarehouseBoundToSession));
+  const navigation = BASE_NAVIGATION.filter((item) =>
+    isNavItemVisible(item, {
+      hasPermission,
+      hasAnyPermission,
+      isWarehouseBoundToSession,
+    })
+  );
 
   const adminStartIndex = navigation.findIndex((item) => item.name === 'Users');
   const mainNav = adminStartIndex >= 0 ? navigation.slice(0, adminStartIndex) : navigation;

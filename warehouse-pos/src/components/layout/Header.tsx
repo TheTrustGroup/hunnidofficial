@@ -57,9 +57,10 @@ export function Header() {
     '/': 'Dashboard',
     '/inventory': 'Inventory',
     '/orders': 'Orders',
-    '/sales': 'Sales',
+    '/sales': 'Sales History',
     '/deliveries': 'Deliveries',
     '/reports': 'Reports',
+    '/more': 'More',
     '/users': 'Users',
     '/settings': 'Settings',
   };

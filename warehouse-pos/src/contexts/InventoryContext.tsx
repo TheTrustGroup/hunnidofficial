@@ -11,6 +11,7 @@
  * No "saved" without confirmed 2xx. Offline path still uses local-first; ADD_PRODUCT_SAVED_LOCALLY for that flow.
  */
 import React, { createContext, useContext, useState, useRef, ReactNode, useEffect, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Product } from '../types';
 import { getStoredData, setStoredData, isStorageAvailable } from '../lib/storage';
 import { API_BASE_URL } from '../lib/api';
@@ -84,6 +85,13 @@ function getCachedProductsForWarehouse(warehouseId: string): Product[] {
 }
 import { reportError } from '../lib/errorReporting';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
+import { INVENTORY_UPDATED_EVENT } from '../lib/inventoryEvents';
+import {
+  syncProductsListToQueryCache,
+  getProductsListFromQueryCache,
+  posProductsToInventoryProducts,
+  invalidateProductsQuery,
+} from '../lib/productsQueryCache';
 import {
   logInventoryCreate,
   logInventoryUpdate,
@@ -155,6 +163,7 @@ export const ADD_PRODUCT_SAVED_LOCALLY =
 
 /** Hunnid Official: only Main Jeff and Hunnid Main. We always use the selected warehouse id so products load for both. */
 export function InventoryProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const { currentWarehouseId } = useWarehouse();
   const { showToast } = useToast();
   const { tryRefreshSession } = useAuth();
@@ -238,6 +247,17 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (products.length > 0) persistProducts(products);
   }, [products, persistProducts]);
+
+  /** Keep React Query product cache aligned with Inventory list (POS reads same key). */
+  useEffect(() => {
+    if (!isValidWarehouseId(effectiveWarehouseId)) return;
+    syncProductsListToQueryCache(
+      queryClient,
+      effectiveWarehouseId,
+      productsWithLocalImages,
+      productsTotal
+    );
+  }, [queryClient, effectiveWarehouseId, productsWithLocalImages, productsTotal]);
 
   const cacheRef = useRef<Record<string, { data: Product[]; ts: number }>>({});
   /** Throttle "Showing cached data" toast to once per 15s so multiple failed loads don't stack. */
@@ -696,7 +716,13 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     setProducts([]);
     setProductsTotal(null);
     setError(null);
-    const productsFromCache = getCachedProductsForWarehouse(effectiveWarehouseId);
+    let productsFromCache = getCachedProductsForWarehouse(effectiveWarehouseId);
+    if (productsFromCache.length === 0) {
+      const fromQuery = getProductsListFromQueryCache(queryClient, effectiveWarehouseId);
+      if (fromQuery.length > 0) {
+        productsFromCache = posProductsToInventoryProducts(fromQuery);
+      }
+    }
     if (productsFromCache.length > 0) {
       setProducts(productsFromCache);
       setIsLoading(false);
@@ -713,10 +739,26 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       mountedRef.current = false;
       ac.abort();
     };
-  }, [currentWarehouseId]);
+  }, [currentWarehouseId, queryClient]);
+
+  // POS sale / order deduct: refresh inventory list and invalidate shared product query.
+  useEffect(() => {
+    const onInventoryUpdated = () => {
+      void invalidateProductsQuery(queryClient, effectiveWarehouseId);
+      void loadProductsRef.current(undefined, { silent: true, bypassCache: true });
+    };
+    window.addEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
+    return () => window.removeEventListener(INVENTORY_UPDATED_EVENT, onInventoryUpdated);
+  }, [queryClient, effectiveWarehouseId]);
 
   // Real-time: poll when tab visible so all devices see server truth. 30s reduces jitter from aggressive refresh while keeping cross-device updates reasonable.
-  useRealtimeSync({ onSync: () => loadProducts(undefined, { silent: true, bypassCache: true }), intervalMs: INVENTORY_POLL_MS });
+  useRealtimeSync({
+    onSync: () => {
+      void invalidateProductsQuery(queryClient, effectiveWarehouseId);
+      return loadProducts(undefined, { silent: true, bypassCache: true });
+    },
+    intervalMs: INVENTORY_POLL_MS,
+  });
 
   // When user returns to this tab, refetch from server so changes from other devices (e.g. deletes) show immediately.
   useEffect(() => {
