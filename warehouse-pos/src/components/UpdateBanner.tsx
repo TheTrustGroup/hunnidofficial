@@ -11,8 +11,13 @@ export function UpdateBanner() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    const onSwUpdate = () => setShow(true);
+    window.addEventListener('sw-update', onSwUpdate);
+
     const clientBuildId = typeof import.meta !== 'undefined' && import.meta.env?.VITE_BUILD_ID;
-    if (!clientBuildId) return;
+    if (!clientBuildId) {
+      return () => window.removeEventListener('sw-update', onSwUpdate);
+    }
 
     const check = async () => {
       try {
@@ -25,7 +30,10 @@ export function UpdateBanner() {
 
     check();
     const id = setInterval(check, VERSION_CHECK_INTERVAL_MS);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('sw-update', onSwUpdate);
+    };
   }, []);
 
   if (!show) return null;

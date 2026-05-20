@@ -12,7 +12,6 @@ import { generateSalesReport, generateInventoryReport, exportToCSV, getProductQt
 import { fetchSalesAsTransactions, fetchSalesReportFromApi, type SalesReportFromApi } from '../services/salesApi';
 import { Transaction } from '../types';
 import { formatCurrency, getCategoryDisplay, formatDate } from '../lib/utils';
-import { getStoredData } from '../lib/storage';
 import { parseDate, validateDateRange } from '../lib/dateUtils';
 import { API_BASE_URL, getApiHeaders } from '../lib/api';
 import { isValidWarehouseId } from '../lib/warehouseId';
@@ -106,18 +105,6 @@ export function Reports() {
     const toIso = end.toISOString();
     const warehouseIdForRequests = isValidWarehouseId(currentWarehouseId) ? currentWarehouseId : undefined;
 
-    const fallbackLocal = () => {
-      const stored = getStoredData<Transaction[]>('transactions', []);
-      const withDates = (Array.isArray(stored) ? stored : []).map((t: Transaction & { createdAt?: unknown; completedAt?: unknown }) => ({
-        ...t,
-        createdAt: t.createdAt instanceof Date ? t.createdAt : (parseDate(t.createdAt != null ? String(t.createdAt) : '') ?? new Date()),
-        completedAt: t.completedAt instanceof Date ? t.completedAt : (t.completedAt != null ? parseDate(String(t.completedAt)) : null),
-      }));
-      setTransactions(withDates);
-      setTransactionsSource('local');
-      setSalesReportFromApi(null);
-    };
-
     if (canFetchServerData) {
       setTransactionsLoading(true);
       setTransactionsError(null);
@@ -144,16 +131,20 @@ export function Reports() {
           setTransactions(data);
           setTransactionsSource('server');
         } catch {
-          setTransactionsError('Failed to load sales from server. Showing local data if available.');
-          fallbackLocal();
+          setTransactions([]);
+          setTransactionsSource('server');
+          setTransactionsError(
+            'Could not load sales from the server. Check connection and that GET /api/reports/sales is deployed.'
+          );
         }
       } finally {
         setTransactionsLoading(false);
       }
     } else {
-      setTransactionsError(null);
+      setTransactionsError('Sign in to load sales reports from the server.');
+      setTransactions([]);
+      setTransactionsSource('local');
       setSalesReportFromApi(null);
-      fallbackLocal();
     }
   }, [startDate, endDate, canFetchServerData, currentWarehouseId]);
 
@@ -324,10 +315,12 @@ export function Reports() {
           {!transactionsLoading && reportType === 'sales' && (
             <p className="text-sm text-slate-500">
               {transactionsSource === 'server'
-                ? (currentWarehouseId
-                    ? `Showing POS sales for ${currentWarehouse?.name ?? 'this location'} for the selected date range.`
-                    : 'Showing POS sales from server for the selected date range and warehouse.')
-                : 'Showing sales from this device (offline/local).'}
+                ? (salesReportFromApi
+                    ? `SQL report for ${currentWarehouse?.name ?? 'this warehouse'} (revenue, COGS, profit).`
+                    : currentWarehouseId
+                      ? `POS sales for ${currentWarehouse?.name ?? 'this location'} (from GET /api/sales).`
+                      : 'POS sales from server for the selected date range.')
+                : 'Sign in to load sales from the server.'}
             </p>
           )}
 

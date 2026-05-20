@@ -48,7 +48,7 @@ if (typeof window !== 'undefined') {
     import('./serviceWorkerRegistration.js').then(({ register }) => {
       register({
         onUpdate: () => {
-          window.dispatchEvent(new CustomEvent('sw-update-available'));
+          window.dispatchEvent(new CustomEvent('sw-update'));
         },
       });
     });

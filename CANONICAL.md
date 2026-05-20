@@ -37,7 +37,8 @@ POS sales that fail due to network/503 are queued in IndexedDB (`warehouse-pos` 
 ## Sales (single write path)
 
 - **POS + offline replay:** `POST /api/sales` → `record_sale` (see `inventory-server/docs/SALES_API.md`).
-- **Legacy:** `POST /api/transactions` is disabled by default (410). Enable only for migration tooling: `ALLOW_LEGACY_TRANSACTION_POST=true` on the API project.
+- **Legacy:** `POST /api/transactions` is disabled by default (410). Enable only while migrating old clients: `ALLOW_LEGACY_TRANSACTION_POST=true` on the **API** Vercel project, then remove it and redeploy once everything uses `/api/sales`.
+- **Reports:** `GET /api/reports/sales` (SQL via `get_sales_report` RPC). Reports UI does not use browser `localStorage` `transactions` when logged in.
 
 ## PWA
 
