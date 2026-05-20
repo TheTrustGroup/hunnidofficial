@@ -164,68 +164,86 @@ function rowToListProduct(
   };
 }
 
+/** Product ids stocked at this warehouse (inventory + by-size rows). */
+async function loadWarehouseProductIds(db: SupabaseClient, warehouseId: string): Promise<string[]> {
+  const [{ data: invRows }, { data: sizeRows }] = await Promise.all([
+    db.from('warehouse_inventory').select('product_id').eq('warehouse_id', warehouseId),
+    db.from('warehouse_inventory_by_size').select('product_id').eq('warehouse_id', warehouseId),
+  ]);
+  const ids = new Set<string>();
+  for (const r of invRows ?? []) ids.add(String((r as { product_id: string }).product_id));
+  for (const r of sizeRows ?? []) ids.add(String((r as { product_id: string }).product_id));
+  return [...ids];
+}
+
 /**
- * Fast path: products with inventory at this warehouse (paginated). No view, no load-all-IDs.
+ * Fast path: resolve ids at warehouse, paginate warehouse_products, load qty/sizes for page only.
+ * Avoids PostgREST !inner embed filters (they can hang until gateway timeout).
  */
-async function getWarehouseProductsViaJoin(
+async function getWarehouseProductsFast(
   db: SupabaseClient,
-  effectiveWarehouseId: string,
+  warehouseId: string,
   options: ListOptions,
   limit: number,
   offset: number
 ): Promise<ListResult> {
-  const warehouseId = await resolveWarehouseId(db, effectiveWarehouseId);
   if (!warehouseId) return { data: [], total: 0 };
 
-  const select = `${WAREHOUSE_PRODUCTS_SELECT}, warehouse_inventory!inner(quantity, warehouse_id)`;
+  let productIds = await loadWarehouseProductIds(db, warehouseId);
+  if (productIds.length === 0) return { data: [], total: 0 };
 
-  let query = db
-    .from('warehouse_products')
-    .select(select, { count: 'exact' })
-    .eq('warehouse_inventory.warehouse_id', warehouseId);
-
-  if (options.q?.trim()) {
-    const raw = options.q.trim();
-    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
-  }
-  if (options.category?.trim()) {
-    query = query.eq('category', options.category.trim());
-  }
-  if (options.color?.trim()) {
-    const colorVal = options.color.trim();
-    if (colorVal.toLowerCase() === 'uncategorized') query = query.is('color', null);
-    else query = query.ilike('color', colorVal);
-  }
   if (options.sizeCode?.trim()) {
     const { data: sizeRows } = await db
       .from('warehouse_inventory_by_size')
       .select('product_id')
       .eq('warehouse_id', warehouseId)
       .eq('size_code', options.sizeCode.trim());
-    const ids = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
-    if (ids.length === 0) return { data: [], total: 0 };
-    query = query.in('id', ids);
+    const allowed = new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id));
+    productIds = productIds.filter((id) => allowed.has(id));
+    if (productIds.length === 0) return { data: [], total: 0 };
   }
 
-  query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
+  let query = db
+    .from('warehouse_products')
+    .select(WAREHOUSE_PRODUCTS_SELECT, { count: 'exact' })
+    .in('id', productIds)
+    .order('name', { ascending: true })
+    .range(offset, offset + limit - 1);
+
+  if (options.q?.trim()) {
+    const raw = options.q.trim();
+    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    query = query.or(`name.ilike.%${q}%,sku.ilike.%${q}%,barcode.ilike.%${q}%`);
+  }
+  if (options.category?.trim()) query = query.eq('category', options.category.trim());
+  if (options.color?.trim()) {
+    const colorVal = options.color.trim();
+    if (colorVal.toLowerCase() === 'uncategorized') query = query.is('color', null);
+    else query = query.ilike('color', colorVal);
+  }
 
   const { data: rows, error, count } = await query;
   if (error) throw new Error(`Failed to list products: ${error.message}`);
 
-  type JoinRow = Record<string, unknown> & {
-    warehouse_inventory?: { quantity?: number; warehouse_id?: string } | Array<{ quantity?: number; warehouse_id?: string }>;
-  };
-  const joinRows = (rows ?? []) as JoinRow[];
-  const productIds = joinRows.map((r) => String(r.id ?? '')).filter(Boolean);
-  const sizeMap = await loadSizeMap(db, warehouseId, productIds);
+  const list = (rows ?? []) as Record<string, unknown>[];
+  const pageIds = list.map((r) => String(r.id ?? '')).filter(Boolean);
 
-  const data = joinRows
-    .map((r) => {
-      const inv = Array.isArray(r.warehouse_inventory) ? r.warehouse_inventory[0] : r.warehouse_inventory;
-      const invQty = Number(inv?.quantity ?? 0);
-      return rowToListProduct(r, warehouseId, invQty, sizeMap, options);
-    })
+  const invMap: Record<string, number> = {};
+  if (pageIds.length > 0) {
+    const { data: invRows } = await db
+      .from('warehouse_inventory')
+      .select('product_id, quantity')
+      .eq('warehouse_id', warehouseId)
+      .in('product_id', pageIds);
+    for (const inv of invRows ?? []) {
+      const r = inv as { product_id: string; quantity?: number };
+      invMap[r.product_id] = Number(r.quantity ?? 0);
+    }
+  }
+  const sizeMap = await loadSizeMap(db, warehouseId, pageIds);
+
+  const data = list
+    .map((row) => rowToListProduct(row, warehouseId, invMap[String(row.id ?? '')] ?? 0, sizeMap, options))
     .filter((p): p is ListProduct => p !== null);
 
   return { data, total: count ?? data.length };
@@ -353,7 +371,7 @@ async function getWarehouseProductsLegacy(
   return { data, total: count ?? data.length };
 }
 
-/** List products for a warehouse. Paginated join (fast); legacy fallback only if join fails. */
+/** List products for a warehouse (paginated, warehouse-scoped). */
 export async function getWarehouseProducts(
   warehouseId: string | undefined,
   options: ListOptions = {}
@@ -365,10 +383,10 @@ export async function getWarehouseProducts(
   const effectiveWarehouseId = await resolveWarehouseId(db, rawWarehouseId);
 
   try {
-    return await getWarehouseProductsViaJoin(db, effectiveWarehouseId, options, limit, offset);
+    return await getWarehouseProductsFast(db, effectiveWarehouseId, options, limit, offset);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.warn('[getWarehouseProducts] join path failed, using legacy:', msg);
+    console.warn('[getWarehouseProducts] fast path failed, using legacy:', msg);
     return getWarehouseProductsLegacy(db, effectiveWarehouseId, options, limit, offset);
   }
 }

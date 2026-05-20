@@ -11,8 +11,10 @@ import { NextRequest, NextResponse } from 'next/server';
 /** Allow up to 30s so large product lists (e.g. limit=1000) don't hit Vercel default 10s and cause "connection was lost". */
 export const maxDuration = 30;
 import { getWarehouseProducts, createWarehouseProduct } from '@/lib/data/warehouseProducts';
+import { resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
 import { getScopeForUser } from '@/lib/data/userScopes';
 import { requireAuth, requireAdmin, getEffectiveWarehouseId } from '@/lib/auth/session';
+import { getSupabase } from '@/lib/supabase';
 import { logDurability } from '@/lib/data/durabilityLogger';
 import {
   handleGetProductById,
@@ -51,9 +53,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const requestedWarehouseId = searchParams.get('warehouse_id')?.trim() ?? undefined;
 
+  const db = getSupabase();
   const scope = await getScopeForUser(auth.email);
   const isAdmin = /^(admin|super_admin|administrator)$/i.test(auth.role ?? '');
-  if (!isAdmin && scope.allowedWarehouseIds.length > 0 && requestedWarehouseId && !scope.allowedWarehouseIds.includes(requestedWarehouseId)) {
+  const resolvedRequested = requestedWarehouseId
+    ? await resolveWarehouseId(db, requestedWarehouseId)
+    : undefined;
+  const allowedResolved = await Promise.all(
+    scope.allowedWarehouseIds.map((id) => resolveWarehouseId(db, id))
+  );
+  if (
+    !isAdmin &&
+    allowedResolved.length > 0 &&
+    resolvedRequested &&
+    !allowedResolved.includes(resolvedRequested)
+  ) {
     return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
   }
 
