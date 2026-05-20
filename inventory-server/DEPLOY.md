@@ -7,7 +7,7 @@ Deploy **only from this folder** (`inventory-server/`). This app is the **backen
 | What | Value |
 |------|--------|
 | **App** | Backend API (Next.js) — `/api/sales`, `/api/products`, `/api/warehouses`, etc. |
-| **Vercel Root Directory** | `World-Class Warehouse Inventory & Smart POS System/warehouse-pos/inventory-server` (or your repo path to this folder) |
+| **Vercel Root Directory** | `inventory-server` (repo root) |
 | **Production URL** | `https://api.hunnidofficial.com` and/or `https://<project>.vercel.app` (e.g. `hunnid-official-server`) |
 | **Not** | The frontend project (warehouse UI). That one has a different root and builds the React app. |
 
@@ -15,7 +15,7 @@ Deploy **only from this folder** (`inventory-server/`). This app is the **backen
 
 1. **From this directory** (`inventory-server/`):
    ```bash
-   cd "World-Class Warehouse Inventory & Smart POS System/warehouse-pos/inventory-server"
+   cd inventory-server
    vercel link
    ```
 2. When prompted:
