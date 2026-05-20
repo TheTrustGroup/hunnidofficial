@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processSaleDeductions } from '@/lib/data/warehouseInventory';
 import { requirePosRole, getEffectiveWarehouseId } from '@/lib/auth/session';
+import { toSafeError } from '@/lib/safeError';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const err = e as Error & { status?: number };
     const isInsufficient = err.message?.includes('INSUFFICIENT_STOCK') ?? err.status === 409;
     return NextResponse.json(
-      { message: err.message ?? 'Deduction failed' },
+      { message: toSafeError(err) },
       { status: isInsufficient ? 409 : 400 }
     );
   }

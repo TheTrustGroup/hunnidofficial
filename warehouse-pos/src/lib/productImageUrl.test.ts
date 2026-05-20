@@ -19,6 +19,7 @@ describe('getProductImageUrl', () => {
   });
 
   it('rewrites Supabase public object URL to render URL with size params', () => {
+    vi.stubEnv('VITE_SUPABASE_IMAGE_TRANSFORMS', 'true');
     const out = getProductImageUrl(sample, 'thumb');
     expect(out).toContain('/storage/v1/render/image/public/');
     expect(out).toContain('product-images/foo/bar.jpg');
@@ -28,12 +29,14 @@ describe('getProductImageUrl', () => {
   });
 
   it('uses medium dimensions for medium size', () => {
+    vi.stubEnv('VITE_SUPABASE_IMAGE_TRANSFORMS', 'true');
     const out = getProductImageUrl(sample, 'medium');
     expect(out).toContain('width=400');
     expect(out).toContain('height=400');
   });
 
   it('uses full dimensions for full size', () => {
+    vi.stubEnv('VITE_SUPABASE_IMAGE_TRANSFORMS', 'true');
     const out = getProductImageUrl(sample, 'full');
     expect(out).toContain('width=1200');
     expect(out).toContain('height=1200');
@@ -42,6 +45,10 @@ describe('getProductImageUrl', () => {
   it('leaves non-Supabase HTTP URLs unchanged', () => {
     const u = 'https://cdn.example.com/p.jpg';
     expect(getProductImageUrl(u, 'thumb')).toBe(u);
+  });
+
+  it('skips transform by default (opt-in with true)', () => {
+    expect(getProductImageUrl(sample, 'thumb')).toBe(sample);
   });
 
   it('skips transform when VITE_SUPABASE_IMAGE_TRANSFORMS is false', () => {

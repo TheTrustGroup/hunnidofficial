@@ -3,12 +3,42 @@
  * Use for toasts and error boundaries so users see clear, actionable text instead of raw errors.
  */
 
+/** Default when no known pattern matches — never show raw API/DB text. */
+export const GENERIC_USER_ERROR = 'Something went wrong. Please try again.';
+
+/** POS checkout — keep short and cart-focused. */
+export const POS_ERRORS = {
+  insufficientStock:
+    'Insufficient stock for one or more items. Reduce quantity or remove items and try again.',
+  sessionExpired: 'Your session expired. Please sign in again.',
+  serviceUnavailable: 'Checkout is temporarily unavailable. Try again in a moment or contact support.',
+  warehouseAccess: "You don't have access to record sales for this warehouse.",
+  syncFailed: "We couldn't complete this sale. Check your connection and try again. Your cart is still here.",
+  offlineSaveFailed: "We couldn't save this sale on this device. Check storage and try again.",
+  tooManyLines: 'Too many items in one sale. Split into smaller sales and try again.',
+  invalidSale: 'Some sale details look wrong. Check the warehouse and try again.',
+} as const;
+
+function looksLikeInternalError(msg: string): boolean {
+  const str = msg.toLowerCase();
+  return (
+    /size_code|warehouse_inventory|violates (foreign key|check)|null value in column|postgres|supabase|rpc\b|migration|\.ts\b|\.js\b| at \w+\./i.test(
+      msg
+    ) ||
+    /invalid products response|unexpected token|zod|schema|json parse|http \d{3}:/i.test(str) ||
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(msg) ||
+    str.includes('failed to create warehouse inventory') ||
+    str.includes('failed to update warehouse inventory') ||
+    str.includes('enforce_size_rules')
+  );
+}
+
 /**
  * Map known error patterns to short, user-friendly messages.
  * Add new mappings here as you discover recurring errors.
  */
 export function getUserFriendlyMessage(error: unknown): string {
-  if (error == null) return 'Something went wrong. Please try again.';
+  if (error == null) return GENERIC_USER_ERROR;
 
   const msg = error instanceof Error ? error.message : String(error);
   const str = msg.toLowerCase();
@@ -18,15 +48,15 @@ export function getUserFriendlyMessage(error: unknown): string {
     return 'Connection problem. Check your network and try again.';
   }
   if (str.includes('timeout') || str.includes('timed out') || str.includes('vite_api_base_url')) {
-    return 'Request took too long. Check your connection and try again.';
+    return 'This is taking too long. Check your connection and try again.';
   }
   if (str.includes('server is temporarily unavailable') || str.includes('circuit')) {
     return 'Server is temporarily unavailable. Using last saved data. Try again in a moment.';
   }
 
-  // HTTP status
+  // HTTP status (often embedded in thrown Error.message)
   if (str.includes('401') || str.includes('unauthorized')) {
-    return 'Session expired. Please sign in again.';
+    return 'Your session expired. Please sign in again.';
   }
   if (str.includes('403') || str.includes('forbidden')) {
     return "You don't have permission to do that.";
@@ -35,9 +65,9 @@ export function getUserFriendlyMessage(error: unknown): string {
     return 'The requested item was not found.';
   }
   if (str.includes('insufficient_stock') || str.includes('insufficient stock')) {
-    return 'Insufficient stock for one or more items. Reduce quantity or remove items and try again.';
+    return POS_ERRORS.insufficientStock;
   }
-  if (str.includes('409') || str.includes('conflict')) {
+  if (str.includes('409') || str.includes('conflict') || str.includes('someone else') || str.includes('modified by')) {
     return 'This was changed elsewhere. Please refresh and try again.';
   }
   if (str.includes('422') || str.includes('validation')) {
@@ -46,8 +76,11 @@ export function getUserFriendlyMessage(error: unknown): string {
   if (str.includes('429') || str.includes('too many requests')) {
     return 'Too many requests. Please wait a moment and try again.';
   }
-  if (str.includes('500') || str.includes('502') || str.includes('503') || str.includes('504')) {
-    return 'Server error. Please try again in a moment.';
+  if (str.includes('503') || str.includes('unavailable') || str.includes('sale processing unavailable')) {
+    return POS_ERRORS.serviceUnavailable;
+  }
+  if (str.includes('500') || str.includes('502') || str.includes('504')) {
+    return 'Something went wrong on our side. Please try again in a moment.';
   }
 
   // Chunk / module load failures (stale deploy, CDN cache, network)
@@ -78,6 +111,28 @@ export function getUserFriendlyMessage(error: unknown): string {
     return 'Login failed. Check your details and try again.';
   }
 
+  // Products list / API contract
+  if (str.includes('invalid products response')) {
+    return "We couldn't load products. Refresh the page or try again.";
+  }
+
+  // Sales / POS
+  if (str.includes('too many line items')) {
+    return POS_ERRORS.tooManyLines;
+  }
+  if (str.includes('invalid line items')) {
+    return 'Some items in the sale are invalid. Check products and sizes, then try again.';
+  }
+  if (str.includes('sale failed to sync') || str.includes('failed to sync')) {
+    return POS_ERRORS.syncFailed;
+  }
+  if (str.includes('invalid response') && str.includes('sale')) {
+    return POS_ERRORS.syncFailed;
+  }
+  if (str.includes('deduction failed') || str.includes('return stock failed') || str.includes('transaction failed')) {
+    return GENERIC_USER_ERROR;
+  }
+
   // Postgres / API inventory (never show raw trigger text to end users)
   if (/greater than 0 for at least one size|quantity greater than 0 for at least one size/i.test(msg)) {
     return 'For multiple sizes, enter a quantity of at least 1 for one or more sizes before saving.';
@@ -95,9 +150,10 @@ export function getUserFriendlyMessage(error: unknown): string {
     return 'We could not save stock for this product. Use sizes from your catalog (not One size), then try again.';
   }
   if (/could not update stock totals|could not save stock by size/i.test(str)) {
-    return msg.length <= 200 && !/postgres|supabase|violates/i.test(str)
-      ? msg
-      : 'We could not update stock. Please try again or refresh the page.';
+    return 'We could not update stock. Please try again or refresh the page.';
+  }
+  if (/sku already exists|duplicate.*sku/i.test(str)) {
+    return 'A product with this SKU already exists. Change the SKU or edit the existing product.';
   }
 
   // Product / inventory
@@ -110,19 +166,48 @@ export function getUserFriendlyMessage(error: unknown): string {
   if (str.includes('sync') && str.includes('fail')) {
     return 'Sync failed. You can try again when the connection is stable.';
   }
+  if (str.includes('failed to load') && (str.includes('order') || str.includes('deliver') || str.includes('sales') || str.includes('dashboard'))) {
+    return 'Could not load this page. Check your connection and try again.';
+  }
+  if (str.includes('void failed')) {
+    return 'Could not void this sale. Try again or refresh the list.';
+  }
 
   // Never pass through obvious server/DB internals
-  if (
-    /size_code|warehouse_inventory|violates (foreign key|check)|null value in column|postgres|supabase/i.test(msg)
-  ) {
-    return 'Something went wrong saving data. Try again or refresh the page.';
+  if (looksLikeInternalError(msg)) {
+    return GENERIC_USER_ERROR;
   }
 
-  // Generic but safe: use message if it looks user-facing (short, no stack), else fallback
-  if (error instanceof Error && msg.length <= 120 && !msg.includes(' at ') && !msg.includes('.ts')) {
+  // Form validation (Zod / local validators)
+  if (
+    msg.length <= 160 &&
+    !looksLikeInternalError(msg) &&
+    (str.includes('required') || str.includes('must be') || str.includes('invalid email') || str.includes('check your'))
+  ) {
     return msg;
   }
-  return 'Something went wrong. Please try again.';
+
+  // Short, already user-facing API messages from toSafeError (allowlist-style)
+  if (
+    msg.length <= 160 &&
+    !str.includes('http ') &&
+    (str.startsWith('we ') ||
+      str.startsWith("you ") ||
+      str.startsWith('your ') ||
+      str.startsWith('insufficient ') ||
+      str.startsWith('a product ') ||
+      str.startsWith('sale ') ||
+      str.startsWith('connection ') ||
+      str.startsWith('something went wrong') ||
+      str.startsWith('too many ') ||
+      str.startsWith('please ') ||
+      str.startsWith('session ') ||
+      str.startsWith('required field'))
+  ) {
+    return msg;
+  }
+
+  return GENERIC_USER_ERROR;
 }
 
 /**

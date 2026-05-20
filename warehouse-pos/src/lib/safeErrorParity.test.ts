@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { toSafeError } from '../../../inventory-server/lib/safeError';
+import { getUserFriendlyMessage } from './errorMessages';
 
 /**
  * API responses must stay sanitized; extend when new DB errors surface in production.
@@ -18,5 +19,15 @@ describe('toSafeError (API parity)', () => {
     expect(toSafeError(new Error('relation "secret" does not exist'))).toBe(
       'Something went wrong. Please try again.'
     );
+  });
+
+  it('client maps the same raw DB error without leaking internals', () => {
+    const raw =
+      "Failed to create warehouse inventory: Product cc0f1478-e2a2-471d-9422-d4dfeb53e596 is sized; size_code must not be OS.";
+    const api = toSafeError(new Error(raw));
+    const client = getUserFriendlyMessage(new Error(raw));
+    expect(api.toLowerCase()).not.toContain('cc0f1478');
+    expect(client.toLowerCase()).not.toContain('cc0f1478');
+    expect(client.toLowerCase()).not.toContain('size_code');
   });
 });

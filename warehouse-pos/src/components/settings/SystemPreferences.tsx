@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, Save } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useToast } from '../../contexts/ToastContext';
 import { validateSystemPreferences } from '../../lib/validationSchemas';
+import { getUserFriendlyMessage } from '../../lib/errorMessages';
 import { Button } from '../ui/Button';
 
 export function SystemPreferences() {
@@ -20,7 +21,7 @@ export function SystemPreferences() {
       updateSystemSettings(validated);
       showToast('success', 'System preferences updated successfully.');
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Invalid settings.');
+      showToast('error', getUserFriendlyMessage(err));
     } finally {
       setIsSubmitting(false);
     }

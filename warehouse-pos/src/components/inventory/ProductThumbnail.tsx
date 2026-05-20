@@ -3,7 +3,12 @@
  * Uses blob URLs for data: sources (some desktop browsers fail on very long data: img src).
  */
 import { useEffect, useState } from 'react';
-import { EMPTY_IMAGE_DATA_URL, getSafeProductImageUrlSized, isBase64 } from '../../lib/imageUpload';
+import {
+  EMPTY_IMAGE_DATA_URL,
+  getSafeProductImageUrlSized,
+  isBase64,
+  productImageUrlWithoutTransform,
+} from '../../lib/imageUpload';
 
 type Props = {
   src: string;
@@ -21,9 +26,11 @@ function toDisplaySrc(raw: string): string {
 export function ProductThumbnail({ src, alt, className, onFailed }: Props) {
   const [resolved, setResolved] = useState(() => toDisplaySrc(src));
   const [failed, setFailed] = useState(false);
+  const [useDirectStorageUrl, setUseDirectStorageUrl] = useState(false);
 
   useEffect(() => {
     setFailed(false);
+    setUseDirectStorageUrl(false);
     const display = toDisplaySrc(src);
     setResolved(display);
 
@@ -57,16 +64,26 @@ export function ProductThumbnail({ src, alt, className, onFailed }: Props) {
     if (failed) onFailed?.();
   }, [failed, onFailed]);
 
-  if (!resolved || failed) return null;
+  const imgSrc =
+    useDirectStorageUrl && resolved.includes('/storage/v1/render/image/')
+      ? productImageUrlWithoutTransform(resolved)
+      : resolved;
+
+  if (!imgSrc || failed) return null;
 
   return (
     <img
-      src={resolved}
+      src={imgSrc}
       alt={alt}
       className={className}
       loading="lazy"
       decoding="async"
       onError={() => {
+        if (!useDirectStorageUrl && imgSrc.includes('/storage/v1/render/image/')) {
+          setUseDirectStorageUrl(true);
+          setFailed(false);
+          return;
+        }
         setFailed(true);
         onFailed?.();
       }}

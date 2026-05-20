@@ -16,6 +16,7 @@ import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
 import { notifyInventoryUpdated } from '../lib/inventoryEvents';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { getUserFriendlyMessage } from '../lib/errorMessages';
 import { PayIcon } from '../components/pos/PaymentIcons';
 
 interface SalesHistoryPageProps { apiBaseUrl?: string; }
@@ -393,7 +394,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
       // Ensure every sale has lines (voided sales must still return full line items so products aren't missing)
       setSales(raw.map((s: Sale) => ({ ...s, lines: Array.isArray(s.lines) ? s.lines : [] })));
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load sales');
+      setError(getUserFriendlyMessage(e));
     } finally {
       setLoading(false);
     }
@@ -468,8 +469,7 @@ export default function SalesHistoryPage({ apiBaseUrl }: SalesHistoryPageProps) 
       await fetchSales();
       setError(null);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Void failed';
-      setError(msg);
+      setError(getUserFriendlyMessage(e));
     } finally {
       setVoidingId(null);
     }

@@ -40,5 +40,17 @@ export function toSafeError(err: unknown): string {
   if (/failed to create warehouse inventory:/i.test(msg) || /failed to update warehouse inventory:/i.test(msg)) {
     return 'We could not update stock totals for this product. Please try again. If it keeps happening, refresh the page.';
   }
+  if (msg.includes('invalid line items')) {
+    return 'Some items in the sale are invalid. Check products and sizes, then try again.';
+  }
+  if (msg.includes('too many line items')) {
+    return 'Too many items in one sale. Split into smaller sales and try again.';
+  }
+  if (msg.includes('product not found')) {
+    return 'The requested product was not found.';
+  }
+  if (msg.includes('unauthorized')) {
+    return 'Your session expired. Please sign in again.';
+  }
   return 'Something went wrong. Please try again.';
 }

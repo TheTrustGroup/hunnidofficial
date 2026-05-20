@@ -29,7 +29,10 @@ When you add a new business rule or DB constraint, **update both** (and this tab
 | Stock by size / catalog mismatch | “We couldn’t save stock by size. Use sizes from your catalog (not One size), with at least one quantity greater than zero.” |
 | Warehouse total out of sync (generic) | “We couldn’t update stock totals. Try again. If it continues, refresh the page.” |
 | SKU duplicate | “A product with this SKU already exists. Change the SKU or edit the existing product.” |
-| Unknown server error | “Something went wrong on our side. Please try again in a moment.” |
+| Unknown server error | “Something went wrong. Please try again.” |
+| POS checkout unavailable (503) | “Checkout is temporarily unavailable. Try again in a moment or contact support.” |
+
+**Client constants:** `POS_ERRORS` in `src/lib/errorMessages.ts` for checkout-specific copy.
 
 ## Preventing trust-breaking regressions
 

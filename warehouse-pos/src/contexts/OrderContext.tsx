@@ -8,6 +8,7 @@ import { API_BASE_URL } from '../lib/api';
 import { apiGet, apiPost, apiPatch } from '../lib/apiClient';
 import { notifyInventoryUpdated } from '../lib/inventoryEvents';
 import { reportError } from '../lib/errorReporting';
+import { getUserFriendlyMessage } from '../lib/errorMessages';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 
 interface OrderContextType {
@@ -90,7 +91,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       reportError(err, { context: 'loadOrders' });
       setOrders([]);
-      setError(err instanceof Error ? err.message : 'Failed to load orders. Check your connection.');
+      setError(getUserFriendlyMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -210,7 +211,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         showToast('success', 'Order saved locally. Server order sync not available.');
         return localOrder;
       }
-      showToast('error', error instanceof Error ? error.message : 'Failed to create order');
+      showToast('error', getUserFriendlyMessage(error));
       throw error;
     }
   };
@@ -273,7 +274,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           setOrders(prev => prev.map(o => (o.id === orderId ? updatedOrder : o)));
           showToast('success', 'Updated locally. Server order sync not available.');
         } else {
-          showToast('error', error instanceof Error ? error.message : 'Failed to update order status');
+          showToast('error', getUserFriendlyMessage(error));
           throw error;
         }
       }
@@ -383,7 +384,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           setOrders(prev => prev.map(o => (o.id === orderId ? updatedOrder : o)));
           showToast('success', 'Marked delivered locally. Server sync not available.');
         } else {
-          showToast('error', error instanceof Error ? error.message : 'Failed to mark as delivered');
+          showToast('error', getUserFriendlyMessage(error));
           throw error;
         }
       }

@@ -19,12 +19,13 @@ const OBJECT_PUBLIC = '/storage/v1/object/public/';
 function transformsDisabled(): boolean {
   try {
     if (typeof import.meta !== 'undefined' && import.meta.env != null) {
-      return import.meta.env.VITE_SUPABASE_IMAGE_TRANSFORMS === 'false';
+      // Opt-in: /render/image requires Supabase Pro. Default off so thumbnails load via object/public.
+      return import.meta.env.VITE_SUPABASE_IMAGE_TRANSFORMS !== 'true';
     }
   } catch {
     /* ignore */
   }
-  return false;
+  return true;
 }
 
 /**

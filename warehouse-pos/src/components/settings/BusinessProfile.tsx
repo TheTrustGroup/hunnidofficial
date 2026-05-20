@@ -3,6 +3,7 @@ import { Building2, Save, Upload } from 'lucide-react';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useToast } from '../../contexts/ToastContext';
 import { validateBusinessProfile } from '../../lib/validationSchemas';
+import { getUserFriendlyMessage } from '../../lib/errorMessages';
 import { Button } from '../ui/Button';
 
 export function BusinessProfile() {
@@ -34,7 +35,7 @@ export function BusinessProfile() {
       updateBusinessSettings({ ...validated, logo: formData.logo ?? logoPreview ?? businessSettings.logo });
       showToast('success', 'Business profile updated successfully.');
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Please check required fields.');
+      showToast('error', getUserFriendlyMessage(err));
     } finally {
       setIsSubmitting(false);
     }

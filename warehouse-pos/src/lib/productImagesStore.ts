@@ -5,6 +5,7 @@
  */
 
 import { getStoredData, setStoredData, isStorageAvailable } from './storage';
+import { imagesForLocalCache } from './productCacheImages';
 
 const KEY = 'product_images_v1';
 
@@ -30,7 +31,7 @@ export function getProductImages(productId: string): string[] | undefined {
 /** Save images for a product. Call after every add/update that includes images. */
 export function setProductImages(productId: string, images: string[]): void {
   const store = read();
-  const next = Array.isArray(images) && images.length > 0 ? images : [];
+  const next = imagesForLocalCache(images);
   if (next.length === 0) {
     delete store[productId];
   } else {

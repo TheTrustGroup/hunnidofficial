@@ -682,7 +682,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       } else if (status === 401) {
         message = 'Please log in again. Session may have expired.';
       } else if (status != null && status >= 500) {
-        message = `Server error (${status}) loading products. Showing cached data if available—check backend (e.g. Supabase env) and try Retry.`;
+        message = getUserFriendlyMessage(err);
       } else if (isNetwork) {
         message = 'Cannot reach the server. Check your connection and that the backend URL is correct.';
       } else {
@@ -1037,10 +1037,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       const status = (err as { status?: number })?.status;
       const msg =
         status === 401
-          ? 'Session expired. Please log in again.'
-          : err instanceof Error
-            ? err.message
-            : 'Failed to save product';
+          ? 'Your session expired. Please sign in again.'
+          : getUserFriendlyMessage(err);
       showToast('error', msg);
       throw err;
     } finally {
@@ -1138,10 +1136,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         status === 404
           ? 'Product was deleted on another device. The list will refresh.'
           : status === 401
-            ? 'Session expired. Please log in again.'
-            : err instanceof Error
-              ? err.message
-              : 'Failed to update product';
+            ? 'Your session expired. Please sign in again.'
+            : getUserFriendlyMessage(err);
       showToast('error', msg);
       throw err;
     } finally {
@@ -1171,10 +1167,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         status === 403
           ? "You don't have permission to delete products."
           : status === 401
-            ? 'Please log in again.'
-            : err instanceof Error
-              ? err.message
-              : 'Failed to delete product';
+            ? 'Your session expired. Please sign in again.'
+            : getUserFriendlyMessage(err);
       showToast('error', msg);
       throw err;
     }
@@ -1201,10 +1195,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
           status === 403
             ? "You don't have permission to delete products."
             : status === 401
-              ? 'Please log in again.'
-              : err instanceof Error
-                ? err.message
-                : 'Delete failed';
+              ? 'Your session expired. Please sign in again.'
+              : getUserFriendlyMessage(err);
         showToast('error', msg);
         throw err;
       }

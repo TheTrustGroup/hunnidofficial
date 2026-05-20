@@ -3,7 +3,12 @@
  * safeProductImageUrl allows data: and same-origin Supabase Storage URLs only (env-dependent); tests cover data: and rejection of arbitrary URLs.
  */
 import { describe, it, expect } from 'vitest';
-import { safeProductImageUrl, isBase64, EMPTY_IMAGE_DATA_URL } from './imageUpload';
+import {
+  safeProductImageUrl,
+  isBase64,
+  isAllowedProductStorageUrl,
+  EMPTY_IMAGE_DATA_URL,
+} from './imageUpload';
 
 describe('isBase64', () => {
   it('returns true for data: URLs', () => {
@@ -29,5 +34,12 @@ describe('safeProductImageUrl', () => {
   it('returns placeholder for arbitrary http URL', () => {
     expect(safeProductImageUrl('https://evil.com/image.png')).toBe(EMPTY_IMAGE_DATA_URL);
     expect(safeProductImageUrl('http://example.com/photo.jpg')).toBe(EMPTY_IMAGE_DATA_URL);
+  });
+
+  it('allows Supabase product-images URLs without VITE_SUPABASE_URL env match', () => {
+    const url =
+      'https://abcdefghijklmnop.supabase.co/storage/v1/object/public/product-images/products/abc.jpg';
+    expect(isAllowedProductStorageUrl(url)).toBe(true);
+    expect(safeProductImageUrl(url)).toBe(url);
   });
 });

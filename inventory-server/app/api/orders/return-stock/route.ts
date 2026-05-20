@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processReturnStock } from '@/lib/data/warehouseInventory';
 import { requireWarehouseOrPosRole, getEffectiveWarehouseId } from '@/lib/auth/session';
+import { toSafeError } from '@/lib/safeError';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,9 +29,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     const err = e as Error & { status?: number };
-    return NextResponse.json(
-      { message: err.message ?? 'Return stock failed' },
-      { status: 400 }
-    );
+    return NextResponse.json({ message: toSafeError(err) }, { status: 400 });
   }
 }

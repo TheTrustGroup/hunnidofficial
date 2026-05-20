@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { validateLoginForm } from '../lib/validationSchemas';
+import { getUserFriendlyMessage } from '../lib/errorMessages';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 const IconMail = () => (
@@ -158,7 +159,7 @@ export default function LoginPage() {
       showToast('success', 'Login successful');
       navigate(redirectPath, { replace: true });
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+      const message = getUserFriendlyMessage(e);
       setError(message);
       const isServerUnreachable =
         message === SERVER_UNREACHABLE ||

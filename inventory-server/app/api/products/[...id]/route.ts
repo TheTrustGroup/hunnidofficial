@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { toSafeError } from '@/lib/safeError';
 
 function corsHeaders(req: NextRequest): Record<string, string> {
   const origin  = req.headers.get('origin') ?? '';
@@ -78,9 +79,8 @@ export async function GET(req: NextRequest, ctx: RouteCtx) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404, headers: h });
     return NextResponse.json(product, { headers: h });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error('[GET /api/products/:id]', msg);
-    return NextResponse.json({ error: msg }, { status: 500, headers: h });
+    console.error('[GET /api/products/:id]', e);
+    return NextResponse.json({ error: toSafeError(e) }, { status: 500, headers: h });
   }
 }
 
@@ -202,7 +202,7 @@ async function handleUpdate(req: NextRequest, ctx: RouteCtx) {
         );
       } else {
         console.error('[PUT /api/products/:id] RPC error:', rpcErr.code, rpcErr.message);
-        return NextResponse.json({ error: rpcErr.message }, { status: 500, headers: h });
+        return NextResponse.json({ error: toSafeError(rpcErr) }, { status: 500, headers: h });
       }
     }
 
@@ -220,9 +220,8 @@ async function handleUpdate(req: NextRequest, ctx: RouteCtx) {
     return NextResponse.json(updated, { headers: h });
 
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Internal server error';
-    console.error('[PUT /api/products/:id] unhandled error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500, headers: h });
+    console.error('[PUT /api/products/:id] unhandled error:', e);
+    return NextResponse.json({ error: toSafeError(e) }, { status: 500, headers: h });
   }
 }
 
@@ -256,15 +255,16 @@ export async function DELETE(req: NextRequest, ctx: RouteCtx) {
     const { error } = await db.from('warehouse_products').delete()
       .eq('id', id).eq('warehouse_id', wid);
 
-    if (error)
-      return NextResponse.json({ error: error.message }, { status: 500, headers: h });
+    if (error) {
+      console.error('[DELETE /api/products/:id]', error);
+      return NextResponse.json({ error: toSafeError(error) }, { status: 500, headers: h });
+    }
 
     return NextResponse.json({ success: true, id }, { headers: h });
 
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error('[DELETE /api/products/:id]', msg);
-    return NextResponse.json({ error: msg }, { status: 500, headers: h });
+    console.error('[DELETE /api/products/:id]', e);
+    return NextResponse.json({ error: toSafeError(e) }, { status: 500, headers: h });
   }
 }
 

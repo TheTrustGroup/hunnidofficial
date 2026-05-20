@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/session';
 import { getSupabase } from '@/lib/supabase';
+import { toSafeError } from '@/lib/safeError';
 
 const BUCKET = 'product-images';
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB — keep in sync with Supabase bucket file_size_limit
@@ -62,15 +63,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
     if (error) {
       console.error('[upload/product-image]', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: toSafeError(error) }, { status: 500 });
     }
     const { data: publicUrlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
     return NextResponse.json({ url: publicUrlData.publicUrl });
   } catch (e) {
     console.error('[upload/product-image]', e);
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Upload failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: toSafeError(e) }, { status: 500 });
   }
 }

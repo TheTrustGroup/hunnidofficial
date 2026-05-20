@@ -4,6 +4,7 @@ import { requirePosRole, getEffectiveWarehouseId, requireAuth } from '@/lib/auth
 import { resolveUserScope, isStoreAllowed, isWarehouseAllowed, isPosAllowed, logScopeDeny } from '@/lib/auth/scope';
 import { getRejectionByKey, recordRejection } from '@/lib/data/syncRejections';
 import { isLegacyTransactionPostAllowed } from '@/lib/legacyTransactions';
+import { toSafeError } from '@/lib/safeError';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,10 +56,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return response;
   } catch (e) {
     console.error('[api/transactions GET]', e);
-    return NextResponse.json(
-      { message: e instanceof Error ? e.message : 'Failed to list transactions' },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: toSafeError(e) }, { status: 500 });
   }
 }
 
@@ -168,14 +166,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         console.error('[api/transactions] recordRejection failed', recordErr);
       }
       return NextResponse.json(
-        { code: 'INSUFFICIENT_STOCK', message: err.message ?? 'Insufficient stock at sync time.' },
+        { code: 'INSUFFICIENT_STOCK', message: toSafeError(err) },
         { status: 409 }
       );
     }
     const status = err.status === 409 ? 409 : 400;
-    return NextResponse.json(
-      { message: err.message ?? 'Transaction failed' },
-      { status }
-    );
+    return NextResponse.json({ message: toSafeError(err) }, { status });
   }
 }

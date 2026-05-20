@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL, getApiHeaders } from '../lib/api';
+import { getUserFriendlyMessage } from '../lib/errorMessages';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -302,7 +303,7 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
       const json = await res.json();
       if (isMounted.current) setDeliveries((json.data ?? []) as Delivery[]);
     } catch (e: unknown) {
-      if (isMounted.current) setError(e instanceof Error ? e.message : 'Failed to load deliveries');
+      if (isMounted.current) setError(getUserFriendlyMessage(e));
     } finally {
       if (isMounted.current) setLoading(false);
     }
@@ -335,7 +336,7 @@ export default function DeliveriesPage({ warehouseId = '', apiBaseUrl }: Deliver
       showToast(msg, 'success');
       load(true, 'queue');
     } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : 'Action failed', 'error');
+      showToast(getUserFriendlyMessage(e), 'error');
     } finally {
       setActionLoading(null);
     }

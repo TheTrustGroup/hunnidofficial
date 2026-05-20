@@ -213,7 +213,9 @@ export function parseProductsResponse(raw: unknown): { success: true; items: Api
     if (import.meta.env.DEV) console.warn('[apiSchemas] Products response validation failed:', parsed.error.flatten(), detail);
     return {
       success: false,
-      message: import.meta.env.DEV ? `Invalid products response (${detail})` : 'Invalid products response from server',
+      message: import.meta.env.DEV
+        ? `Invalid products response (${detail})`
+        : "We couldn't load products. Refresh the page or try again.",
     };
   }
   const items = Array.isArray(parsed.data) ? parsed.data : parsed.data.data ?? [];

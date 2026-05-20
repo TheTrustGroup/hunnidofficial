@@ -244,16 +244,43 @@ export function isBase64(src: string): boolean {
 /** Allowed path for our bucket. Only URLs from our Supabase origin + this path are allowed. */
 const STORAGE_OBJECT_PATH = '/storage/v1/object/';
 
+/** Public object URLs for the product-images bucket (any Supabase project host). */
+const STORAGE_PUBLIC_PRODUCT_IMAGES = /\/storage\/v1\/object\/public\/product-images\//i;
+
+/** Image Transform render URLs (fallback target on load error). */
+const STORAGE_RENDER_PRODUCT_IMAGES = /\/storage\/v1\/render\/image\/public\/product-images\//i;
+
+/**
+ * True when URL is our Supabase Storage product-images path (https only for http URLs).
+ */
+export function isAllowedProductStorageUrl(src: string): boolean {
+  const s = src.trim();
+  if (!s.startsWith('https://')) return false;
+  return STORAGE_PUBLIC_PRODUCT_IMAGES.test(s) || STORAGE_RENDER_PRODUCT_IMAGES.test(s);
+}
+
+/**
+ * Strip Image Transform path back to a plain public object URL (works without Pro transforms).
+ */
+export function productImageUrlWithoutTransform(url: string): string {
+  return url.replace('/storage/v1/render/image/public/', '/storage/v1/object/public/');
+}
+
 /**
  * Returns a URL safe to use as img src: only our Supabase Storage (product-images) or data: base64.
  * Prevents XSS from arbitrary user-supplied URLs. For invalid URLs returns a 1x1 transparent GIF.
+ *
+ * Does not require VITE_SUPABASE_URL to match — list/API may return Storage URLs while env is unset.
  */
 export function safeProductImageUrl(src: string): string {
   if (typeof src !== 'string' || !src) return EMPTY_IMAGE_DATA_URL;
   const s = src.trim();
   if (isBase64(s)) return s;
-  const base = getSupabaseUrl();
-  if (base && s.startsWith(base) && s.includes(STORAGE_OBJECT_PATH) && s.includes(BUCKET)) return s;
+  if (isAllowedProductStorageUrl(s)) return productImageUrlWithoutTransform(s);
+  const base = getSupabaseUrl().replace(/\/$/, '');
+  if (base && s.startsWith(base) && s.includes(STORAGE_OBJECT_PATH) && s.includes(BUCKET)) {
+    return s;
+  }
   return EMPTY_IMAGE_DATA_URL;
 }
 

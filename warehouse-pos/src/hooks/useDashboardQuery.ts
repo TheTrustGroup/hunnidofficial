@@ -9,6 +9,7 @@ import { API_BASE_URL } from '../lib/api';
 import { dashboardGet } from '../lib/dashboardApi';
 import { queryKeys } from '../lib/queryKeys';
 import { isValidWarehouseId } from '../lib/warehouseId';
+import { getUserFriendlyMessage } from '../lib/errorMessages';
 
 const STALE_MS_DASHBOARD = 0;        // Always refetch when Dashboard is used (alerts must be current)
 const STALE_MS_TODAY_BY_WAREHOUSE = 60 * 1000;
@@ -53,8 +54,7 @@ async function fetchDashboard(
     }
     return data;
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Failed to load dashboard';
-    throw new Error(message);
+    throw new Error(getUserFriendlyMessage(e));
   }
 }
 
