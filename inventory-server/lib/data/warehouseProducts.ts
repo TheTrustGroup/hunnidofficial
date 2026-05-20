@@ -158,9 +158,51 @@ function rowToListProduct(
   };
 }
 
+type RpcListRow = Record<string, unknown> & { inv_quantity?: number };
+
+/** DB RPC: paginated join in Postgres (one round trip for page rows + total). */
+async function getWarehouseProductsViaRpc(
+  db: SupabaseClient,
+  warehouseId: string,
+  options: ListOptions,
+  limit: number,
+  offset: number
+): Promise<ListResult | null> {
+  const { data, error } = await db.rpc('list_warehouse_products_page', {
+    p_warehouse_id: warehouseId,
+    p_limit: limit,
+    p_offset: offset,
+    p_q: options.q?.trim() || null,
+    p_category: options.category?.trim() || null,
+    p_color: options.color?.trim() || null,
+    p_size_code: options.sizeCode?.trim() || null,
+  });
+  if (error) {
+    console.warn('[getWarehouseProducts] RPC list_warehouse_products_page:', error.message);
+    return null;
+  }
+  const payload = data as { total?: number; data?: RpcListRow[] } | null;
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  const total = Number(payload?.total ?? rows.length) || 0;
+  const pageIds = rows.map((r) => String(r.id ?? '')).filter(Boolean);
+  let sizeMap: Record<string, Array<{ sizeCode: string; sizeLabel?: string; quantity: number }>> = {};
+  try {
+    sizeMap = await loadSizeMap(db, warehouseId, pageIds);
+  } catch (e) {
+    console.warn('[getWarehouseProducts] size map skipped:', e);
+  }
+  const list = rows
+    .map((row) => {
+      const invQty = Number(row.inv_quantity ?? 0);
+      const { inv_quantity: _iq, ...productRow } = row;
+      return rowToListProduct(productRow, warehouseId, invQty, sizeMap, options);
+    })
+    .filter((p): p is ListProduct => p !== null);
+  return { data: list, total };
+}
+
 /**
- * Fast path: inventory product ids + chunked warehouse_products fetch (parallel).
- * PostgREST embed/join on 177 rows was timing out at 30s on Vercel.
+ * Fast path: RPC pagination first; fallback only fetches the requested page (never all 177 SKUs).
  */
 async function getWarehouseProductsFast(
   db: SupabaseClient,
@@ -171,21 +213,65 @@ async function getWarehouseProductsFast(
 ): Promise<ListResult> {
   if (isInvalidWarehouseId(warehouseId)) return { data: [], total: 0 };
 
-  let productIds = await loadWarehouseProductIds(db, warehouseId);
-  if (productIds.length === 0) return { data: [], total: 0 };
+  const rpcResult = await getWarehouseProductsViaRpc(db, warehouseId, options, limit, offset);
+  if (rpcResult) return rpcResult;
 
-  if (options.sizeCode?.trim()) {
-    const { data: sizeRows } = await db
-      .from('warehouse_inventory_by_size')
-      .select('product_id')
-      .eq('warehouse_id', warehouseId)
-      .eq('size_code', options.sizeCode.trim());
-    const allowed = new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id));
-    productIds = productIds.filter((id) => allowed.has(id));
-    if (productIds.length === 0) return { data: [], total: 0 };
+  return getWarehouseProductsPageFallback(db, warehouseId, options, limit, offset);
+}
+
+/** Fallback when RPC is not deployed: paginate via inventory join without loading full catalog. */
+async function getWarehouseProductsPageFallback(
+  db: SupabaseClient,
+  warehouseId: string,
+  options: ListOptions,
+  limit: number,
+  offset: number
+): Promise<ListResult> {
+  const embed = `quantity, product_id, warehouse_products!inner(${WAREHOUSE_PRODUCTS_SELECT})`;
+  let query = db
+    .from('warehouse_inventory')
+    .select(embed, { count: 'exact' })
+    .eq('warehouse_id', warehouseId);
+
+  const wp = 'warehouse_products';
+  if (options.q?.trim()) {
+    const raw = options.q.trim();
+    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+    query = query.or(`${wp}.name.ilike.%${q}%,${wp}.sku.ilike.%${q}%,${wp}.barcode.ilike.%${q}%`);
+  }
+  if (options.category?.trim()) query = query.eq(`${wp}.category`, options.category.trim());
+  if (options.color?.trim()) {
+    const colorVal = options.color.trim();
+    if (colorVal.toLowerCase() === 'uncategorized') query = query.is(`${wp}.color`, null);
+    else query = query.ilike(`${wp}.color`, colorVal);
   }
 
-  return getWarehouseProductsByProductIds(db, warehouseId, productIds, options, limit, offset);
+  query = query.order(`${wp}.name`, { ascending: true }).range(offset, offset + limit - 1);
+
+  const { data: rows, error, count } = await query;
+  if (error) throw new Error(`Failed to list products: ${error.message}`);
+
+  type InvJoinRow = {
+    quantity?: number;
+    warehouse_products?: Record<string, unknown> | Record<string, unknown>[];
+  };
+  const joinRows = (rows ?? []) as InvJoinRow[];
+  const pageIds = joinRows
+    .map((r) => {
+      const wpRow = Array.isArray(r.warehouse_products) ? r.warehouse_products[0] : r.warehouse_products;
+      return String(wpRow?.id ?? '');
+    })
+    .filter(Boolean);
+  const sizeMap = await loadSizeMap(db, warehouseId, pageIds);
+  const data = joinRows
+    .map((r) => {
+      const wpRow = Array.isArray(r.warehouse_products) ? r.warehouse_products[0] : r.warehouse_products;
+      if (!wpRow || typeof wpRow !== 'object') return null;
+      return rowToListProduct(wpRow as Record<string, unknown>, warehouseId, Number(r.quantity ?? 0), sizeMap, options);
+    })
+    .filter((p): p is ListProduct => p !== null);
+
+  return { data, total: count ?? data.length };
 }
 
 /** Product ids at warehouse (inventory + size rows). */

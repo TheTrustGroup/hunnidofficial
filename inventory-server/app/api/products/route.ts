@@ -71,10 +71,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
   }
 
-  const effectiveWarehouseId = await getEffectiveWarehouseId(auth, requestedWarehouseId);
-  if (effectiveWarehouseId === null) {
+  const scopeWarehouseId = await getEffectiveWarehouseId(auth, requestedWarehouseId);
+  if (scopeWarehouseId === null) {
     return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
   }
+  const effectiveWarehouseId = await resolveWarehouseId(db, scopeWarehouseId);
   if (isInvalidWarehouseId(effectiveWarehouseId)) {
     return withCors(
       NextResponse.json({ error: 'warehouse_id is required and must be valid' }, { status: 400 }),
