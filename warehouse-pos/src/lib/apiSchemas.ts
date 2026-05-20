@@ -88,6 +88,38 @@ export function parseLoginResponse(data: unknown): {
 
 // ---- Products API response ----
 
+const SIZE_KINDS = ['na', 'one_size', 'sized'] as const;
+
+function coerceSizeKind(v: unknown): (typeof SIZE_KINDS)[number] | undefined {
+  const s = typeof v === 'string' ? v.trim().toLowerCase() : '';
+  if ((SIZE_KINDS as readonly string[]).includes(s)) return s as (typeof SIZE_KINDS)[number];
+  return undefined;
+}
+
+function coerceStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.map((x) => (typeof x === 'string' ? x : x != null ? String(x) : '')).filter(Boolean);
+}
+
+function coerceRecord(v: unknown): Record<string, unknown> {
+  if (v != null && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>;
+  return {};
+}
+
+function normalizeQuantityBySize(qbs: unknown): Array<{ sizeCode: string; sizeLabel?: string; quantity: number }> | undefined {
+  if (!Array.isArray(qbs)) return undefined;
+  return qbs.map((row) => {
+    const r = row != null && typeof row === 'object' ? (row as Record<string, unknown>) : {};
+    const sizeCode = String(r.sizeCode ?? r.size_code ?? '').trim();
+    const sizeLabel = r.sizeLabel ?? r.size_label;
+    return {
+      sizeCode,
+      sizeLabel: sizeLabel != null ? String(sizeLabel) : undefined,
+      quantity: Number(r.quantity ?? 0),
+    };
+  });
+}
+
 /** Accept API items whether camelCase or snake_case (RPC/legacy paths). */
 function normalizeApiProductFields(item: unknown): unknown {
   if (item == null || typeof item !== 'object' || Array.isArray(item)) return item;
@@ -95,14 +127,22 @@ function normalizeApiProductFields(item: unknown): unknown {
   const qbs = o.quantityBySize ?? o.quantity_by_size;
   return {
     ...o,
+    sku: o.sku != null ? String(o.sku) : '',
+    barcode: o.barcode != null ? String(o.barcode) : '',
+    name: o.name != null ? String(o.name) : '',
+    description: o.description != null ? String(o.description) : '',
+    category: o.category != null ? String(o.category) : '',
     sellingPrice: o.sellingPrice ?? o.selling_price,
     costPrice: o.costPrice ?? o.cost_price,
     reorderLevel: o.reorderLevel ?? o.reorder_level,
-    sizeKind: o.sizeKind ?? o.size_kind,
+    sizeKind: coerceSizeKind(o.sizeKind ?? o.size_kind),
     createdAt: o.createdAt ?? o.created_at,
     updatedAt: o.updatedAt ?? o.updated_at,
-    quantityBySize: Array.isArray(qbs) ? qbs : o.quantityBySize,
-    images: Array.isArray(o.images) ? o.images : [],
+    quantityBySize: normalizeQuantityBySize(qbs),
+    tags: coerceStringArray(o.tags),
+    images: coerceStringArray(o.images),
+    location: coerceRecord(o.location),
+    supplier: coerceRecord(o.supplier),
   };
 }
 
@@ -128,7 +168,7 @@ const apiProductItemSchema = z
     updatedAt: z.union([z.string(), z.date(), z.number()]).optional(),
     createdBy: z.string().optional().default(''),
     version: z.number().optional(),
-    sizeKind: z.enum(['na', 'one_size', 'sized']).optional(),
+    sizeKind: z.enum(SIZE_KINDS).optional(),
     quantityBySize: z.array(z.object({ sizeCode: z.string(), sizeLabel: z.string().optional(), quantity: z.coerce.number().finite() })).optional(),
   })
   .passthrough();
@@ -145,22 +185,36 @@ export type ApiProductItem = z.infer<typeof apiProductItemSchema>;
  * Parse products API response. Returns list of items that match expected structure.
  * On validation failure does not overwrite state; caller should set error and keep previous data.
  */
+function normalizeProductsEnvelope(raw: unknown): unknown {
+  if (raw == null || typeof raw !== 'object') return raw;
+  if (Array.isArray(raw)) return raw.map(normalizeApiProductFields);
+  const o = raw as Record<string, unknown>;
+  if (!('data' in o)) return raw;
+  const totalRaw = o.total;
+  const total =
+    typeof totalRaw === 'number' && Number.isFinite(totalRaw)
+      ? totalRaw
+      : typeof totalRaw === 'string' && totalRaw.trim() !== ''
+        ? Number(totalRaw)
+        : totalRaw;
+  return {
+    ...o,
+    total: typeof total === 'number' && Number.isFinite(total) ? total : o.total,
+    data: Array.isArray(o.data) ? o.data.map(normalizeApiProductFields) : o.data,
+  };
+}
+
 export function parseProductsResponse(raw: unknown): { success: true; items: ApiProductItem[] } | { success: false; message: string } {
-  const normalized =
-    raw != null && typeof raw === 'object' && !Array.isArray(raw) && 'data' in raw
-      ? {
-          ...(raw as object),
-          data: Array.isArray((raw as { data?: unknown }).data)
-            ? (raw as { data: unknown[] }).data.map(normalizeApiProductFields)
-            : (raw as { data?: unknown }).data,
-        }
-      : Array.isArray(raw)
-        ? raw.map(normalizeApiProductFields)
-        : raw;
+  const normalized = normalizeProductsEnvelope(raw);
   const parsed = apiProductsResponseSchema.safeParse(normalized);
   if (!parsed.success) {
-    if (import.meta.env.DEV) console.warn('[apiSchemas] Products response validation failed:', parsed.error.flatten());
-    return { success: false, message: 'Invalid products response from server' };
+    const first = parsed.error.issues[0];
+    const detail = first ? `${first.path.join('.') || 'response'}: ${first.message}` : 'unknown';
+    if (import.meta.env.DEV) console.warn('[apiSchemas] Products response validation failed:', parsed.error.flatten(), detail);
+    return {
+      success: false,
+      message: import.meta.env.DEV ? `Invalid products response (${detail})` : 'Invalid products response from server',
+    };
   }
   const items = Array.isArray(parsed.data) ? parsed.data : parsed.data.data ?? [];
   return { success: true, items };
