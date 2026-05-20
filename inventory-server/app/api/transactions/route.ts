@@ -65,6 +65,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 /** POST /api/transactions — deprecated. Use POST /api/sales (record_sale). Gated by ALLOW_LEGACY_TRANSACTION_POST. */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!isLegacyTransactionPostAllowed()) {
+    console.warn('[sales-path] legacy_transactions_rejected', {
+      path: request.nextUrl.pathname,
+      hint: 'Client should use POST /api/sales',
+    });
     return NextResponse.json(
       {
         error: 'POST /api/transactions is deprecated. Use POST /api/sales for POS and offline sale replay.',
@@ -142,6 +146,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       operatorId: undefined as string | null | undefined,
     };
     const result = await processSale(payload, sessionContext, idempotencyKey);
+    console.warn('[sales-path] legacy_transactions_post', {
+      warehouseId,
+      email: auth.email,
+      idempotencyKey: idempotencyKey ?? undefined,
+      saleId: result.id,
+    });
     return NextResponse.json({ id: result.id, ...body });
   } catch (e: unknown) {
     const err = e as Error & { status?: number };

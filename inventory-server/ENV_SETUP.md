@@ -60,3 +60,13 @@ In the project’s environment variables, add:
 | `POS_PASSWORD_MAIN_TOWN`         | Password for hcashier@… (Hunnid Main)     | Required for POS login  |
 
 Redeploy after changing env vars.
+
+## Legacy transactions (migration only)
+
+| Variable | When |
+|----------|------|
+| `ALLOW_LEGACY_TRANSACTION_POST=true` | Temporary — allows `POST /api/transactions`. Remove after logs show no `legacy_transactions_post`. See `docs/LEGACY_TRANSACTIONS_SUNSET.md`. |
+
+## Scale
+
+See `docs/SUPABASE_OPS.md` for pooling notes and security layers.

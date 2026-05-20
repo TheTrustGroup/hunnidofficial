@@ -17,3 +17,7 @@ Idempotency: header `Idempotency-Key` or body `clientEventId` (UUID). Enforced i
 | GET | `/api/transactions` | Read-only; admin/scoped reporting of old `transactions` rows |
 
 Do not point new clients at `process_sale` / `transactions`. The frontend POS and IndexedDB outbox use `/api/sales` only.
+
+## Sunset legacy POST
+
+See [LEGACY_TRANSACTIONS_SUNSET.md](./LEGACY_TRANSACTIONS_SUNSET.md) for how to verify Vercel logs and remove `ALLOW_LEGACY_TRANSACTION_POST`.
