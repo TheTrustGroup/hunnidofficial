@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { corsHeaders } from '@/lib/cors';
 import { requireAuth } from '@/lib/auth/session';
 import { getDashboardStats } from '@/lib/data/dashboardStats';
+import { isInvalidWarehouseId, resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
+import { getSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 /** Dashboard may load up to 250 products for category summary; allow cold start. */
@@ -29,15 +31,23 @@ export async function GET(req: NextRequest) {
   const warehouseId = sp.get('warehouse_id')?.trim();
   const date = sp.get('date')?.trim() ?? new Date().toISOString().split('T')[0];
 
-  if (!warehouseId) {
+  if (!warehouseId || isInvalidWarehouseId(warehouseId)) {
     return withCors(
-      NextResponse.json({ error: 'warehouse_id is required' }, { status: 400 }),
+      NextResponse.json({ error: 'warehouse_id is required and must be valid' }, { status: 400 }),
+      req
+    );
+  }
+
+  const resolvedId = await resolveWarehouseId(getSupabase(), warehouseId);
+  if (isInvalidWarehouseId(resolvedId)) {
+    return withCors(
+      NextResponse.json({ error: 'Unknown warehouse_id' }, { status: 400 }),
       req
     );
   }
 
   try {
-    const data = await getDashboardStats(warehouseId, { date });
+    const data = await getDashboardStats(resolvedId, { date });
     return withCors(NextResponse.json(data), req);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Internal error';

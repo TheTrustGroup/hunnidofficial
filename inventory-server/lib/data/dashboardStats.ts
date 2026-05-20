@@ -3,19 +3,62 @@
  * Used by GET /api/dashboard. Single source of truth for total_units and total_stock_value.
  */
 
-import { getWarehouseProducts, type ProductRecord } from '@/lib/data/warehouseProducts';
-import { resolveWarehouseId, HUNNID_MAIN_WAREHOUSE_ID, LEGACY_HUNNID_MAIN_ID } from '@/lib/data/resolveWarehouseId';
+import { resolveWarehouseId, HUNNID_MAIN_WAREHOUSE_ID, LEGACY_HUNNID_MAIN_ID, isInvalidWarehouseId } from '@/lib/data/resolveWarehouseId';
 import { getSupabase } from '@/lib/supabase';
 
 const LOW_STOCK_ALERTS_LIMIT = 10;
-/** Products to fetch for low-stock list + category chips (totals come from RPC). */
-const PRODUCTS_LIMIT_FOR_DASHBOARD = 250;
 
-function getProductQty(p: ProductRecord): number {
-  if (p.sizeKind === 'sized' && p.quantityBySize?.length > 0) {
-    return p.quantityBySize.reduce((s, r) => s + (r.quantity ?? 0), 0);
+async function getLowStockItemsFromDb(warehouseId: string): Promise<DashboardLowStockItem[]> {
+  const supabase = getSupabase();
+  const { data: invRows, error: invErr } = await supabase
+    .from('warehouse_inventory')
+    .select('product_id, quantity')
+    .eq('warehouse_id', warehouseId)
+    .order('quantity', { ascending: true })
+    .limit(40);
+
+  if (invErr || !invRows?.length) {
+    if (invErr) console.warn('[dashboardStats] low stock inventory', invErr.message);
+    return [];
   }
-  return p.quantity ?? 0;
+
+  const ids = invRows.map((r) => String((r as { product_id: string }).product_id));
+  const { data: products, error: prodErr } = await supabase
+    .from('warehouse_products')
+    .select('id, name, category, reorder_level')
+    .in('id', ids);
+
+  if (prodErr || !products?.length) {
+    if (prodErr) console.warn('[dashboardStats] low stock products', prodErr.message);
+    return [];
+  }
+
+  const productById = new Map(
+    products.map((p) => {
+      const row = p as { id: string; name?: string; category?: string; reorder_level?: number };
+      return [String(row.id), row];
+    })
+  );
+
+  const items: DashboardLowStockItem[] = [];
+  for (const inv of invRows) {
+    const r = inv as { product_id: string; quantity?: number };
+    const wp = productById.get(String(r.product_id));
+    if (!wp) continue;
+    const qty = Number(r.quantity ?? 0);
+    const reorder = Number(wp.reorder_level ?? 0) || 3;
+    if (qty > reorder) continue;
+    items.push({
+      id: String(wp.id),
+      name: String(wp.name ?? ''),
+      category: String(wp.category ?? '').trim() || 'Uncategorised',
+      quantity: qty,
+      quantityBySize: [],
+      reorderLevel: reorder,
+    });
+    if (items.length >= LOW_STOCK_ALERTS_LIMIT) break;
+  }
+  return items;
 }
 
 export interface WarehouseStatsFromDb {
@@ -135,47 +178,24 @@ export async function getDashboardStats(
 ): Promise<DashboardStatsResult> {
   const db = getSupabase();
   const resolvedWarehouseId = await resolveWarehouseId(db, warehouseId);
+  if (isInvalidWarehouseId(resolvedWarehouseId)) {
+    return {
+      totalStockValue: 0,
+      totalUnits: 0,
+      totalProducts: 0,
+      lowStockCount: 0,
+      outOfStockCount: 0,
+      todaySales: 0,
+      lowStockItems: [],
+      categorySummary: {},
+    };
+  }
   const date = options.date ?? new Date().toISOString().split('T')[0];
-  const [dbStats, todaySales] = await Promise.all([
+  const [dbStats, todaySales, lowStockItems] = await Promise.all([
     getWarehouseStatsFromDb(resolvedWarehouseId),
     getTodaySalesTotal(resolvedWarehouseId, date),
+    getLowStockItemsFromDb(resolvedWarehouseId),
   ]);
-
-  let products: ProductRecord[] = [];
-  try {
-    const productsResult = await getWarehouseProducts(resolvedWarehouseId, {
-      limit: PRODUCTS_LIMIT_FOR_DASHBOARD,
-    });
-    products = productsResult.data;
-  } catch (e) {
-    console.warn('[dashboardStats] product list for dashboard extras failed:', e);
-  }
-  const categorySummary: DashboardCategorySummary = {};
-  const lowStockCandidates: ProductRecord[] = [];
-
-  for (const p of products) {
-    const qty = getProductQty(p);
-    const reorder = p.reorderLevel ?? 0;
-    const cost = p.costPrice ?? 0;
-    const price = cost > 0 ? cost : 0;
-    if (qty <= reorder) lowStockCandidates.push(p);
-    const cat = p.category?.trim() || 'Uncategorised';
-    if (!categorySummary[cat]) categorySummary[cat] = { count: 0, value: 0 };
-    categorySummary[cat].count++;
-    categorySummary[cat].value += qty * price;
-  }
-
-  const lowStockItems: DashboardLowStockItem[] = lowStockCandidates
-    .sort((a, b) => getProductQty(a) - getProductQty(b))
-    .slice(0, LOW_STOCK_ALERTS_LIMIT)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      category: p.category?.trim() || 'Uncategorised',
-      quantity: getProductQty(p),
-      quantityBySize: (p.quantityBySize ?? []).map((s) => ({ sizeCode: s.sizeCode, quantity: s.quantity })),
-      reorderLevel: p.reorderLevel ?? 0,
-    }));
 
   return {
     totalStockValue: dbStats.total_stock_value,
@@ -185,6 +205,6 @@ export async function getDashboardStats(
     outOfStockCount: dbStats.out_of_stock_count,
     todaySales,
     lowStockItems,
-    categorySummary,
+    categorySummary: {},
   };
 }

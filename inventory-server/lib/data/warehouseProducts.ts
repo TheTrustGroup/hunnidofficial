@@ -3,7 +3,7 @@
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { normalizeQuantityBySizeForPersist } from '../../../warehouse-pos/src/lib/sizeCode';
-import { resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
+import { isInvalidWarehouseId, resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
 
 export interface ListOptions {
   limit?: number;
@@ -89,12 +89,6 @@ function normalizeDbConstraintError(dbMessage: string, action: 'create' | 'updat
   return `Failed to ${action} product: ${dbMessage}`;
 }
 
-function isInvalidWarehouseId(value: string): boolean {
-  const w = String(value ?? '').trim();
-  if (!w) return true;
-  return w === '00000000-0000-0000-0000-000000000000';
-}
-
 /**
  * Columns for warehouse_products when table has no warehouse_id (one row per product).
  * Quantity is resolved from warehouse_inventory / warehouse_inventory_by_size per warehouse.
@@ -164,22 +158,9 @@ function rowToListProduct(
   };
 }
 
-const WP_EMBED = 'warehouse_products';
-
-type InvJoinRow = {
-  quantity?: number;
-  product_id?: string;
-  warehouse_products?: Record<string, unknown> | Record<string, unknown>[];
-};
-
-function productFromInvJoinRow(row: InvJoinRow): Record<string, unknown> | null {
-  const wp = Array.isArray(row.warehouse_products) ? row.warehouse_products[0] : row.warehouse_products;
-  return wp && typeof wp === 'object' ? (wp as Record<string, unknown>) : null;
-}
-
 /**
- * Fast path: paginate warehouse_inventory (indexed by warehouse_id) and embed product row.
- * Avoids huge .in(id, …) filters that return 500 from PostgREST on ~177+ UUIDs.
+ * Fast path: inventory product ids + chunked warehouse_products fetch (parallel).
+ * PostgREST embed/join on 177 rows was timing out at 30s on Vercel.
  */
 async function getWarehouseProductsFast(
   db: SupabaseClient,
@@ -188,7 +169,10 @@ async function getWarehouseProductsFast(
   limit: number,
   offset: number
 ): Promise<ListResult> {
-  if (!warehouseId) return { data: [], total: 0 };
+  if (isInvalidWarehouseId(warehouseId)) return { data: [], total: 0 };
+
+  let productIds = await loadWarehouseProductIds(db, warehouseId);
+  if (productIds.length === 0) return { data: [], total: 0 };
 
   if (options.sizeCode?.trim()) {
     const { data: sizeRows } = await db
@@ -196,63 +180,12 @@ async function getWarehouseProductsFast(
       .select('product_id')
       .eq('warehouse_id', warehouseId)
       .eq('size_code', options.sizeCode.trim());
-    const allowed = [...new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id))];
-    if (allowed.length === 0) return { data: [], total: 0 };
-    return getWarehouseProductsByProductIds(db, warehouseId, allowed, options, limit, offset);
+    const allowed = new Set((sizeRows ?? []).map((r: { product_id: string }) => r.product_id));
+    productIds = productIds.filter((id) => allowed.has(id));
+    if (productIds.length === 0) return { data: [], total: 0 };
   }
 
-  const embed = `quantity, product_id, ${WP_EMBED}!inner(${WAREHOUSE_PRODUCTS_SELECT})`;
-  let query = db
-    .from('warehouse_inventory')
-    .select(embed, { count: 'exact' })
-    .eq('warehouse_id', warehouseId);
-
-  const wpCol = (col: string) => `${WP_EMBED}.${col}`;
-  if (options.q?.trim()) {
-    const raw = options.q.trim();
-    const q = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-    query = query.or(
-      `${wpCol('name')}.ilike.%${q}%,${wpCol('sku')}.ilike.%${q}%,${wpCol('barcode')}.ilike.%${q}%`
-    );
-  }
-  if (options.category?.trim()) {
-    query = query.eq(wpCol('category'), options.category.trim());
-  }
-  if (options.color?.trim()) {
-    const colorVal = options.color.trim();
-    if (colorVal.toLowerCase() === 'uncategorized') query = query.is(wpCol('color'), null);
-    else query = query.ilike(wpCol('color'), colorVal);
-  }
-
-  query = query.order(wpCol('name'), { ascending: true }).range(offset, offset + limit - 1);
-
-  const { data: rows, error, count } = await query;
-  if (error) {
-    console.warn('[getWarehouseProductsFast] inventory embed failed:', error.message);
-    return getWarehouseProductsByProductIds(
-      db,
-      warehouseId,
-      await loadWarehouseProductIds(db, warehouseId),
-      options,
-      limit,
-      offset
-    );
-  }
-
-  const joinRows = (rows ?? []) as InvJoinRow[];
-  const pageIds = joinRows.map((r) => String(r.product_id ?? productFromInvJoinRow(r)?.id ?? '')).filter(Boolean);
-  const sizeMap = await loadSizeMap(db, warehouseId, pageIds);
-
-  const data = joinRows
-    .map((r) => {
-      const wp = productFromInvJoinRow(r);
-      if (!wp) return null;
-      const invQty = Number(r.quantity ?? 0);
-      return rowToListProduct(wp, warehouseId, invQty, sizeMap, options);
-    })
-    .filter((p): p is ListProduct => p !== null);
-
-  return { data, total: count ?? data.length };
+  return getWarehouseProductsByProductIds(db, warehouseId, productIds, options, limit, offset);
 }
 
 /** Product ids at warehouse (inventory + size rows). */
@@ -280,25 +213,31 @@ async function getWarehouseProductsByProductIds(
 ): Promise<ListResult> {
   if (productIds.length === 0) return { data: [], total: 0 };
 
-  const allRows: Record<string, unknown>[] = [];
+  const chunks: string[][] = [];
   for (let i = 0; i < productIds.length; i += IN_CHUNK) {
-    const chunk = productIds.slice(i, i + IN_CHUNK);
-    let q = db.from('warehouse_products').select(WAREHOUSE_PRODUCTS_SELECT).in('id', chunk);
-    if (options.q?.trim()) {
-      const raw = options.q.trim();
-      const term = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-      q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,barcode.ilike.%${term}%`);
-    }
-    if (options.category?.trim()) q = q.eq('category', options.category.trim());
-    if (options.color?.trim()) {
-      const colorVal = options.color.trim();
-      if (colorVal.toLowerCase() === 'uncategorized') q = q.is('color', null);
-      else q = q.ilike('color', colorVal);
-    }
-    const { data: chunkRows, error } = await q;
-    if (error) throw new Error(`Failed to list products: ${error.message}`);
-    allRows.push(...((chunkRows ?? []) as Record<string, unknown>[]));
+    chunks.push(productIds.slice(i, i + IN_CHUNK));
   }
+
+  const chunkResults = await Promise.all(
+    chunks.map(async (chunk) => {
+      let q = db.from('warehouse_products').select(WAREHOUSE_PRODUCTS_SELECT).in('id', chunk);
+      if (options.q?.trim()) {
+        const raw = options.q.trim();
+        const term = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+        q = q.or(`name.ilike.%${term}%,sku.ilike.%${term}%,barcode.ilike.%${term}%`);
+      }
+      if (options.category?.trim()) q = q.eq('category', options.category.trim());
+      if (options.color?.trim()) {
+        const colorVal = options.color.trim();
+        if (colorVal.toLowerCase() === 'uncategorized') q = q.is('color', null);
+        else q = q.ilike('color', colorVal);
+      }
+      const { data: chunkRows, error } = await q;
+      if (error) throw new Error(`Failed to list products: ${error.message}`);
+      return (chunkRows ?? []) as Record<string, unknown>[];
+    })
+  );
+  const allRows = chunkResults.flat();
 
   allRows.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')));
   const page = allRows.slice(offset, offset + limit);
@@ -456,16 +395,12 @@ export async function getWarehouseProducts(
   const db = getDb();
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 250);
   const offset = Math.max(options.offset ?? 0, 0);
-  const rawWarehouseId = warehouseId ?? '';
-  const effectiveWarehouseId = await resolveWarehouseId(db, rawWarehouseId);
-
-  try {
-    return await getWarehouseProductsFast(db, effectiveWarehouseId, options, limit, offset);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.warn('[getWarehouseProducts] fast path failed, using legacy:', msg);
-    return getWarehouseProductsLegacy(db, effectiveWarehouseId, options, limit, offset);
+  const effectiveWarehouseId = await resolveWarehouseId(db, warehouseId ?? '');
+  if (isInvalidWarehouseId(effectiveWarehouseId)) {
+    return { data: [], total: 0 };
   }
+
+  return getWarehouseProductsFast(db, effectiveWarehouseId, options, limit, offset);
 }
 
 /** Get one product by id and warehouse (for GET ?id=). Works when warehouse_products has no warehouse_id. */

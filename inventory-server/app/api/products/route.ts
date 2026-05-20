@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 /** Allow up to 30s so large product lists (e.g. limit=1000) don't hit Vercel default 10s and cause "connection was lost". */
 export const maxDuration = 30;
 import { getWarehouseProducts, createWarehouseProduct } from '@/lib/data/warehouseProducts';
-import { resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
+import { isInvalidWarehouseId, resolveWarehouseId } from '@/lib/data/resolveWarehouseId';
 import { getScopeForUser } from '@/lib/data/userScopes';
 import { requireAuth, requireAdmin, getEffectiveWarehouseId } from '@/lib/auth/session';
 import { getSupabase } from '@/lib/supabase';
@@ -74,6 +74,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const effectiveWarehouseId = await getEffectiveWarehouseId(auth, requestedWarehouseId);
   if (effectiveWarehouseId === null) {
     return withCors(NextResponse.json({ error: 'Access denied' }, { status: 403 }), request);
+  }
+  if (isInvalidWarehouseId(effectiveWarehouseId)) {
+    return withCors(
+      NextResponse.json({ error: 'warehouse_id is required and must be valid' }, { status: 400 }),
+      request
+    );
   }
 
   const id = searchParams.get('id')?.trim();

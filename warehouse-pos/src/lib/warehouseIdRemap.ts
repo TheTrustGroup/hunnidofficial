@@ -11,8 +11,10 @@ const LEGACY_TO_REAL: Record<string, string> = {
   [LEGACY_HUNNID_MAIN_ID]: HUNNID_MAIN_WAREHOUSE_ID,
 };
 
+const NULL_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000000';
+
 export function remapLegacyWarehouseId(id: string | undefined | null): string {
   const raw = String(id ?? '').trim();
-  if (!raw) return '';
+  if (!raw || raw === NULL_WAREHOUSE_ID) return LEGACY_MAIN_JEFF_ID;
   return LEGACY_TO_REAL[raw] ?? raw;
 }

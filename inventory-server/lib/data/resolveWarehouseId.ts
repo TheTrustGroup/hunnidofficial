@@ -11,6 +11,13 @@ export const LEGACY_HUNNID_MAIN_ID = '00000000-0000-0000-0000-000000000002';
 /** Real Hunnid Main id in production (HunnidOfficial project). */
 export const HUNNID_MAIN_WAREHOUSE_ID = '99aa0b7b-a93d-4b5d-8b10-2854ed2da59f';
 
+export const NULL_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000000';
+
+export function isInvalidWarehouseId(value: string | undefined | null): boolean {
+  const w = String(value ?? '').trim();
+  return !w || w === NULL_WAREHOUSE_ID;
+}
+
 let cache: { at: number; byLegacy: Record<string, string>; byReal: Set<string> } | null = null;
 const CACHE_MS = 60_000;
 
@@ -59,7 +66,10 @@ async function loadWarehouseIdMap(db: SupabaseClient): Promise<{
 /** Resolve client warehouse id to the id used in warehouse_inventory / warehouse_products. */
 export async function resolveWarehouseId(db: SupabaseClient, warehouseId: string | undefined): Promise<string> {
   const raw = String(warehouseId ?? '').trim();
-  if (!raw) return '';
+  if (isInvalidWarehouseId(raw)) return '';
+  if (raw === LEGACY_MAIN_JEFF_ID) return LEGACY_MAIN_JEFF_ID;
+  if (raw === LEGACY_HUNNID_MAIN_ID) return HUNNID_MAIN_WAREHOUSE_ID;
+  if (raw === HUNNID_MAIN_WAREHOUSE_ID) return HUNNID_MAIN_WAREHOUSE_ID;
   const { byLegacy, byReal } = await loadWarehouseIdMap(db);
   if (byReal.has(raw)) return raw;
   return byLegacy[raw] ?? raw;
