@@ -56,6 +56,10 @@ import CartSheet, {
   type ChargeStatus,
 }                                                 from '../components/pos/CartSheet';
 import SaleSuccessScreen, { type CompletedSale }  from '../components/pos/SaleSuccessScreen';
+import { isPosSaleOutboxEnabled } from '../lib/offlineFeatureFlag';
+import { enqueueSaleEvent, isIndexedDBAvailable } from '../lib/offlineDb';
+import { isRetryableSaleError } from '../lib/posSaleErrors';
+import { syncPendingPosSales } from '../lib/posSaleSync';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -80,6 +84,35 @@ function buildCartKey(productId: string, sizeCode: string | null) {
 
 function fmt(n: number) {
   return `GH₵${Number(n).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function salePayloadToApiBody(payload: SalePayload): Record<string, unknown> {
+  return {
+    warehouseId: payload.warehouseId,
+    customerName: payload.customerName || null,
+    paymentMethod: payload.paymentMethod,
+    subtotal: payload.subtotal,
+    discountPct: payload.discountPct,
+    discountAmt: payload.discountAmt,
+    total: payload.total,
+    ...(payload.paymentMixBreakdown && { paymentMixBreakdown: payload.paymentMixBreakdown }),
+    deliveryStatus: payload.deliveryStatus ?? 'delivered',
+    recipientName: payload.recipientName || null,
+    recipientPhone: payload.recipientPhone || null,
+    deliveryAddress: payload.deliveryAddress || null,
+    deliveryNotes: payload.deliveryNotes || null,
+    expectedDate: payload.expectedDate || null,
+    lines: payload.lines.map((l) => ({
+      productId: l.productId,
+      sizeCode: l.sizeCode || null,
+      qty: l.qty,
+      unitPrice: l.unitPrice,
+      lineTotal: l.unitPrice * l.qty,
+      name: l.name,
+      sku: l.sku ?? '',
+      imageUrl: null,
+    })),
+  };
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -145,6 +178,16 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     return () => { isMounted.current = false; };
   }, []);
 
+  useEffect(() => {
+    if (!isPosSaleOutboxEnabled()) return;
+    const run = () => {
+      syncPendingPosSales().catch(() => {});
+    };
+    run();
+    window.addEventListener('online', run);
+    return () => window.removeEventListener('online', run);
+  }, []);
+
   // Keep local warehouse in sync with context (sidebar change or context loaded from API)
   // Sync local warehouse when context resolves; omit full object to avoid loop
   useEffect(() => {
@@ -175,7 +218,9 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         if (res.status === 401 && typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('auth:session-expired'));
         }
-        throw new Error(msg);
+        const err = new Error(msg) as Error & { status?: number };
+        err.status = res.status;
+        throw err;
       }
       const text = await res.text();
       return (text ? JSON.parse(text) : {}) as T;
@@ -319,31 +364,59 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
 
     } catch (apiErr: unknown) {
       const msg = apiErr instanceof Error ? apiErr.message : 'API error';
+      const status = (apiErr as { status?: number })?.status;
       const isInsufficientStock = msg.includes('INSUFFICIENT_STOCK') || msg.includes('insufficient stock');
       console.error('[POS] /api/sales failed — stock NOT deducted in DB:', msg);
-      syncOk = false;
-      serverReceiptId = 'LOCAL-' + Date.now().toString(36).toUpperCase();
-      completedAt = new Date().toISOString();
-      setChargeStatus('error');
-      setLastChargeError(msg);
-      if (msg.includes('Too many line items')) {
-        insufficientStockShown = true;
-        showToast(msg, 'err');
-      } else if (isInsufficientStock) {
-        insufficientStockShown = true;
-        showToast('Insufficient stock for one or more items. Reduce quantity or remove items and try again.', 'err');
-      } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
-        insufficientStockShown = true;
-        showToast('Please log in again. Your session may have expired.', 'err');
-      } else if (msg.includes('503') || msg.toLowerCase().includes('unavailable')) {
-        insufficientStockShown = true;
-        showToast('Sale service unavailable. Contact support or ensure the record_sale migration is applied in Supabase.', 'err');
-      } else if (msg.includes('403') || msg.toLowerCase().includes('forbidden')) {
-        insufficientStockShown = true;
-        showToast('You don’t have access to record sales for this warehouse.', 'err');
-      } else if (msg.includes('400') || msg.includes('warehouseId')) {
-        insufficientStockShown = true;
-        showToast(msg.length > 80 ? 'Invalid sale data. Check warehouse and try again.' : msg, 'err');
+
+      const canQueue =
+        isPosSaleOutboxEnabled() &&
+        isIndexedDBAvailable() &&
+        isRetryableSaleError(msg, status);
+
+      if (canQueue) {
+        try {
+          const eventId = crypto.randomUUID();
+          await enqueueSaleEvent(salePayloadToApiBody(payload), eventId);
+          syncOk = true;
+          serverSaleId = eventId;
+          serverReceiptId = `PENDING-${eventId.slice(0, 8).toUpperCase()}`;
+          completedAt = new Date().toISOString();
+          showToast('Sale saved on this device — will sync when connection is restored.', 'warn');
+          syncPendingPosSales().catch(() => {});
+        } catch (queueErr) {
+          console.error('[POS] offline sale queue failed', queueErr);
+          syncOk = false;
+          setChargeStatus('error');
+          setLastChargeError(msg);
+          showToast('Could not save sale offline. Check storage and try again.', 'err');
+        }
+      } else {
+        syncOk = false;
+        serverReceiptId = 'LOCAL-' + Date.now().toString(36).toUpperCase();
+        completedAt = new Date().toISOString();
+        setChargeStatus('error');
+        setLastChargeError(msg);
+        if (msg.includes('Too many line items')) {
+          insufficientStockShown = true;
+          showToast(msg, 'err');
+        } else if (isInsufficientStock) {
+          insufficientStockShown = true;
+          showToast('Insufficient stock for one or more items. Reduce quantity or remove items and try again.', 'err');
+        } else if (msg.includes('401') || msg.toLowerCase().includes('unauthorized')) {
+          insufficientStockShown = true;
+          showToast('Please log in again. Your session may have expired.', 'err');
+        } else if (msg.includes('503') || msg.toLowerCase().includes('unavailable')) {
+          insufficientStockShown = true;
+          showToast('Sale service unavailable. Contact support or ensure the record_sale migration is applied in Supabase.', 'err');
+        } else if (msg.includes('403') || msg.toLowerCase().includes('forbidden')) {
+          insufficientStockShown = true;
+          showToast('You don’t have access to record sales for this warehouse.', 'err');
+        } else if (msg.includes('400') || msg.includes('warehouseId')) {
+          insufficientStockShown = true;
+          showToast(msg.length > 80 ? 'Invalid sale data. Check warehouse and try again.' : msg, 'err');
+        } else if (!insufficientStockShown) {
+          showToast('Sale failed to sync — check connection and try again. Cart preserved.', 'err');
+        }
       }
     }
 
@@ -411,6 +484,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         receiptId:      successResult.serverReceiptId,
         completedAt:    successResult.completedAt,
         deliveryStatus: successPayload.deliveryStatus ?? 'delivered',
+        syncPending:    String(successResult.serverReceiptId ?? '').startsWith('PENDING-'),
       });
       notifyInventoryUpdated();
     }, 2000);

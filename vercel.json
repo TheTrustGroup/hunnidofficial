@@ -1,7 +1,8 @@
 {
-  "buildCommand": "npm install && npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm ci",
+  "buildCommand": "cd warehouse-pos && npm ci && npm run build",
+  "devCommand": "cd warehouse-pos && npm run dev",
+  "installCommand": "cd warehouse-pos && npm ci",
+  "outputDirectory": "warehouse-pos/dist",
   "headers": [
     {
       "source": "/index.html",

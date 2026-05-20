@@ -15,6 +15,8 @@ import {
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { syncService } from '../services/syncService';
 import { recordOfflineDuration } from '../lib/telemetry';
+import { isOfflineEnabled, isPosSaleOutboxEnabled } from '../lib/offlineFeatureFlag';
+import { syncPendingPosSales } from '../lib/posSaleSync';
 
 const BACK_ONLINE_DISPLAY_MS = 4000;
 const FADE_OUT_MS = 400;
@@ -75,13 +77,19 @@ export function NetworkStatusProvider({ children }: NetworkStatusProviderProps) 
     }
   }, [isOnline]);
 
-  // When we transition from offline to online, show "Back Online - Syncing..." and optionally trigger sync (gated by offline feature flag)
+  // When we transition from offline to online, show "Back Online - Syncing..." and trigger sync
   useEffect(() => {
     const wasOffline = !previousOnlineRef.current;
     if (wasOffline && isOnline) {
       setShowBackOnlineBanner(true);
       setBackOnlineFadeOut(false);
       clearHideTimeouts();
+      if (isOfflineEnabled()) {
+        syncService.processSyncQueue().catch(() => {});
+      }
+      if (isPosSaleOutboxEnabled()) {
+        syncPendingPosSales().catch(() => {});
+      }
     }
     previousOnlineRef.current = isOnline;
   }, [isOnline, clearHideTimeouts]);
@@ -162,7 +170,7 @@ export function NetworkStatusProvider({ children }: NetworkStatusProviderProps) 
           role="status"
           aria-live="polite"
         >
-          Working Offline — Read-only. Add, edit, and sales disabled.
+          Offline — Using saved data. POS sales queue locally and sync when back online.
         </div>
       )}
       {showBackOnline && (

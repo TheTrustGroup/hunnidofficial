@@ -22,6 +22,7 @@ if (typeof document !== 'undefined' && API_BASE_URL) {
   }
 }
 import { initErrorHandlers } from './lib/initErrorHandlers';
+import { runClientDataMigration } from './lib/clientDataMigration';
 // Error reporting: set VITE_SENTRY_DSN and wire Sentry.captureException(err, { extra: ctx }) here.
 // Only send to Sentry when getErrorReportingConsent() is true (user consent in Settings/Admin).
 initObservability({
@@ -38,6 +39,7 @@ if (import.meta.env.VITE_HEALTH_URL) startHealthPings();
 
 if (typeof window !== 'undefined') {
   initErrorHandlers();
+  runClientDataMigration().catch(() => {});
   /* Stability: same build version across Safari/Brave/Chrome (Phase 1). */
   if (typeof __APP_BUILD_VERSION__ !== 'undefined') {
     console.info('[App] Build version:', __APP_BUILD_VERSION__);

@@ -2,12 +2,14 @@
 
 Frontend (Vite + React) and inventory API (Next.js on Vercel) for warehouse inventory and POS.
 
+**Canonical codebase:** [`warehouse-pos/`](warehouse-pos/) — see [CANONICAL.md](CANONICAL.md). Repo-root `npm run dev` delegates there. Legacy duplicate trees live under `_archive/`.
+
 ## Run locally
 
 ### Frontend (warehouse app + POS)
 
 ```bash
-# From warehouse-pos root
+cd warehouse-pos
 npm install
 npm run dev
 ```

@@ -126,6 +126,16 @@ class HunnidOfficialDexie extends Dexie {
 /** @type {HunnidOfficialDexie} */
 const db = new HunnidOfficialDexie();
 
+/** True if error looks like Dexie/idb transaction invalid (for offlineDb recovery). */
+export function isTransactionError(e) {
+  if (e == null) return true;
+  const msg = typeof e.message === 'string' ? e.message : String(e);
+  return /e\.trans|n\.type|null is not an object.*trans|Transaction.*invalid|Database closed/i.test(msg);
+}
+
+/** No-op for API compatibility with syncService. */
+export function clearDbInstance() {}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

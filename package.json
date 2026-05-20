@@ -7,21 +7,21 @@
     "minimatch": ">=9.0.7"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "build:server": "cd inventory-server && npm run build",
+    "dev": "npm run dev --prefix warehouse-pos",
+    "build": "npm run build --prefix warehouse-pos",
+    "build:server": "npm run build --prefix warehouse-pos/inventory-server",
     "build:all": "npm run build && npm run build:server",
-    "build:bundler-only": "vite build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 107",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "ci:inventory": "node scripts/ci-inventory-invariants.mjs",
-    "ci": "npm run ci:inventory && npm run test && npm run build",
+    "build:bundler-only": "npm run build:bundler-only --prefix warehouse-pos",
+    "lint": "npm run lint --prefix warehouse-pos",
+    "preview": "npm run preview --prefix warehouse-pos",
+    "test": "npm run test --prefix warehouse-pos",
+    "test:watch": "npm run test:watch --prefix warehouse-pos",
+    "test:e2e": "npm run test:e2e --prefix warehouse-pos",
+    "ci:inventory": "npm run ci:inventory --prefix warehouse-pos",
+    "ci": "npm run ci --prefix warehouse-pos",
     "guard:uncommitted": "node scripts/guard-uncommitted.mjs",
     "analyze": "node scripts/analyze-supabase-vercel.mjs",
-    "deploy": "vercel --prod"
+    "deploy": "cd warehouse-pos && vercel --prod"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.10",

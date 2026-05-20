@@ -21,6 +21,8 @@ export interface CompletedSale extends Omit<SalePayload, 'deliveryStatus'> {
   saleId?:         string;
   completedAt?:    string;
   deliveryStatus?: DeliveryStatus | string;
+  /** True when sale is queued locally and awaiting POST /api/sales. */
+  syncPending?:    boolean;
 }
 
 interface SaleSuccessScreenProps {
@@ -662,6 +664,12 @@ export default function SaleSuccessScreen({
           </span>
         </div>
       </div>
+
+      {sale.syncPending && (
+        <div className="mx-4 mb-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 text-sm font-medium text-center">
+          Sale saved on this device — will sync to the server when you are back online.
+        </div>
+      )}
 
       {/* ── Receipt card ── */}
       <div

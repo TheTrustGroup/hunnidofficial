@@ -47,7 +47,7 @@ export const BASE_NAVIGATION: NavItem[] = [
   { name: 'Settings', to: '/settings', icon: Settings, permission: PERMISSIONS.SETTINGS.VIEW },
 ];
 
-/** Alias for components that expect baseNavigation (e.g. MobileBottomNav, MoreMenuSheet). */
+/** Alias for components that expect baseNavigation (e.g. MoreMenuSheet). */
 export const baseNavigation = BASE_NAVIGATION;
 
 /** Bottom nav: exactly 5 tabs. "More" goes to /more; other items listed there. */

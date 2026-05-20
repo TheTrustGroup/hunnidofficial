@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { BottomNav } from './BottomNav';
 import { SyncStatusBar } from '../SyncStatusBar';
 import { ConflictModalContainer } from '../ConflictModalContainer';
+import { isOfflineEnabled } from '../../lib/offlineFeatureFlag';
 import { ApiStatusProvider, useApiStatus } from '../../contexts/ApiStatusContext';
 import { useCriticalData } from '../../contexts/CriticalDataContext';
 import { Button } from '../ui/Button';
@@ -172,9 +173,9 @@ function LayoutContent() {
       >
         <Outlet />
       </main>
-      <SyncStatusBar />
+      {isOfflineEnabled() && <SyncStatusBar />}
       <BottomNav />
-      <ConflictModalContainer />
+      {isOfflineEnabled() && <ConflictModalContainer />}
     </div>
   );
 }
