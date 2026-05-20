@@ -104,6 +104,10 @@ function normalizeDbConstraintError(dbMessage: string, action: 'create' | 'updat
 const WAREHOUSE_PRODUCTS_SELECT =
   'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, location, supplier, tags, images, version, created_at, updated_at';
 
+/** List endpoint: omit images/json blobs (loaded from Storage URLs or client cache). */
+const WAREHOUSE_PRODUCTS_LIST_SELECT =
+  'id, sku, barcode, name, description, category, color, size_kind, selling_price, cost_price, reorder_level, version, created_at, updated_at';
+
 async function loadSizeMap(
   db: SupabaseClient,
   warehouseId: string,
@@ -229,10 +233,21 @@ async function getWarehouseProductsFast(
   if (isInvalidWarehouseId(warehouseId)) return { data: [], total: 0 };
 
   const rpcResult = await getWarehouseProductsViaRpc(db, warehouseId, options, limit, offset);
-  if (rpcResult) return rpcResult;
+  if (rpcResult && (rpcResult.data.length > 0 || rpcResult.total > 0)) return rpcResult;
 
-  console.warn('[getWarehouseProducts] RPC unavailable; returning empty list');
-  return { data: [], total: 0 };
+  if (rpcResult?.data.length === 0 && rpcResult.total > 0) {
+    console.warn('[getWarehouseProducts] RPC returned total but no rows; using fallback');
+  } else if (!rpcResult) {
+    console.warn('[getWarehouseProducts] RPC failed; using paginated fallback');
+  }
+
+  try {
+    return await getWarehouseProductsPageFallback(db, warehouseId, options, limit, offset);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn('[getWarehouseProducts] page fallback failed:', msg);
+    return await getWarehouseProductsByProductIdsSlim(db, warehouseId, options, limit, offset);
+  }
 }
 
 /** Fallback when RPC is not deployed: paginate via inventory join without loading full catalog. */
@@ -243,7 +258,7 @@ async function getWarehouseProductsPageFallback(
   limit: number,
   offset: number
 ): Promise<ListResult> {
-  const embed = `quantity, product_id, warehouse_products!inner(${WAREHOUSE_PRODUCTS_SELECT})`;
+  const embed = `quantity, product_id, warehouse_products!inner(${WAREHOUSE_PRODUCTS_LIST_SELECT})`;
   let query = db
     .from('warehouse_inventory')
     .select(embed, { count: 'exact' })
@@ -304,6 +319,35 @@ async function loadWarehouseProductIds(db: SupabaseClient, warehouseId: string):
 
 const IN_CHUNK = 80;
 
+/** Last resort: inventory ids + slim product rows for one page only. */
+async function getWarehouseProductsByProductIdsSlim(
+  db: SupabaseClient,
+  warehouseId: string,
+  options: ListOptions,
+  limit: number,
+  offset: number
+): Promise<ListResult> {
+  const { data: invRows, error } = await db
+    .from('warehouse_inventory')
+    .select('product_id, quantity')
+    .eq('warehouse_id', warehouseId);
+  if (error) throw new Error(`Failed to list products: ${error.message}`);
+  const invList = (invRows ?? []) as Array<{ product_id: string; quantity?: number }>;
+  if (invList.length === 0) return { data: [], total: 0 };
+
+  const productIds = invList.map((r) => r.product_id);
+  const result = await getWarehouseProductsByProductIds(
+    db,
+    warehouseId,
+    productIds,
+    options,
+    limit,
+    offset,
+    WAREHOUSE_PRODUCTS_LIST_SELECT
+  );
+  return result;
+}
+
 /** Fallback when embed fails: chunk .in(id) to stay under PostgREST URL limits. */
 async function getWarehouseProductsByProductIds(
   db: SupabaseClient,
@@ -311,7 +355,8 @@ async function getWarehouseProductsByProductIds(
   productIds: string[],
   options: ListOptions,
   limit: number,
-  offset: number
+  offset: number,
+  selectColumns: string = WAREHOUSE_PRODUCTS_SELECT
 ): Promise<ListResult> {
   if (productIds.length === 0) return { data: [], total: 0 };
 
@@ -322,7 +367,7 @@ async function getWarehouseProductsByProductIds(
 
   const chunkResults = await Promise.all(
     chunks.map(async (chunk) => {
-      let q = db.from('warehouse_products').select(WAREHOUSE_PRODUCTS_SELECT).in('id', chunk);
+      let q = db.from('warehouse_products').select(selectColumns).in('id', chunk);
       if (options.q?.trim()) {
         const raw = options.q.trim();
         const term = raw.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
@@ -336,7 +381,7 @@ async function getWarehouseProductsByProductIds(
       }
       const { data: chunkRows, error } = await q;
       if (error) throw new Error(`Failed to list products: ${error.message}`);
-      return (chunkRows ?? []) as Record<string, unknown>[];
+      return (chunkRows ?? []) as unknown as Record<string, unknown>[];
     })
   );
   const allRows = chunkResults.flat();

@@ -87,6 +87,25 @@ export function parseLoginResponse(data: unknown): {
 }
 
 // ---- Products API response ----
+
+/** Accept API items whether camelCase or snake_case (RPC/legacy paths). */
+function normalizeApiProductFields(item: unknown): unknown {
+  if (item == null || typeof item !== 'object' || Array.isArray(item)) return item;
+  const o = item as Record<string, unknown>;
+  const qbs = o.quantityBySize ?? o.quantity_by_size;
+  return {
+    ...o,
+    sellingPrice: o.sellingPrice ?? o.selling_price,
+    costPrice: o.costPrice ?? o.cost_price,
+    reorderLevel: o.reorderLevel ?? o.reorder_level,
+    sizeKind: o.sizeKind ?? o.size_kind,
+    createdAt: o.createdAt ?? o.created_at,
+    updatedAt: o.updatedAt ?? o.updated_at,
+    quantityBySize: Array.isArray(qbs) ? qbs : o.quantityBySize,
+    images: Array.isArray(o.images) ? o.images : [],
+  };
+}
+
 /** Single product item from API (lenient: coerces types, allows optional fields). */
 const apiProductItemSchema = z
   .object({
@@ -127,7 +146,18 @@ export type ApiProductItem = z.infer<typeof apiProductItemSchema>;
  * On validation failure does not overwrite state; caller should set error and keep previous data.
  */
 export function parseProductsResponse(raw: unknown): { success: true; items: ApiProductItem[] } | { success: false; message: string } {
-  const parsed = apiProductsResponseSchema.safeParse(raw);
+  const normalized =
+    raw != null && typeof raw === 'object' && !Array.isArray(raw) && 'data' in raw
+      ? {
+          ...(raw as object),
+          data: Array.isArray((raw as { data?: unknown }).data)
+            ? (raw as { data: unknown[] }).data.map(normalizeApiProductFields)
+            : (raw as { data?: unknown }).data,
+        }
+      : Array.isArray(raw)
+        ? raw.map(normalizeApiProductFields)
+        : raw;
+  const parsed = apiProductsResponseSchema.safeParse(normalized);
   if (!parsed.success) {
     if (import.meta.env.DEV) console.warn('[apiSchemas] Products response validation failed:', parsed.error.flatten());
     return { success: false, message: 'Invalid products response from server' };

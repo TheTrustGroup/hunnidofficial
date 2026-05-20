@@ -865,12 +865,28 @@ export default function InventoryPage(_props: InventoryPageProps) {
         {!loading && !error && products.length === 0 && !(dashboard != null && skuCount > 0) && (
           <EmptyState
             icon={Package}
-            title="No products yet"
-            description="Add your first product to get started."
+            title={productsTotal != null && productsTotal > 0 ? "Couldn't load product list" : 'No products yet'}
+            description={
+              productsTotal != null && productsTotal > 0
+                ? `This warehouse has ${productsTotal} product${productsTotal !== 1 ? 's' : ''} in the database. Tap Retry to load the list.`
+                : 'Add your first product to get started.'
+            }
             action={
-              <Button variant="primary" onClick={openAddModal} leftIcon={<PlusIcon />}>
-                Add your first product
-              </Button>
+              productsTotal != null && productsTotal > 0 ? (
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    resetAllApiCircuitBreakers();
+                    refreshProducts({ bypassCache: true, timeoutMs: 90_000 });
+                  }}
+                >
+                  Retry
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={openAddModal} leftIcon={<PlusIcon />}>
+                  Add your first product
+                </Button>
+              )
             }
             className="py-12"
           />
