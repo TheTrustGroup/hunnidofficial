@@ -14,6 +14,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { type SalePayload, type DeliveryStatus } from './CartSheet';
 import { PayIcon } from './PaymentIcons';
+import { buildReceiptHtml } from '../../lib/receiptHtml';
 
 // ── Extended sale type (POSPage sets receiptId from server) ────────────────
 export interface CompletedSale extends Omit<SalePayload, 'deliveryStatus'> {
@@ -98,422 +99,39 @@ const PAYMENT_CONFIG: Record<string, { label: string; color: string }> = {
 // ── Download receipt as printable page ────────────────────────────────────
 
 function downloadReceipt(sale: CompletedSale) {
-  const receiptNo = sale.receiptId ?? `RCP-${Date.now().toString(36).toUpperCase()}`;
-  const payment   = PAYMENT_CONFIG[sale.paymentMethod] ?? { label: sale.paymentMethod, color: '' };
-  const itemCount = sale.lines.reduce((s, l) => s + l.qty, 0);
-
-  // ── Date formatting ────────────────────────────────────────────────────
-  const d = sale.completedAt ? new Date(sale.completedAt) : new Date();
-  const dateStr = d.toLocaleDateString('en-GH', { day: '2-digit', month: 'long', year: 'numeric' });
-  const timeStr = d.toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-  // ── Line items ─────────────────────────────────────────────────────────
-  const itemsHtml = sale.lines.map(l => {
-    const lineName = l.name + (l.sizeLabel ? ` <span class="size-tag">${l.sizeLabel}</span>` : '');
-    return `
-      <tr class="item-row">
-        <td class="item-desc">
-          <span class="item-name">${lineName}</span>
-        </td>
-        <td class="item-qty">${l.qty}</td>
-        <td class="item-price">${fmt(l.unitPrice)}</td>
-        <td class="item-total">${fmt(l.unitPrice * l.qty)}</td>
-      </tr>`;
-  }).join('');
-
-  const discountRow = sale.discountPct > 0 ? `
-    <tr class="summary-row">
-      <td colspan="3" class="summary-label">Discount (${sale.discountPct}%)</td>
-      <td class="summary-value discount-val">−${fmt(sale.discountAmt)}</td>
-    </tr>` : '';
-
-  const subtotalRow = sale.subtotal !== sale.total ? `
-    <tr class="summary-row">
-      <td colspan="3" class="summary-label">Subtotal</td>
-      <td class="summary-value">${fmt(sale.subtotal)}</td>
-    </tr>` : '';
-
-  // ── HTML receipt ───────────────────────────────────────────────────────
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Receipt ${receiptNo} — Hunnid Official</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Arial, sans-serif;
-    background: #f4f4f5;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 32px 16px 64px;
-    color: #09090b;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  .receipt {
-    background: #fff;
-    width: 100%;
-    max-width: 420px;
-    border-radius: 2px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 32px rgba(0,0,0,.08);
-    overflow: hidden;
-  }
-
-  /* ── Header ── */
-  .header {
-    padding: 28px 28px 20px;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .store-wordmark {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.4px;
-    color: #09090b;
-    margin-bottom: 2px;
-  }
-  .store-tagline {
-    font-size: 11px;
-    color: #a1a1aa;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  .receipt-meta {
-    margin-top: 16px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .receipt-no-label {
-    font-size: 10px;
-    color: #a1a1aa;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 3px;
-  }
-  .receipt-no-val {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    font-weight: 500;
-    color: #09090b;
-    letter-spacing: 0.02em;
-  }
-  .receipt-date {
-    text-align: right;
-  }
-  .date-main {
-    font-size: 13px;
-    font-weight: 600;
-    color: #09090b;
-  }
-  .date-time {
-    font-size: 11px;
-    color: #71717a;
-    margin-top: 2px;
-  }
-
-  /* ── Customer row ── */
-  .customer-row {
-    padding: 10px 28px;
-    background: #fafafa;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 12px;
-    color: #52525b;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .customer-label { font-weight: 500; color: #a1a1aa; }
-
-  /* ── Items table ── */
-  .items-section { padding: 0 28px; }
-
-  .table-head {
-    display: grid;
-    grid-template-columns: 1fr 32px 72px 72px;
-    gap: 8px;
-    padding: 12px 0 8px;
-    border-bottom: 1.5px solid #09090b;
-  }
-  .col-head {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #71717a;
-  }
-  .col-head.right { text-align: right; }
-
-  table.items { width: 100%; border-collapse: collapse; }
-
-  .item-row td { padding: 9px 0 2px; vertical-align: top; }
-  .item-row + .item-row td { border-top: 1px solid #f4f4f5; }
-
-  .item-desc { padding-right: 8px; }
-  .item-name {
-    font-size: 13px;
-    font-weight: 600;
-    color: #09090b;
-    line-height: 1.35;
-  }
-  .size-tag {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 500;
-    color: #71717a;
-    background: #f4f4f5;
-    border-radius: 4px;
-    padding: 1px 5px;
-    margin-left: 4px;
-    vertical-align: middle;
-  }
-  .item-qty {
-    font-size: 12px;
-    font-weight: 500;
-    color: #71717a;
-    text-align: center;
-    white-space: nowrap;
-    padding-top: 10px;
-  }
-  .item-price {
-    font-size: 12px;
-    color: #71717a;
-    text-align: right;
-    white-space: nowrap;
-    padding-top: 10px;
-  }
-  .item-total {
-    font-size: 13px;
-    font-weight: 600;
-    color: #09090b;
-    text-align: right;
-    white-space: nowrap;
-    padding-top: 10px;
-  }
-
-  /* ── Summary ── */
-  .summary-section {
-    padding: 0 28px 4px;
-    border-top: 1.5px solid #09090b;
-    margin-top: 4px;
-  }
-  table.summary { width: 100%; border-collapse: collapse; }
-
-  .summary-row td { padding: 6px 0; }
-  .summary-label {
-    font-size: 12px;
-    color: #71717a;
-    font-weight: 500;
-    text-align: right;
-    padding-right: 16px;
-  }
-  .summary-value {
-    font-size: 13px;
-    font-weight: 600;
-    color: #09090b;
-    text-align: right;
-    white-space: nowrap;
-    min-width: 72px;
-  }
-  .discount-val { color: #16a34a; }
-
-  /* ── Total ── */
-  .total-section {
-    padding: 14px 28px 16px;
-    border-top: 2px solid #09090b;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .total-label {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #09090b;
-  }
-  .total-items {
-    font-size: 11px;
-    color: #a1a1aa;
-    margin-top: 2px;
-    font-weight: 400;
-  }
-  .total-amount {
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: -0.6px;
-    color: #09090b;
-  }
-
-  /* ── Payment ── */
-  .payment-section {
-    padding: 12px 28px 14px;
-    background: #fafafa;
-    border-top: 1px solid #f0f0f0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .payment-label {
-    font-size: 11px;
-    color: #a1a1aa;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  .payment-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 100px;
-    font-size: 12px;
-    font-weight: 600;
-    background: #09090b;
-    color: #fff;
-  }
-
-  /* ── Footer ── */
-  .footer {
-    padding: 16px 28px 20px;
-    border-top: 1px solid #f0f0f0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-  }
-  .footer-message {
-    font-size: 12px;
-    color: #71717a;
-    font-weight: 500;
-    text-align: center;
-  }
-  .footer-receipt {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: #d4d4d8;
-    letter-spacing: 0.12em;
-  }
-
-  /* ── Print styles ── */
-  @media print {
-    body { background: none; padding: 0; }
-    .receipt {
-      box-shadow: none;
-      border-radius: 0;
-      max-width: 100%;
-      width: 100%;
-    }
-    .no-print { display: none !important; }
-  }
-</style>
-</head>
-<body>
-
-<!-- Print button (hidden when printing) -->
-<div class="receipt">
-
-  <!-- Header -->
-  <div class="header">
-    <div class="store-wordmark">Hunnid Official</div>
-    <div class="store-tagline">Official Receipt</div>
-    <div class="receipt-meta">
-      <div>
-        <div class="receipt-no-label">Receipt No.</div>
-        <div class="receipt-no-val">${receiptNo}</div>
-      </div>
-      <div class="receipt-date">
-        <div class="date-main">${dateStr}</div>
-        <div class="date-time">${timeStr}</div>
-      </div>
-    </div>
-  </div>
-
-  ${sale.customerName ? `
-  <div class="customer-row">
-    <span class="customer-label">Customer</span>
-    <span>${sale.customerName}</span>
-  </div>` : ''}
-
-  <!-- Items -->
-  <div class="items-section">
-    <div class="table-head">
-      <span class="col-head">Item</span>
-      <span class="col-head right">Qty</span>
-      <span class="col-head right">Price</span>
-      <span class="col-head right">Amount</span>
-    </div>
-    <table class="items">
-      <tbody>${itemsHtml}</tbody>
-    </table>
-  </div>
-
-  <!-- Summary (subtotal + discount) -->
-  ${subtotalRow || discountRow ? `
-  <div class="summary-section">
-    <table class="summary">
-      <tbody>
-        ${subtotalRow}
-        ${discountRow}
-      </tbody>
-    </table>
-  </div>` : ''}
-
-  <!-- Total -->
-  <div class="total-section">
-    <div>
-      <div class="total-label">Total</div>
-      <div class="total-items">${itemCount} item${itemCount !== 1 ? 's' : ''}</div>
-    </div>
-    <div class="total-amount">${fmt(sale.total)}</div>
-  </div>
-
-  <!-- Payment -->
-  <div class="payment-section">
-    <span class="payment-label">Payment</span>
-    <span class="payment-pill">${payment.label}</span>
-  </div>
-
-  <!-- Footer -->
-  <div class="footer">
-    <div class="footer-message">Thank you for shopping with us!</div>
-    <div class="footer-receipt">${receiptNo}</div>
-  </div>
-
-</div>
-
-<script>
-  // Auto-open print dialog after fonts load
-  window.addEventListener('load', function() {
-    setTimeout(function() { window.print(); }, 600);
-  });
-</script>
-</body>
-</html>`;
-
+  const html = buildReceiptHtml(
+    {
+      receiptId: sale.receiptId,
+      lines: sale.lines.map((l) => ({
+        name: l.name,
+        sizeLabel: l.sizeLabel,
+        qty: l.qty,
+        unitPrice: l.unitPrice,
+      })),
+      subtotal: sale.subtotal,
+      discountPct: sale.discountPct,
+      discountAmt: sale.discountAmt,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod,
+      paymentMixBreakdown: sale.paymentMixBreakdown,
+      customerName: sale.customerName,
+      completedAt: sale.completedAt,
+      syncPending: sale.syncPending,
+    },
+    { autoPrint: true }
+  );
   const blob = new Blob([html], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-
-  // Open in new tab — print dialog fires automatically
+  const url = URL.createObjectURL(blob);
   const tab = window.open(url, '_blank');
   if (!tab) {
-    // Fallback: download if popup blocked
-    const a  = document.createElement('a');
-    a.href   = url;
-    a.download = `receipt-${receiptNo}.html`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${sale.receiptId ?? 'sale'}.html`;
     a.click();
   }
-  // Revoke after delay
-  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
+
 
 // ── Line item row ──────────────────────────────────────────────────────────
 

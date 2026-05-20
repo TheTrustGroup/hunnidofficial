@@ -34,3 +34,20 @@ Without these, uploads in ProductModal fall back to base64. The UI shows a warni
 1. Run migrations in order so `warehouse_products.images` and the `product-images` bucket exist.
 2. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in the frontend `.env` for persistent image hosting.
 3. Re-upload any “local” (base64) images after configuring Storage so they are stored in the bucket.
+
+## One-time base64 → Storage migration
+
+Legacy rows store `data:image/...` in `warehouse_products.images` (200–500KB each). List APIs return one display image via SQL (`list_product_display_images`) but production should use Storage URLs only.
+
+From `inventory-server/`:
+
+```bash
+export SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+node scripts/backfill-product-images.mjs --dry-run
+node scripts/backfill-product-images.mjs --limit=25
+node scripts/backfill-product-images.mjs
+```
+
+After backfill, verify a sample product in Inventory (desktop + mobile) and optionally lower the data-URL cap in `list_product_display_images` to http(s) only.

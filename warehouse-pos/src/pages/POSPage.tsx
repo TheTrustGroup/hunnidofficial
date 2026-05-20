@@ -39,7 +39,7 @@ import {
   applyStockDeductionToProductsCache,
   invalidateProductsQuery,
 } from '../lib/productsQueryCache';
-import { printReceipt, type PrintReceiptPayload } from '../lib/printReceipt';
+import { printReceipt } from '../lib/printReceipt';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from '../contexts/WarehouseContext';
 import { useAuth } from '../contexts/AuthContext';
 import type { Warehouse } from '../types';
@@ -512,7 +512,24 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   // ── Print ─────────────────────────────────────────────────────────────────
 
   function handlePrintReceipt(sale: CompletedSale) {
-    printReceipt({ ...sale, receiptId: sale.receiptId } as PrintReceiptPayload);
+    printReceipt({
+      receiptId: sale.receiptId,
+      lines: sale.lines.map((l) => ({
+        name: l.name,
+        sizeLabel: l.sizeLabel,
+        qty: l.qty,
+        unitPrice: l.unitPrice,
+      })),
+      subtotal: sale.subtotal,
+      discountPct: sale.discountPct,
+      discountAmt: sale.discountAmt,
+      total: sale.total,
+      paymentMethod: sale.paymentMethod,
+      paymentMixBreakdown: sale.paymentMixBreakdown,
+      customerName: sale.customerName,
+      completedAt: sale.completedAt,
+      syncPending: sale.syncPending,
+    });
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────

@@ -50,6 +50,7 @@ export function NetworkStatusProvider({ children }: NetworkStatusProviderProps) 
   const [showBackOnlineBanner, setShowBackOnlineBanner] = useState(false);
   const [backOnlineFadeOut, setBackOnlineFadeOut] = useState(false);
   const previousOnlineRef = useRef(isOnline);
+  const previousServerReachableRef = useRef(isServerReachable);
   const offlineSinceRef = useRef<number | null>(null);
   const hideBackOnlineTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,6 +94,16 @@ export function NetworkStatusProvider({ children }: NetworkStatusProviderProps) 
     }
     previousOnlineRef.current = isOnline;
   }, [isOnline, clearHideTimeouts]);
+
+  // Server came back (browser online but API was down): replay queued sales + sync queue
+  useEffect(() => {
+    const wasDown = !previousServerReachableRef.current;
+    if (wasDown && isServerReachable && isOnline) {
+      if (isOfflineEnabled()) syncService.processSyncQueue().catch(() => {});
+      if (isPosSaleOutboxEnabled()) syncPendingPosSales().catch(() => {});
+    }
+    previousServerReachableRef.current = isServerReachable;
+  }, [isServerReachable, isOnline]);
 
   // Listen to sync events for progress
   useEffect(() => {

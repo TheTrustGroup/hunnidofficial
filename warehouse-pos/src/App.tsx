@@ -14,6 +14,7 @@ import { ToastProvider, useToast } from './contexts/ToastContext';
 import { NetworkStatusProvider } from './contexts/NetworkStatusContext';
 import { RealtimeProvider } from './contexts/RealtimeContext';
 import { AuthenticatedPresenceBridge } from './contexts/AuthenticatedPresenceBridge';
+import { OfflineSyncBootstrap } from './components/OfflineSyncBootstrap';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { RouteErrorBoundary } from './components/ui/RouteErrorBoundary';
 import { Button } from './components/ui/Button';
@@ -168,6 +169,7 @@ function ProtectedRoutes() {
         <StoreProvider>
           <WarehouseProvider>
             <AuthenticatedPresenceBridge>
+              <OfflineSyncBootstrap />
               <InventoryProvider>
                 <OrderProvider>
                   <CriticalDataGate>
