@@ -674,7 +674,7 @@ export async function GET(req: NextRequest) {
       delivered_at, delivered_by,
       sale_lines (
         id, product_id, size_code, name, sku,
-        unit_price, qty, line_total
+        unit_price, qty, line_total, product_image_url
       )
     `
       )

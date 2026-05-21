@@ -64,6 +64,7 @@ import { isRetryableSaleError } from '../lib/posSaleErrors';
 import { syncPendingPosSales } from '../lib/posSaleSync';
 import { getUserFriendlyMessage, POS_ERRORS } from '../lib/errorMessages';
 import { reportError } from '../lib/errorReporting';
+import { persistableSaleLineImageUrl } from '../lib/saleLineImage';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ function salePayloadToApiBody(payload: SalePayload): Record<string, unknown> {
       lineTotal: l.unitPrice * l.qty,
       name: l.name,
       sku: l.sku ?? '',
-      imageUrl: null,
+      imageUrl: persistableSaleLineImageUrl(l.imageUrl),
     })),
   };
 }

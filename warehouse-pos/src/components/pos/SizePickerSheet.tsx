@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { getSafeProductImageUrlSized, EMPTY_IMAGE_DATA_URL } from '../../lib/imageUpload';
+import { resolveCartLineImageUrl } from '../../lib/saleLineImage';
 
 /**
  * POS product shape. Inventory Product (from useInventory) passed into POS views
@@ -201,10 +201,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
   const handleAddToCart = () => {
     if (selectedVariants.length === 0) return;
     const lines: CartLineInput[] = selectedVariants.map((v) => {
-      const first = product.images?.[0];
-      const sized = first ? getSafeProductImageUrlSized(first, 'thumb') : '';
-      const imageUrl =
-        sized && sized !== EMPTY_IMAGE_DATA_URL && !sized.startsWith('data:') ? sized : null;
+      const imageUrl = resolveCartLineImageUrl(product.images);
       return {
         productId: product.id,
         name: product.name,
@@ -302,10 +299,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
               <button
                 type="button"
                 onClick={() => {
-                  const first = product.images?.[0];
-                  const sized = first ? getSafeProductImageUrlSized(first, 'thumb') : '';
-                  const imageUrl =
-                    sized && sized !== EMPTY_IMAGE_DATA_URL && !sized.startsWith('data:') ? sized : null;
+                  const imageUrl = resolveCartLineImageUrl(product.images);
                   onAdd({
                     productId: product.id,
                     name: product.name,
