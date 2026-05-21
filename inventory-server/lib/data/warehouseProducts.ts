@@ -608,6 +608,7 @@ export async function getProductById(
     .from('warehouse_products')
     .select(WAREHOUSE_PRODUCTS_SELECT)
     .eq('id', productId)
+    .is('archived_at', null)
     .single();
 
   if (!row) return null;
@@ -1085,12 +1086,26 @@ export async function updateWarehouseProduct(
   return getProductById(warehouseId, productId);
 }
 
+export type DeleteWarehouseProductResult = { mode: 'deleted' | 'archived' };
+
 /**
- * Delete product: remove all inventory and by-size rows for this product, then delete the product row.
- * Product is removed from every warehouse so it does not reappear on list poll.
+ * Remove product from inventory. Hard-delete when never sold; archive when sale_lines reference it
+ * (preserves sales history and FK integrity).
  */
-export async function deleteWarehouseProduct(productId: string, _warehouseId: string): Promise<void> {
+export async function deleteWarehouseProduct(
+  productId: string,
+  _warehouseId: string
+): Promise<DeleteWarehouseProductResult> {
   const db = getDb();
+
+  const { count, error: saleCountErr } = await db
+    .from('sale_lines')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', productId);
+  if (saleCountErr) {
+    throw new Error(`Failed to check sale history: ${saleCountErr.message}`);
+  }
+  const hasSales = (count ?? 0) > 0;
 
   const { error: delSizeErr } = await db
     .from('warehouse_inventory_by_size')
@@ -1108,10 +1123,22 @@ export async function deleteWarehouseProduct(productId: string, _warehouseId: st
     throw new Error(`Failed to delete warehouse inventory: ${delInvErr.message}`);
   }
 
+  if (hasSales) {
+    const { error: archErr } = await db
+      .from('warehouse_products')
+      .update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', productId);
+    if (archErr) {
+      throw new Error(`Failed to archive product: ${archErr.message}`);
+    }
+    return { mode: 'archived' };
+  }
+
   const { error: delProdErr } = await db.from('warehouse_products').delete().eq('id', productId);
   if (delProdErr) {
     throw new Error(`Failed to delete product: ${delProdErr.message}`);
   }
+  return { mode: 'deleted' };
 }
 
 /** Stub: bulk delete. Implement when needed. */

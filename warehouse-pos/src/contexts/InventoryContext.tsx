@@ -16,7 +16,7 @@ import { Product } from '../types';
 import { getStoredData, setStoredData, isStorageAvailable } from '../lib/storage';
 import { API_BASE_URL } from '../lib/api';
 import { apiGet, apiPost, apiPut, apiDelete } from '../lib/apiClient';
-import { getUserFriendlyMessage } from '../lib/errorMessages';
+import { getUserFriendlyMessage, INVENTORY_ERRORS } from '../lib/errorMessages';
 import { getApiCircuitBreaker } from '../lib/circuit';
 import { useWarehouse, DEFAULT_WAREHOUSE_ID } from './WarehouseContext';
 import { isValidWarehouseId } from '../lib/warehouseId';
@@ -1157,16 +1157,29 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
    */
   const deleteProduct = async (id: string) => {
     try {
+      let mode: string | undefined;
       try {
-        await apiDelete(API_BASE_URL, productByIdPath('/api/products', id));
+        const res = await apiDelete<{ ok?: boolean; mode?: string }>(
+          API_BASE_URL,
+          productByIdPath('/api/products', id)
+        );
+        mode = res?.mode;
       } catch {
-        await apiDelete(API_BASE_URL, productByIdPath('/admin/api/products', id));
+        const res = await apiDelete<{ ok?: boolean; mode?: string }>(
+          API_BASE_URL,
+          productByIdPath('/admin/api/products', id)
+        );
+        mode = res?.mode;
       }
       logInventoryDelete({ productId: id });
       recentlyDeletedIdsRef.current.add(id);
       setTimeout(() => recentlyDeletedIdsRef.current.delete(id), RECENT_DELETE_WINDOW_MS);
       setProducts((prev) => prev.filter((p) => p.id !== id));
       loadProducts(undefined, { bypassCache: true, silent: true }).catch(() => {});
+      showToast(
+        'success',
+        mode === 'archived' ? INVENTORY_ERRORS.productArchivedBecauseSold : INVENTORY_ERRORS.productRemoved
+      );
     } catch (err) {
       const status = (err as { status?: number })?.status;
       const msg =
@@ -1187,13 +1200,24 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const deleteProducts = async (ids: string[]) => {
     if (ids.length === 0) return;
     const idSet = new Set(ids);
+    let archivedCount = 0;
     for (const id of ids) {
       try {
+        let mode: string | undefined;
         try {
-          await apiDelete(API_BASE_URL, productByIdPath('/api/products', id));
+          const res = await apiDelete<{ ok?: boolean; mode?: string }>(
+            API_BASE_URL,
+            productByIdPath('/api/products', id)
+          );
+          mode = res?.mode;
         } catch {
-          await apiDelete(API_BASE_URL, productByIdPath('/admin/api/products', id));
+          const res = await apiDelete<{ ok?: boolean; mode?: string }>(
+            API_BASE_URL,
+            productByIdPath('/admin/api/products', id)
+          );
+          mode = res?.mode;
         }
+        if (mode === 'archived') archivedCount++;
         logInventoryDelete({ productId: id });
       } catch (err) {
         const status = (err as { status?: number })?.status;
@@ -1213,6 +1237,16 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     });
     setProducts((prev) => prev.filter((p) => !idSet.has(p.id)));
     loadProducts(undefined, { bypassCache: true, silent: true }).catch(() => {});
+    if (archivedCount > 0 && archivedCount === ids.length) {
+      showToast('success', INVENTORY_ERRORS.productArchivedBecauseSold);
+    } else if (archivedCount > 0) {
+      showToast(
+        'success',
+        `${ids.length - archivedCount} removed. ${archivedCount} hidden from inventory (sales history kept).`
+      );
+    } else {
+      showToast('success', INVENTORY_ERRORS.productRemoved);
+    }
   };
 
   const getProduct = (id: string) => {

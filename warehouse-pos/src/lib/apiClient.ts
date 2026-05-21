@@ -275,10 +275,10 @@ export function apiPatch<T>(
 }
 
 /** DELETE with optional signal and timeout. No retries (safe GETs only). */
-export function apiDelete(
+export function apiDelete<T = { ok?: boolean; mode?: string }>(
   baseUrl: string,
   path: string,
   options?: { signal?: AbortSignal | null; timeoutMs?: number }
-): Promise<void> {
-  return apiRequest({ ...options, maxRetries: DEFAULT_MAX_RETRIES_MUTATE, baseUrl, path, method: 'DELETE' });
+): Promise<T> {
+  return apiRequest<T>({ ...options, maxRetries: DEFAULT_MAX_RETRIES_MUTATE, baseUrl, path, method: 'DELETE' });
 }

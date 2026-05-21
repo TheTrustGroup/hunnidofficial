@@ -48,8 +48,8 @@ export async function handleDeleteProductById(
   _auth: Session
 ): Promise<NextResponse> {
   try {
-    await deleteWarehouseProduct(id, warehouseId);
-    return NextResponse.json({ ok: true });
+    const result = await deleteWarehouseProduct(id, warehouseId);
+    return NextResponse.json({ ok: true, mode: result.mode });
   } catch (e) {
     console.error('[API ERROR]', e);
     return NextResponse.json({ error: toSafeError(e) }, { status: 400 });

@@ -7,6 +7,12 @@
 export const GENERIC_USER_ERROR = 'Something went wrong. Please try again.';
 
 /** POS checkout — keep short and cart-focused. */
+export const INVENTORY_ERRORS = {
+  productArchivedBecauseSold:
+    'Removed from inventory. Sales history is kept, so this product is hidden from POS and the catalog.',
+  productRemoved: 'Product removed.',
+} as const;
+
 export const POS_ERRORS = {
   insufficientStock:
     'Insufficient stock for one or more items. Reduce quantity or remove items and try again.',
@@ -63,6 +69,13 @@ export function getUserFriendlyMessage(error: unknown): string {
   }
   if (str.includes('404') || str.includes('not found')) {
     return 'The requested item was not found.';
+  }
+  if (
+    str.includes('sale_lines_product_id_fkey') ||
+    (str.includes('sale_lines') && str.includes('foreign key')) ||
+    str.includes('sales history')
+  ) {
+    return INVENTORY_ERRORS.productArchivedBecauseSold;
   }
   if (str.includes('insufficient_stock') || str.includes('insufficient stock')) {
     return POS_ERRORS.insufficientStock;

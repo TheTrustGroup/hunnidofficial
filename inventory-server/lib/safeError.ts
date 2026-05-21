@@ -49,6 +49,9 @@ export function toSafeError(err: unknown): string {
   if (msg.includes('product not found')) {
     return 'The requested product was not found.';
   }
+  if (msg.includes('sale_lines_product_id_fkey') || (msg.includes('sale_lines') && msg.includes('foreign key'))) {
+    return 'This product has sales history and cannot be permanently deleted. Remove it from inventory instead — it will be hidden from POS.';
+  }
   if (msg.includes('unauthorized')) {
     return 'Your session expired. Please sign in again.';
   }
