@@ -648,11 +648,17 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         });
         // When API returned empty for this warehouse, always update state so Dashboard/Inventory show 0 (never keep previous warehouse's list).
         const skipStateUpdate = listToSet.length > 0 && silent && sameData;
+        // Keep server total in sync even when silent refresh skips list state update.
+        // Without this, pagination can think there's no more data and show empty pages.
+        if (typeof totalFromApi === 'number') {
+          setProductsTotal(totalFromApi);
+        } else if (!skipStateUpdate) {
+          setProductsTotal(null);
+        }
         if (!skipStateUpdate) {
           setProducts(listToSet);
           if (!silent) setError(null);
           setLastSyncAt(new Date());
-          setProductsTotal(typeof totalFromApi === 'number' ? totalFromApi : null);
         }
         cacheRef.current[wid] = { data: listToSet, ts: Date.now() };
         logInventoryRead({ listLength: listToSet.length, environment: import.meta.env.PROD ? 'production' : 'development' });

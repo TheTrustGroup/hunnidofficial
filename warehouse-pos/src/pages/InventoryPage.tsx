@@ -603,12 +603,21 @@ export default function InventoryPage(_props: InventoryPageProps) {
   /** Page count over full list (205 → 11 pages at 20/page), so user can go to page 4 and we load more until we have items 61–80. */
   const totalPages = Math.max(1, Math.ceil(totalForDisplay / pageSize));
   const pageStart = (currentPage - 1) * pageSize;
+  const displayRangeStart = totalFiltered === 0 ? 0 : pageStart + 1;
+  const displayRangeEnd = Math.min(pageStart + pageSize, totalFiltered);
   const displayed = useMemo(
     () => filtered.slice(pageStart, pageStart + pageSize),
     [filtered, pageStart, pageSize]
   );
-  /** Current page needs items we haven't loaded yet (e.g. page 4 needs 61–80, we have 50). */
-  const pageNeedsMore = totalFiltered < pageStart + pageSize && hasMore && !hasActiveFilters;
+  /**
+   * Current page needs items we haven't loaded yet (e.g. page 4 needs 61–80, we have 50).
+   * If productsTotal is temporarily unknown (cache-first paint), fall back to totalForDisplay.
+   */
+  const mayHaveMoreByDisplayTotal = !hasActiveFilters && totalForDisplay > products.length;
+  const pageNeedsMore =
+    totalFiltered < pageStart + pageSize &&
+    !hasActiveFilters &&
+    (hasMore || mayHaveMoreByDisplayTotal);
   const SORT_OPTIONS: { key: SortKey; label: string }[] = [
     { key: 'name_asc',   label: 'Name A–Z'       },
     { key: 'name_desc',  label: 'Name Z–A'       },
@@ -802,7 +811,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
           </div>
         </div>
         <span className="text-[11px] text-[var(--edk-ink-3)] whitespace-nowrap">
-          Showing <strong className="text-[var(--edk-ink-2)] font-semibold">{pageStart + 1}–{Math.min(pageStart + pageSize, totalFiltered)}</strong> of {totalForDisplay}
+          Showing <strong className="text-[var(--edk-ink-2)] font-semibold">{displayRangeStart}–{displayRangeEnd}</strong> of {totalForDisplay}
         </span>
       </div>
 
@@ -909,7 +918,7 @@ export default function InventoryPage(_props: InventoryPageProps) {
         )}
 
         {/* Empty filter */}
-        {!loading && !error && products.length > 0 && displayed.length === 0 && !pageNeedsMore && (
+        {!loading && !error && products.length > 0 && displayed.length === 0 && !pageNeedsMore && hasActiveFilters && (
           <div className="flex flex-col items-center gap-3 py-20 text-center">
             <p className="text-[15px] font-bold text-[var(--edk-ink-2)]">
               No results for current filters
@@ -923,6 +932,39 @@ export default function InventoryPage(_props: InventoryPageProps) {
             >
               Clear filters
             </Button>
+          </div>
+        )}
+
+        {/* Empty page slice without active filters: recover gracefully instead of showing filter-empty message */}
+        {!loading && !error && products.length > 0 && displayed.length === 0 && !pageNeedsMore && !hasActiveFilters && (
+          <div className="flex flex-col items-center gap-3 py-20 text-center">
+            <p className="text-[15px] font-bold text-[var(--edk-ink-2)]">
+              This page is still loading
+            </p>
+            <p className="text-[12px] text-[var(--edk-ink-3)]">
+              Try loading more products or go back one page.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage <= 1}
+              >
+                Previous page
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => loadMore()}
+                disabled={isLoadingMore || (!hasMore && !mayHaveMoreByDisplayTotal)}
+                loading={isLoadingMore}
+              >
+                Load more
+              </Button>
+            </div>
           </div>
         )}
 
