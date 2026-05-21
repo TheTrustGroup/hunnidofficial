@@ -275,7 +275,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Try atomic RPC first. record_sale deducts stock. Pass p_lines as JSON string so DB receives valid array (record_sale text overload).
+    // Try atomic RPC first. record_sale/record_sale_impl deduct stock transactionally.
     const clientEventUuid =
       clientEventId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientEventId)
         ? clientEventId
