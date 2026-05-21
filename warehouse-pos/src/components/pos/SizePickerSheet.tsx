@@ -204,7 +204,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
       const first = product.images?.[0];
       const sized = first ? getSafeProductImageUrlSized(first, 'thumb') : '';
       const imageUrl =
-        sized && sized !== EMPTY_IMAGE_DATA_URL ? sized : null;
+        sized && sized !== EMPTY_IMAGE_DATA_URL && !sized.startsWith('data:') ? sized : null;
       return {
         productId: product.id,
         name: product.name,
@@ -305,7 +305,7 @@ export default function SizePickerSheet({ product, onAdd, onAddBatch, onClose }:
                   const first = product.images?.[0];
                   const sized = first ? getSafeProductImageUrlSized(first, 'thumb') : '';
                   const imageUrl =
-                    sized && sized !== EMPTY_IMAGE_DATA_URL ? sized : null;
+                    sized && sized !== EMPTY_IMAGE_DATA_URL && !sized.startsWith('data:') ? sized : null;
                   onAdd({
                     productId: product.id,
                     name: product.name,

@@ -7,7 +7,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { getApiCircuitBreaker } from '../lib/circuit';
 
-const POLL_INTERVAL_MS = 2000;
+const POLL_INTERVAL_MS = 10_000;
 
 type ApiStatusContextValue = {
   /** True when circuit breaker is open (server considered unavailable). */

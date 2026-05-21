@@ -4,7 +4,8 @@
  */
 
 /** Poll interval for product list refresh (InventoryPage and InventoryContext). */
-export const INVENTORY_POLL_MS = 30_000;
+/** 60s reduces Supabase/API load when many POS tabs stay open. */
+export const INVENTORY_POLL_MS = 60_000;
 
 /** Default page size for product list requests. */
 export const INVENTORY_PAGE_SIZE = 50;

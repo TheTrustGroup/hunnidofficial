@@ -125,7 +125,7 @@ export function Reports() {
             from: fromIso,
             to: toIso,
             warehouse_id: warehouseIdForRequests,
-            limit: 2000,
+            limit: 500,
             include_voided: true,
           });
           setTransactions(data);

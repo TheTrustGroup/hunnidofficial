@@ -12,6 +12,7 @@ import { corsHeaders } from '@/lib/cors';
 import { requireAuth, getEffectiveWarehouseId } from '@/lib/auth/session';
 import { getScopeForUser } from '@/lib/data/userScopes';
 import { toSafeError } from '@/lib/safeError';
+import { sanitizeSaleLineImageUrl, saleLineImageUrlForResponse } from '@/lib/saleLineImage';
 
 function withCors(res: NextResponse, req: NextRequest): NextResponse {
   const h = corsHeaders(req);
@@ -195,7 +196,7 @@ export async function POST(req: NextRequest) {
         lineTotal: Number(l.lineTotal ?? up * qty),
         name: String(l.name ?? 'Product'),
         sku: String(l.sku ?? ''),
-        imageUrl: String(l.imageUrl ?? '').trim() || null,
+        imageUrl: sanitizeSaleLineImageUrl(String(l.imageUrl ?? '').trim() || null),
       };
     });
   } catch (e: unknown) {
@@ -550,7 +551,7 @@ async function manualSaleFallback(args: {
       unit_price: line.unitPrice,
       qty: line.qty,
       line_total: line.lineTotal,
-      ...(line.imageUrl != null && { product_image_url: line.imageUrl }),
+      ...(line.imageUrl != null && { product_image_url: sanitizeSaleLineImageUrl(line.imageUrl) }),
     });
 
     // Stock deduction
@@ -673,7 +674,7 @@ export async function GET(req: NextRequest) {
       delivered_at, delivered_by,
       sale_lines (
         id, product_id, size_code, name, sku,
-        unit_price, qty, line_total, product_image_url
+        unit_price, qty, line_total
       )
     `
       )
@@ -857,7 +858,9 @@ function shapeSales(rows: Array<Record<string, unknown>>) {
       unitPrice: Number(l.unit_price ?? 0),
       qty: l.qty,
       lineTotal: Number(l.line_total ?? 0),
-      imageUrl: l.product_image_url ?? null,
+      imageUrl: saleLineImageUrlForResponse(
+        (l.product_image_url as string | null | undefined) ?? null
+      ),
     })),
   }));
 }
