@@ -30,6 +30,82 @@ function getDb() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+type RecordSaleRpcInput = {
+  warehouseId: string;
+  lines: Array<Record<string, unknown>>;
+  subtotal: number;
+  discountPct: number;
+  discountAmt: number;
+  total: number;
+  paymentMethod: string;
+  customerName: string | null;
+  soldByEmail: string | null;
+  clientEventUuid: string | null;
+};
+
+/**
+ * Call record_sale using deterministic function resolution.
+ * Avoids ambiguous overload failures (PGRST203) when both text/jsonb overloads exist.
+ */
+async function callRecordSaleRpc(
+  db: ReturnType<typeof getDb>,
+  input: RecordSaleRpcInput
+): Promise<{ data: unknown; error: { code?: string; message?: string; details?: string } | null; source: string }> {
+  const argsWithClient = {
+    p_warehouse_id: input.warehouseId,
+    p_lines: input.lines,
+    p_subtotal: input.subtotal,
+    p_discount_pct: input.discountPct,
+    p_discount_amt: input.discountAmt,
+    p_total: input.total,
+    p_payment_method: input.paymentMethod,
+    p_customer_name: input.customerName,
+    p_sold_by: null,
+    p_sold_by_email: input.soldByEmail,
+    p_client_event_id: input.clientEventUuid,
+  };
+  const argsLegacy = {
+    p_warehouse_id: input.warehouseId,
+    p_lines: input.lines,
+    p_subtotal: input.subtotal,
+    p_discount_pct: input.discountPct,
+    p_discount_amt: input.discountAmt,
+    p_total: input.total,
+    p_payment_method: input.paymentMethod,
+    p_customer_name: input.customerName,
+    p_sold_by: null,
+    p_sold_by_email: input.soldByEmail,
+  };
+
+  const attempts: Array<{ fn: string; args: Record<string, unknown> }> = [
+    // Preferred deterministic impl with idempotency arg
+    { fn: 'record_sale_impl', args: argsWithClient },
+    // Older impl signature (before p_client_event_id)
+    { fn: 'record_sale_impl', args: argsLegacy },
+    // Explicit non-overloaded wrapper if present
+    { fn: 'record_sale_jsonb', args: argsWithClient },
+    // Last fallback: legacy overloaded public function
+    { fn: 'record_sale', args: argsWithClient },
+  ];
+
+  let lastError: { code?: string; message?: string; details?: string } | null = null;
+
+  for (const attempt of attempts) {
+    const { data, error } = await db.rpc(attempt.fn, attempt.args);
+    if (!error) return { data, error: null, source: attempt.fn };
+    lastError = error;
+    const msg = String(error.message ?? '').toLowerCase();
+    const retryWithNextFn =
+      error.code === '42883' ||
+      error.code === 'PGRST203' ||
+      msg.includes('does not exist') ||
+      msg.includes('could not choose the best candidate');
+    if (!retryWithNextFn) return { data: null, error, source: attempt.fn };
+  }
+
+  return { data: null, error: lastError, source: 'none' };
+}
+
 // ── POST /api/sales ───────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -127,6 +203,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400, headers: h });
   }
 
+  // Monetary invariants: prevent ledger drift from malformed payloads.
+  const roundMoney = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  const computedSubtotal = roundMoney(
+    normalizedLines.reduce((sum, line) => sum + Number(line.unitPrice) * Number(line.qty), 0)
+  );
+  const providedSubtotal = roundMoney(subtotal);
+  const providedDiscountAmt = roundMoney(discountAmt);
+  const providedTotal = roundMoney(total);
+  const expectedTotal = roundMoney(providedSubtotal - providedDiscountAmt);
+
+  if (providedSubtotal < 0 || providedDiscountAmt < 0 || providedTotal < 0) {
+    return NextResponse.json(
+      { error: 'Amounts must be non-negative.' },
+      { status: 400, headers: h }
+    );
+  }
+  if (discountPct < 0 || discountPct > 100) {
+    return NextResponse.json(
+      { error: 'Discount percent must be between 0 and 100.' },
+      { status: 400, headers: h }
+    );
+  }
+  if (Math.abs(computedSubtotal - providedSubtotal) > 0.01) {
+    return NextResponse.json(
+      { error: 'Subtotal does not match line items. Recalculate cart and try again.' },
+      { status: 400, headers: h }
+    );
+  }
+  if (providedDiscountAmt - providedSubtotal > 0.01) {
+    return NextResponse.json(
+      { error: 'Discount amount cannot exceed subtotal.' },
+      { status: 400, headers: h }
+    );
+  }
+  if (Math.abs(expectedTotal - providedTotal) > 0.01) {
+    return NextResponse.json(
+      { error: 'Total does not match subtotal minus discount. Recalculate cart and try again.' },
+      { status: 400, headers: h }
+    );
+  }
+
   try {
     const db = getDb();
 
@@ -164,18 +281,17 @@ export async function POST(req: NextRequest) {
         ? clientEventId
         : null;
 
-    const { data, error } = await db.rpc('record_sale', {
-      p_warehouse_id: warehouseId,
-      p_lines: JSON.stringify(normalizedLines),
-      p_subtotal: subtotal,
-      p_discount_pct: discountPct,
-      p_discount_amt: discountAmt,
-      p_total: total,
-      p_payment_method: paymentMethod,
-      p_customer_name: customerName,
-      p_sold_by: null,
-      p_sold_by_email: auth?.email ?? null,
-      p_client_event_id: clientEventUuid,
+    const { data, error, source } = await callRecordSaleRpc(db, {
+      warehouseId,
+      lines: normalizedLines as Array<Record<string, unknown>>,
+      subtotal,
+      discountPct,
+      discountAmt,
+      total,
+      paymentMethod,
+      customerName,
+      soldByEmail: auth?.email ?? null,
+      clientEventUuid,
     });
 
     if (error) {
@@ -194,11 +310,17 @@ export async function POST(req: NextRequest) {
       // RPC missing (e.g. record_sale not deployed). Fallback is non-atomic — disabled by default.
       // To use atomic sales: run migration 20250228170000_sales_sold_by_email.sql in Supabase (creates record_sale).
       // Set ALLOW_SALE_FALLBACK=true only in dev/staging if you must test without the RPC; never in production.
-      if (error.code === '42883' || error.message?.includes('does not exist')) {
+      const isMissingOrAmbiguous =
+        error.code === '42883' ||
+        error.code === 'PGRST203' ||
+        error.message?.includes('does not exist') ||
+        error.message?.toLowerCase()?.includes('could not choose the best candidate');
+      if (isMissingOrAmbiguous) {
         console.error('[POST /api/sales] record_sale RPC failed (missing or error)', {
           code: error.code,
           message: error.message,
           details: error.details,
+          source,
         });
         const allowFallback = process.env.ALLOW_SALE_FALLBACK === 'true';
         if (!allowFallback) {
@@ -261,16 +383,63 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const responsePayload = {
+      id: saleId,
+      receiptId: result.receiptId ?? result.receipt_id ?? `RCP-${saleId?.slice(0, 8) ?? 'unknown'}`,
+      total,
+      itemCount: normalizedLines.reduce((s, l) => s + l.qty, 0),
+      status: 'completed',
+      deliveryStatus: effectiveDeliveryStatus,
+      createdAt: result.createdAt ?? result.created_at ?? new Date().toISOString(),
+      ...(rpcIdempotent ? { idempotent: true } : {}),
+    };
+
+    // Post-write verification to detect rare drift/inconsistency before reporting success.
+    if (saleId) {
+      const { data: auditSale, error: auditSaleErr } = await db
+        .from('sales')
+        .select('id, total, item_count')
+        .eq('id', saleId)
+        .maybeSingle();
+      const { data: auditLines, error: auditLinesErr } = await db
+        .from('sale_lines')
+        .select('qty, line_total')
+        .eq('sale_id', saleId);
+      if (auditSaleErr || auditLinesErr || !auditSale) {
+        console.error('[POST /api/sales] post-write audit read failed', {
+          saleId,
+          auditSaleErr,
+          auditLinesErr,
+        });
+        return NextResponse.json(
+          { error: 'Sale saved but verification failed. Do not retry yet; contact support.' },
+          { status: 500, headers: h }
+        );
+      }
+      const lineRows = Array.isArray(auditLines) ? auditLines : [];
+      const auditItemCount = lineRows.reduce((s, row) => s + Number(row.qty ?? 0), 0);
+      const auditTotal = roundMoney(lineRows.reduce((s, row) => s + Number(row.line_total ?? 0), 0) - providedDiscountAmt);
+      const saleTotal = roundMoney(Number((auditSale as { total?: number }).total ?? 0));
+      const saleItemCount = Number((auditSale as { item_count?: number }).item_count ?? 0);
+      if (Math.abs(saleTotal - providedTotal) > 0.01 || saleItemCount !== auditItemCount || Math.abs(auditTotal - providedTotal) > 0.01) {
+        console.error('[POST /api/sales] post-write audit mismatch', {
+          saleId,
+          providedTotal,
+          saleTotal,
+          auditTotal,
+          saleItemCount,
+          auditItemCount,
+        });
+        return NextResponse.json(
+          { error: 'Sale verification mismatch. Do not retry yet; contact support.' },
+          { status: 500, headers: h }
+        );
+      }
+    }
+
     return NextResponse.json(
       {
-        id: saleId,
-        receiptId: result.receiptId ?? result.receipt_id ?? `RCP-${saleId?.slice(0, 8) ?? 'unknown'}`,
-        total,
-        itemCount: normalizedLines.reduce((s, l) => s + l.qty, 0),
-        status: 'completed',
-        deliveryStatus: effectiveDeliveryStatus,
-        createdAt: result.createdAt ?? result.created_at ?? new Date().toISOString(),
-        ...(rpcIdempotent ? { idempotent: true } : {}),
+        ...responsePayload,
       },
       { status: rpcIdempotent ? 200 : 201, headers: h }
     );
