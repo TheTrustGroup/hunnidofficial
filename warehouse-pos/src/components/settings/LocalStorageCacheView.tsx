@@ -123,6 +123,15 @@ export function LocalStorageCacheView() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 text-sm text-blue-900">
+        <p className="font-medium">This device only</p>
+        <p className="mt-1 text-blue-800">
+          Actions here change browser cache on this computer or tablet. They do <strong>not</strong> delete
+          sales, receipts, or server inventory. Sales history lives in the database and is unchanged by
+          clearing cache.
+        </p>
+      </div>
+
       <div>
         <h2 className="text-xl font-bold text-slate-900">Local storage (inventory cache)</h2>
         <p className="text-slate-600 text-sm mt-1">

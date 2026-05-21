@@ -252,6 +252,15 @@ export function AdminDashboard() {
 
   return (
     <div className="space-y-8">
+      <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 text-sm text-blue-900">
+        <p className="font-medium">Support tools (this device)</p>
+        <p className="mt-1 text-blue-800">
+          Sync queue, logs, and local backups apply to this browser only. Completed sales on the server are
+          not removed by clearing local data. Use <strong>Sync now</strong> to upload queued POS sales to{' '}
+          <strong>/api/sales</strong>.
+        </p>
+      </div>
+
       {/* Sync statistics */}
       <section>
         <h2 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">

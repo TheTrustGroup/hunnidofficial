@@ -1,33 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Building2, Settings as SettingsIcon, Users, Tag, RotateCcw, Database, Shield } from 'lucide-react';
+import { Building2, Settings as SettingsIcon, Users, RotateCcw, Database, Shield } from 'lucide-react';
 import { BusinessProfile } from '../components/settings/BusinessProfile';
 import { SystemPreferences } from '../components/settings/SystemPreferences';
 import { UserManagement } from '../components/settings/UserManagement';
-import { CategoryManagement } from '../components/settings/CategoryManagement';
 import { LocalStorageCacheView } from '../components/settings/LocalStorageCacheView';
 import { AdminDashboard } from '../components/settings/AdminDashboard';
 import { useSettings } from '../contexts/SettingsContext';
 import { Button } from '../components/ui/Button';
 
-type SettingsTab = 'business' | 'system' | 'users' | 'categories' | 'cache' | 'admin';
+type SettingsTab = 'business' | 'system' | 'users' | 'cache' | 'admin';
 
-const TAB_IDS: SettingsTab[] = ['business', 'system', 'users', 'categories', 'cache', 'admin'];
+const TAB_IDS: SettingsTab[] = ['business', 'system', 'users', 'cache', 'admin'];
 
 export function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab') as SettingsTab | null;
-  const [activeTab, setActiveTab] = useState<SettingsTab>(
-    tabParam && TAB_IDS.includes(tabParam) ? tabParam : 'business'
-  );
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
+    if (tabParam === 'categories') return 'business';
+    return tabParam && TAB_IDS.includes(tabParam as SettingsTab) ? (tabParam as SettingsTab) : 'business';
+  });
   const { resetToDefaults } = useSettings();
 
-  // Update tab when URL param changes
+  // Update tab when URL param changes (legacy ?tab=categories redirects — tab was demo-only)
   useEffect(() => {
-    if (tabParam && TAB_IDS.includes(tabParam)) {
-      setActiveTab(tabParam);
+    if (tabParam === 'categories') {
+      setActiveTab('business');
+      setSearchParams({ tab: 'business' }, { replace: true });
+      return;
     }
-  }, [tabParam]);
+    if (tabParam && TAB_IDS.includes(tabParam as SettingsTab)) {
+      setActiveTab(tabParam as SettingsTab);
+    }
+  }, [tabParam, setSearchParams]);
 
   // Update URL when tab changes
   const handleTabChange = (tab: SettingsTab) => {
@@ -39,7 +44,6 @@ export function Settings() {
     { id: 'business' as SettingsTab, label: 'Business Profile', icon: Building2 },
     { id: 'system' as SettingsTab, label: 'System', icon: SettingsIcon },
     { id: 'users' as SettingsTab, label: 'Users', icon: Users },
-    { id: 'categories' as SettingsTab, label: 'Categories', icon: Tag },
     { id: 'cache' as SettingsTab, label: 'Data & cache', icon: Database },
     { id: 'admin' as SettingsTab, label: 'Admin & logs', icon: Shield },
   ];
@@ -94,7 +98,6 @@ export function Settings() {
           {activeTab === 'business' && <BusinessProfile />}
           {activeTab === 'system' && <SystemPreferences />}
           {activeTab === 'users' && <UserManagement />}
-          {activeTab === 'categories' && <CategoryManagement />}
           {activeTab === 'cache' && <LocalStorageCacheView />}
           {activeTab === 'admin' && <AdminDashboard />}
         </div>
