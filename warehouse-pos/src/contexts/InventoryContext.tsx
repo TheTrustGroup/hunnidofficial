@@ -1158,9 +1158,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const deleteProduct = async (id: string) => {
     try {
       try {
-        await apiDelete(API_BASE_URL, productByIdPath('/admin/api/products', id));
-      } catch {
         await apiDelete(API_BASE_URL, productByIdPath('/api/products', id));
+      } catch {
+        await apiDelete(API_BASE_URL, productByIdPath('/admin/api/products', id));
       }
       logInventoryDelete({ productId: id });
       recentlyDeletedIdsRef.current.add(id);
@@ -1190,9 +1190,9 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     for (const id of ids) {
       try {
         try {
-          await apiDelete(API_BASE_URL, productByIdPath('/admin/api/products', id));
-        } catch {
           await apiDelete(API_BASE_URL, productByIdPath('/api/products', id));
+        } catch {
+          await apiDelete(API_BASE_URL, productByIdPath('/admin/api/products', id));
         }
         logInventoryDelete({ productId: id });
       } catch (err) {

@@ -3,10 +3,20 @@ import { getWarehouseProducts, createWarehouseProduct } from '@/lib/data/warehou
 import { requireAdmin, getEffectiveWarehouseId } from '@/lib/auth/session';
 import { logDurability } from '@/lib/data/durabilityLogger';
 import { toSafeError } from '@/lib/safeError';
-import { handlePutProductById } from '@/lib/api/productByIdHandlers';
+import { corsHeaders } from '@/lib/cors';
+import { handlePutProductById, handleDeleteProductById } from '@/lib/api/productByIdHandlers';
 import type { PutProductBody } from '@/lib/data/warehouseProducts';
 
 export const dynamic = 'force-dynamic';
+
+function withCors(res: NextResponse, request: NextRequest): NextResponse {
+  Object.entries(corsHeaders(request)).forEach(([k, v]) => res.headers.set(k, v));
+  return res;
+}
+
+export async function OPTIONS(request: NextRequest): Promise<NextResponse> {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
+}
 
 function getRequestId(request: NextRequest): string {
   return request.headers.get('x-request-id')?.trim() || request.headers.get('x-correlation-id')?.trim() || crypto.randomUUID();
@@ -112,4 +122,29 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 /** PATCH: same as PUT. */
 export async function PATCH(request: NextRequest): Promise<NextResponse> {
   return PUT(request);
+}
+
+/** DELETE product by query ?id=&warehouse_id= (same contract as /api/products). */
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireAdmin(request);
+  if (auth instanceof NextResponse) return withCors(auth, request);
+  const { searchParams } = new URL(request.url);
+  let id = searchParams.get('id')?.trim() ?? '';
+  let warehouseId: string | null = searchParams.get('warehouse_id')?.trim() ?? null;
+  if (!id || !warehouseId) {
+    try {
+      const body = (await request.json()) as { id?: string; warehouseId?: string; warehouse_id?: string };
+      id = id || String(body?.id ?? '').trim();
+      warehouseId = warehouseId ?? (String(body?.warehouseId ?? body?.warehouse_id ?? '').trim() || null);
+    } catch {
+      /* body optional for DELETE */
+    }
+  }
+  if (!id) {
+    return withCors(NextResponse.json({ error: 'id required (query or body)' }, { status: 400 }), request);
+  }
+  if (!warehouseId) {
+    return withCors(NextResponse.json({ error: 'warehouseId required (query or body)' }, { status: 400 }), request);
+  }
+  return withCors(await handleDeleteProductById(request, id, warehouseId, auth), request);
 }
