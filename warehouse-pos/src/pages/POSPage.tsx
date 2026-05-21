@@ -14,11 +14,10 @@
 //   4. "New sale" button → reloads products from server
 //      → this re-syncs frontend with DB truth after each sale
 //
-// If POST /api/sales fails (API not deployed, network error):
-//   → Amber toast warning: "⚠ Sale not synced — deploy /api/sales"
-//   → Checkout still completes (cashier not blocked)
-//   → Stock IS deducted optimistically in UI
-//   → Next products refetch will restore real server values
+// If POST /api/sales fails (network/server error):
+//   → We queue payload locally for durability (no data loss)
+//   → Checkout is NOT marked complete until server confirms
+//   → Stock deduction remains server-authoritative (no fake local completion)
 //
 // REQUIREMENTS:
 //   - Run COMPLETE_SQL_FIX.sql in Supabase SQL Editor
@@ -174,6 +173,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
   const [chargeStatus, setChargeStatus]   = useState<ChargeStatus>('idle');
   const [lastChargeError, setLastChargeError] = useState<string | null>(null);
   const lastChargePayloadRef = useRef<SalePayload | null>(null);
+  const lastChargeClientEventIdRef = useRef<string | null>(null);
 
   const { toast, show: showToast } = useToast();
   const isMounted = useRef(true);
@@ -183,15 +183,33 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
     return () => { isMounted.current = false; };
   }, []);
 
+  const runPendingSalesSync = useCallback(async () => {
+    if (!isPosSaleOutboxEnabled()) return;
+    const result = await syncPendingPosSales();
+    if (result.synced > 0) {
+      notifyInventoryUpdated();
+      if (warehouse?.id) {
+        await invalidateProductsQuery(queryClient, warehouse.id);
+      }
+      refetchProducts();
+      showToast(
+        result.synced === 1
+          ? '1 queued sale synced to server.'
+          : `${result.synced} queued sales synced to server.`,
+        'ok'
+      );
+    }
+  }, [queryClient, refetchProducts, warehouse?.id, showToast]);
+
   useEffect(() => {
     if (!isPosSaleOutboxEnabled()) return;
     const run = () => {
-      syncPendingPosSales().catch(() => {});
+      runPendingSalesSync().catch(() => {});
     };
     run();
     window.addEventListener('online', run);
     return () => window.removeEventListener('online', run);
-  }, []);
+  }, [runPendingSalesSync]);
 
   // Keep local warehouse in sync with context (sidebar change or context loaded from API)
   // Sync local warehouse when context resolves; omit full object to avoid loop
@@ -310,18 +328,28 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
 
   // ── Charge ────────────────────────────────────────────────────────────────
 
-  async function handleCharge(payload: SalePayload) {
+  async function handleCharge(payload: SalePayload, options?: { retry?: boolean }) {
     if (charging) return;
     setCharging(true);
     setChargeStatus('processing');
     setLastChargeError(null);
     lastChargePayloadRef.current = payload;
+    const clientEventId =
+      options?.retry && lastChargeClientEventIdRef.current
+        ? lastChargeClientEventIdRef.current
+        : crypto.randomUUID();
+    lastChargeClientEventIdRef.current = clientEventId;
 
     let serverSaleId:    string | undefined;
     let serverReceiptId: string | undefined;
     let completedAt:     string | undefined;
     let syncOk = true;
     let insufficientStockShown = false;
+
+    const saleRequestBody = {
+      ...salePayloadToApiBody(payload),
+      clientEventId,
+    };
 
     // Step 1: POST /api/sales → record_sale() RPC atomically deducts stock in DB
     try {
@@ -331,32 +359,8 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         createdAt: string;
       }>('/api/sales', {
         method: 'POST',
-        body: JSON.stringify({
-          warehouseId:     payload.warehouseId,
-          customerName:    payload.customerName || null,
-          paymentMethod:   payload.paymentMethod,
-          subtotal:        payload.subtotal,
-          discountPct:     payload.discountPct,
-          discountAmt:     payload.discountAmt,
-          total:           payload.total,
-          ...(payload.paymentMixBreakdown && { paymentMixBreakdown: payload.paymentMixBreakdown }),
-          deliveryStatus:  payload.deliveryStatus  ?? 'delivered',
-          recipientName:   payload.recipientName   || null,
-          recipientPhone:  payload.recipientPhone  || null,
-          deliveryAddress: payload.deliveryAddress || null,
-          deliveryNotes:   payload.deliveryNotes   || null,
-          expectedDate:    payload.expectedDate    || null,
-          lines: payload.lines.map(l => ({
-            productId: l.productId,
-            sizeCode:  l.sizeCode || null,
-            qty:       l.qty,
-            unitPrice: l.unitPrice,
-            lineTotal: l.unitPrice * l.qty,
-            name:      l.name,
-            sku:       l.sku ?? '',
-            imageUrl:  null, // Omit URLs to keep payload under Vercel 4.5 MB limit (large carts)
-          })),
-        }),
+        headers: { 'Idempotency-Key': clientEventId },
+        body: JSON.stringify(saleRequestBody),
       }, { timeoutMs: 125_000 }); // 120s server maxDuration for 100+ line items
 
       const saleId = result.id ?? (result as { saleId?: string }).saleId;
@@ -385,14 +389,19 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
 
       if (canQueue) {
         try {
-          const eventId = crypto.randomUUID();
-          await enqueueSaleEvent(salePayloadToApiBody(payload), eventId);
-          syncOk = true;
-          serverSaleId = eventId;
-          serverReceiptId = `PENDING-${eventId.slice(0, 8).toUpperCase()}`;
-          completedAt = new Date().toISOString();
-          showToast('Sale saved on this device — will sync when connection is restored.', 'warn');
-          syncPendingPosSales().catch(() => {});
+          await enqueueSaleEvent(saleRequestBody, clientEventId);
+          // Critical rule: "Sale complete" means server committed and stock deducted in DB.
+          // Queueing preserves data but is NOT a completed sale yet.
+          syncOk = false;
+          setChargeStatus('error');
+          setLastChargeError(
+            'Sale queued for sync. It is not completed on the server yet. Keep this cart and retry when online.'
+          );
+          showToast(
+            'Sale queued for sync. Not completed yet — stock will deduct after server sync.',
+            'warn'
+          );
+          runPendingSalesSync().catch(() => {});
         } catch (queueErr) {
           console.error('[POS] offline sale queue failed', queueErr);
           syncOk = false;
@@ -464,6 +473,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
       setCharging(false);
       setChargeStatus('idle');
       lastChargePayloadRef.current = null;
+      lastChargeClientEventIdRef.current = null;
       setSaleResult({
         ...successPayload,
         saleId:         successResult.serverSaleId,
@@ -633,7 +643,7 @@ export default function POSPage({ apiBaseUrl: _ignored }: POSPageProps) {
         warehouseId={warehouse.id}
         chargeStatus={chargeStatus}
         lastChargeError={lastChargeError}
-        onRetry={() => { const p = lastChargePayloadRef.current; if (p) handleCharge(p); }}
+        onRetry={() => { const p = lastChargePayloadRef.current; if (p) handleCharge(p, { retry: true }); }}
         onUpdateQty={handleUpdateQty}
         onRemoveLine={handleRemoveLine}
         onClearCart={handleClearCart}

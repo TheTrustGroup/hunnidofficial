@@ -13,7 +13,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Package, AlertTriangle } from 'lucide-react';
+import { Package, AlertTriangle, Search, X } from 'lucide-react';
 import ProductCard, { ProductCardSkeleton } from '../components/inventory/ProductCard';
 import ProductModal from '../components/inventory/ProductModal';
 import { type SizeCode } from '../components/inventory/SizesSection';
@@ -502,6 +502,17 @@ export default function InventoryPage(_props: InventoryPageProps) {
     if (msSinceSave > 5000) setTimeout(() => refreshProducts({ silent: true }), 500);
   }
 
+  const setSearchQuery = useCallback(
+    (value: string) => {
+      const q = value.trim();
+      const next = new URLSearchParams(searchParams);
+      if (q) next.set('q', q);
+      else next.delete('q');
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
+
   // ── Delete ────────────────────────────────────────────────────────────────
 
   async function executeDelete(product: Product) {
@@ -727,6 +738,34 @@ export default function InventoryPage(_props: InventoryPageProps) {
       )}
 
       {/* Filter toolbar: category pills, Size/Color dropdowns, sort, results count — match POS (blue active) */}
+      <div className="lg:hidden mb-3">
+        <div className="relative">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--edk-ink-3)] pointer-events-none"
+            strokeWidth={2}
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search products, SKU, or barcode..."
+            className="w-full h-10 pl-9 pr-10 rounded-[var(--edk-radius)] border bg-[var(--edk-surface)] border-[var(--edk-border-mid)] text-[13px] text-[var(--edk-ink)] placeholder:text-[var(--edk-ink-3)] outline-none focus:border-[var(--blue)] focus:shadow-[0_0_0_2px_var(--blue-soft)]"
+            aria-label="Search products, SKU, or barcode"
+          />
+          {search.trim() !== '' && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-md flex items-center justify-center text-[var(--edk-ink-3)] hover:bg-[var(--edk-bg)]"
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4" strokeWidth={2} />
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="inventory-filters flex flex-wrap items-center gap-2 mb-5">
         <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
           {(['all', ...CATEGORIES] as string[]).map((cat) => (
